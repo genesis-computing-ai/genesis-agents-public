@@ -12,15 +12,43 @@ from genesis_bots.core.bot_os_tools2 import (
 )
 
 class JiraConnector:
-    def __init__(self, jira_url: str, username: Optional[str] = None, api_token: Optional[str] = None):
-        """Initialize Jira connection using either username/api_token or environment variables."""
-        self.jira_url = jira_url
-        self.username = username
-        self.api_token = api_token
+    def __init__(self):
+        """Initialize JiraConnector with None values, will be set during connection."""
+        self.jira_url = None
+        self.username = None
+        self.api_token = None
         self.client = None
+        # Get connection parameters on initialization
+        self._initialize_connection_params()
+
+    def _initialize_connection_params(self):
+        """Initialize connection parameters from Snowflake."""
+        try:
+            db_adapter = SnowflakeConnector(connection_name="Snowflake")
+            jira_config_params = db_adapter.get_jira_config_params()
+
+            # Extract the 'Data' field, which is a JSON string
+            data_json_str = jira_config_params['Data']
+
+            # Parse the JSON string into a Python list of dictionaries
+            data_list = json.loads(data_json_str)
+
+            # Convert list of dictionaries to a single dictionary
+            params_dict = {item['parameter']: item['value'] for item in data_list}
+
+            # Set instance variables
+            self.jira_url = params_dict['jira_url']
+            self.username = params_dict['jira_email']
+            self.api_token = params_dict['jira_api_key']
+
+        except Exception as e:
+            raise Exception(f"Failed to initialize Jira connection parameters: {str(e)}")
 
     def connect(self):
         """Establish connection to Jira."""
+        if not all([self.jira_url, self.username, self.api_token]):
+            raise Exception("Connection parameters not properly initialized")
+
         try:
             self.client = JIRA(
                 server=self.jira_url,
@@ -195,36 +223,12 @@ class JiraConnector:
             }
 
     def _jira_api_connector(self):
-        from jira import JIRA
-        db_adapter = SnowflakeConnector(connection_name="Snowflake")
-
+        """Get a connected JiraConnector instance."""
         try:
-            jira_config_params = db_adapter.get_jira_config_params()
-
-            # Extract the 'Data' field, which is a JSON string
-            data_json_str = jira_config_params['Data']
-
-            # Parse the JSON string into a Python list of dictionaries
-            data_list = json.loads(data_json_str)
-
-            # Access the first dictionary in the list
-            # parsed_data = data_list[0]
-
-            # Now you can access each key-value pair
-            params_dict = {item['parameter']: item['value'] for item in data_list}
-
-            # Extract values
-            jira_url = params_dict['jira_url']
-            jira_email = params_dict['jira_email']
-            jira_api_key = params_dict['jira_api_key']
-
-            jira_connector = JiraConnector(
-                jira_url,
-                jira_email,
-                jira_api_key
-            )
-
-            return jira_connector
+            # Since we already have the connection parameters, just connect
+            if self.connect():
+                return self
+            raise Exception("Failed to connect to Jira")
         except Exception as e:
             return {"error connecting to JIRA": str(e)}
 
@@ -358,7 +362,7 @@ class JiraConnector:
         except Exception as e:
             return {"error updating comment for issue": str(e)}
 
-    def set_issue_comment(self, issue_name, comment, thread_id=None):
+    def _set_issue_comment(self, issue_name, comment, thread_id=None):
         try:
             jira_connector = self._jira_api_connector()
             jira = jira_connector.connect()
@@ -386,7 +390,7 @@ class JiraConnector:
         except Exception as e:
             return {"error updating comment for issue": str(e)}
 
-    def set_issue_status(self, issue_name, status_text, thread_id=None):
+    def _set_issue_status(self, issue_name, status_text, thread_id=None):
         try:
             jira_connector = self._jira_api_connector()
             jira = jira_connector.connect()
@@ -427,7 +431,7 @@ class JiraConnector:
         except Exception as e:
             return {"error updating status for issue": str(e)}
 
-    def search_issues(self, description=None, summary=None, status=None, issue_type=None, priority=None):
+    def _search_issues(self, description=None, summary=None, status=None, issue_type=None, priority=None):
         try:
             jira_connector = self._jira_api_connector()
             jira = jira_connector.connect()
@@ -478,7 +482,7 @@ class JiraConnector:
         except Exception as e:
             return {"error getting all issues by user": str(e)}
 
-    def get_issues_by_user(self, user_name, thread_id=None):
+    def _get_issues_by_user(self, user_name, thread_id=None):
         try:
             jira_connector = self._jira_api_connector()
             jira = jira_connector.connect()

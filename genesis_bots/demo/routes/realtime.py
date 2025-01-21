@@ -101,9 +101,9 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
         results = genesis_app.db_adapter.run_query(query1)
         udf_endpoint_url = next(
             (
-                endpoint["ingress_url"]
+                endpoint["INGRESS_URL"]
                 for endpoint in results
-                if endpoint["name"] == endpoint_name
+                if endpoint["NAME"] == endpoint_name
             ),
             None,
         )

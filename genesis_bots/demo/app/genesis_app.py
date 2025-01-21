@@ -46,7 +46,6 @@ class GenesisApp:
             dataset_name (str): The name of the dataset used in the application.
             db_adapter: The database adapter for connecting to the database.
             llm_api_key_struct: The structure to store LLM API key information.
-            data_cubes_ingress_url (str): URL for data cubes ingress.
             sessions: Holds the session information for the app.
             api_app_id_to_session_map: Maps API app IDs to session instances.
             bot_id_to_udf_adapter_map: Maps bot IDs to UDF adapter instances.
@@ -58,7 +57,6 @@ class GenesisApp:
         self.dataset_name = None
         self.db_adapter = None
         self.llm_api_key_struct = None
-        self.data_cubes_ingress_url = None
         self.sessions = None
         self.api_app_id_to_session_map = None
         self.bot_id_to_udf_adapter_map = None
@@ -202,31 +200,6 @@ class GenesisApp:
         self.llm_api_key_struct = llm_api_key_struct
 
 
-    def set_data_cubes_ingress_url(self):
-        """
-        Sets the data cubes ingress URL for the GenesisApp.
-
-        This method retrieves the ingress URL for the Streamlit data cubes endpoint
-        from the database. If the application is running on a local runner, it falls
-        back to a default URL of "localhost:8501".
-
-        Attributes:
-            data_cubes_ingress_url (str): The ingress URL for the Streamlit data cubes endpoint.
-        """
-        db_adapter = self.db_adapter
-
-        ep = data_cubes_ingress_url = None
-        if not db_adapter.is_using_local_runner:
-            try:
-                ep = db_adapter.db_get_endpoint_ingress_url(endpoint_name="udfendpoint")
-                data_cubes_ingress_url = db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
-            except Exception as e:
-                logger.warning(f"Error on get_endpoints {e} ")
-        data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else ("localhost:" + str(DEFAULT_STREAMLIT_APP_PORT))
-        logger.info(f"Endpoints: {data_cubes_ingress_url=}; udf endpoint={ep}")
-        self.data_cubes_ingress_url = data_cubes_ingress_url
-
-
     def set_slack_config(self):
         """
         Sets the Slack configuration for the GenesisApp.
@@ -255,7 +228,7 @@ class GenesisApp:
 
         This method initializes the sessions for the GenesisApp by invoking the create_sessions()
         function with the necessary parameters such as the database adapter, LLM key structure,
-        and data cubes ingress URL. It also updates the global flag `SystemVariables.bot_id_to_slack_adapter_map`
+        etc. It also updates the global flag `SystemVariables.bot_id_to_slack_adapter_map`
         and assigns the created session instances, the map of API app IDs to session instances,
         the map of bot IDs to UDF adapter instances, and the map of bot IDs to Slack adapter
         instances to the corresponding class attributes.
@@ -265,7 +238,6 @@ class GenesisApp:
         """
         db_adapter = self.db_adapter
         llm_api_key_struct = self.llm_api_key_struct
-        data_cubes_ingress_url = self.data_cubes_ingress_url
         if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
             (
                 sessions,
@@ -276,7 +248,6 @@ class GenesisApp:
                 db_adapter,
                 self.bot_id_to_udf_adapter_map,
                 stream_mode=True,
-                data_cubes_ingress_url=data_cubes_ingress_url,
                 bot_list=bot_list,
             )
             SystemVariables.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
@@ -294,7 +265,7 @@ class GenesisApp:
         Creaters and starts the server instance for the GenesisApp.
 
         This method creates a BotOsServer instance with the provided database adapter,
-        LLM key structure, data cubes ingress URL, sessions, API app ID to session map,
+        LLM key structure, sessions, API app ID to session map,
         bot ID to UDF adapter map, and bot ID to Slack adapter map. It also starts the
         BackgroundScheduler.
 
@@ -304,7 +275,6 @@ class GenesisApp:
         """
         db_adapter = self.db_adapter
         llm_api_key_struct = self.llm_api_key_struct
-        data_cubes_ingress_url = self.data_cubes_ingress_url
         sessions = self.sessions
         api_app_id_to_session_map = self.api_app_id_to_session_map
         bot_id_to_udf_adapter_map = self.bot_id_to_udf_adapter_map
@@ -330,7 +300,6 @@ class GenesisApp:
                 db_adapter=db_adapter,
                         bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map,
                         api_app_id_to_session_map = api_app_id_to_session_map,
-                        data_cubes_ingress_url = data_cubes_ingress_url,
                         bot_id_to_slack_adapter_map = SystemVariables.bot_id_to_slack_adapter_map,
             )
         self.server = server
@@ -375,7 +344,6 @@ class GenesisApp:
         self.set_internal_project_and_schema()
         self.setup_databse()
         self.set_llm_key_handler()
-        self.set_data_cubes_ingress_url()
         self.set_slack_config()
         self.run_ngrok()
         self.create_app_sessions()

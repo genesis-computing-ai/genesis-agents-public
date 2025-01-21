@@ -48,7 +48,6 @@ class BotOsServer:
         db_adapter=None,
         bot_id_to_udf_adapter_map = None,
         api_app_id_to_session_map = None,
-        data_cubes_ingress_url = None,
         bot_id_to_slack_adapter_map = None,
     ):
         logger.debug(f"BotOsServer:__init__ creating server")
@@ -59,7 +58,6 @@ class BotOsServer:
         self.db_adapter = db_adapter
         self.bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map
         self.api_app_id_to_session_map = api_app_id_to_session_map
-        self.data_cubes_ingress_url = data_cubes_ingress_url
         self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
 
         for session in self.sessions:
@@ -131,7 +129,6 @@ class BotOsServer:
                 db_adapter=self.db_adapter,
                 bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
                 stream_mode=True,
-                data_cubes_ingress_url=self.data_cubes_ingress_url,
                 existing_slack=None,
                 existing_udf=None
             )
@@ -222,7 +219,6 @@ class BotOsServer:
             db_adapter=self.db_adapter,
             bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
             stream_mode=True,
-            data_cubes_ingress_url=self.data_cubes_ingress_url,
             existing_slack=existing_slack,
             existing_udf=existing_udf
         )

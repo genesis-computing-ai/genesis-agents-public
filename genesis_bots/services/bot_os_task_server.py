@@ -155,7 +155,6 @@ def insert_task_history(
 def get_udf_endpoint_url(endpoint_name="udfendpoint"):
     # TODO: Duplicated code. Use the (newer) db_connector.db_get_endpoint_ingress_url
     alt_service_name = os.getenv("ALT_SERVICE_NAME", None)
-    #TODO logic may break when getting data cubes endpoint and alt_service_name is set
     if alt_service_name:
         query1 = f"SHOW ENDPOINTS IN SERVICE {alt_service_name};"
     else:
@@ -165,9 +164,9 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
         results = db_adapter.run_query(query1)
         udf_endpoint_url = next(
             (
-                endpoint["ingress_url"]
+                endpoint["INGRESS_URL"]
                 for endpoint in results
-                if endpoint["name"] == endpoint_name
+                if endpoint["NAME"] == endpoint_name
             ),
             None,
         )
@@ -179,9 +178,6 @@ def get_udf_endpoint_url(endpoint_name="udfendpoint"):
 # Call the function to show endpoints
 try:
     ep = get_udf_endpoint_url("udfendpoint")
-    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    logger.warning(f"data_cubes_ingress_url set to {data_cubes_ingress_url}")
     logger.warning(f"udf endpoint: {ep}")
 except Exception as e:
     logger.warning(f"Error on get_endpoints {e} ")
@@ -313,7 +309,6 @@ if llm_api_key_struct.llm_key is not None:
         db_adapter,
         bot_id_to_udf_adapter_map,
         stream_mode=False,
-        data_cubes_ingress_url=data_cubes_ingress_url,
     )
 else:
     # wait to collect API key from Streamlit user, then make sessions later
@@ -776,7 +771,7 @@ if llm_api_key_struct is not None:
 
 @app.route("/zapier", methods=["POST"])
 def zaiper_handler():
-    
+
     try:
         api_key = request.args.get("api_key")
     except:
@@ -848,9 +843,7 @@ def bot_install_followup(bot_id=None, no_slack=False):
             )
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
-    data_cubes_ingress_url = get_udf_endpoint_url("streamlitdatacubes")
-    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    logger.warning(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
+
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)
         if no_slack:
@@ -861,7 +854,6 @@ def bot_install_followup(bot_id=None, no_slack=False):
             bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
             stream_mode=False,
             skip_vectors=True,
-            data_cubes_ingress_url=data_cubes_ingress_url
         )
         # check new_session
         if new_session is None:

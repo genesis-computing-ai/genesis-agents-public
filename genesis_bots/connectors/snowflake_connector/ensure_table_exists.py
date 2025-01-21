@@ -271,9 +271,6 @@ def ensure_table_exists(self):
     except Exception as e:
         logger.error(f"An error occurred while creating or replacing the bots_active table: {e}")
 
-    streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
-    logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
-
     # CUST_DB_CONNECTIONS to trigger its ensure_table_exists
     from genesis_bots.connectors.data_connector import DatabaseConnector
     db_connector = DatabaseConnector()

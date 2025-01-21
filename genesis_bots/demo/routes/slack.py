@@ -73,9 +73,6 @@ def bot_install_followup(bot_id=None, no_slack=False):
             )
 
     runner = os.getenv("RUNNER_ID", "jl-local-runner")
-    data_cubes_ingress_url = genesis_app.db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
-    data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-    logger.info(f"data_cubes_ingress_url(3) set to {data_cubes_ingress_url}")
 
     if runner == bot_details["runner_id"]:
         bot_config = get_bot_details(bot_id=bot_id)
@@ -86,7 +83,6 @@ def bot_install_followup(bot_id=None, no_slack=False):
             db_adapter=genesis_app.db_adapter,
             bot_id_to_udf_adapter_map=genesis_app.bot_id_to_udf_adapter_map,
             stream_mode=True,
-            data_cubes_ingress_url=data_cubes_ingress_url,
         )
         # check new_session
         if new_session is None:

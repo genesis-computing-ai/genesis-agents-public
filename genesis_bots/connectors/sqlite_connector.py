@@ -1390,9 +1390,6 @@ class SqliteConnector(DatabaseConnector):
     def ensure_table_exists(self):
         import genesis_bots.core.bot_os_tool_descriptions
 
-        streamlitdc_url = os.getenv("DATA_CUBES_INGRESS_URL", None)
-        logger.info(f"streamlit data cubes ingress URL: {streamlitdc_url}")
-
         llm_results_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'LLM_RESULTS'"
         try:
             cursor = self.client.cursor()

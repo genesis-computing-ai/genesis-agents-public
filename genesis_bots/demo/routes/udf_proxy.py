@@ -796,20 +796,8 @@ def configure_llm():
             llm_type = None
             llm_endpoint = None
 
-        #  if api_key_from_env:
-        #      response = {"Success": False, "Message": "LLM type and API key are set in an environment variable and can not be set or changed using this method."}
-        #      llm_key = None
-        #      llm_type = None
         else:
-        # if llm_type is not None:
 
-            data_cubes_ingress_url = genesis_app.db_adapter.db_get_endpoint_ingress_url("streamlitdatacubes")
-            data_cubes_ingress_url = data_cubes_ingress_url if data_cubes_ingress_url else "localhost:8501"
-            logger.warning(f"data_cubes_ingress_url(2) set to {data_cubes_ingress_url}")
-
-            # os.environ["OPENAI_API_KEY"] = ''
-            # os.environ["REKA_API_KEY"] = ''
-            # os.environ["GEMINI_API_KEY"] = ''
             os.environ["CORTEX_MODE"] = 'False'
 
             if (llm_type.lower() == "openai"):

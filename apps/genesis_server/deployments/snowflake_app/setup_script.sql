@@ -55,9 +55,6 @@ $$
       - name: streamlit
         port: 8501
         public: true
-      - name: streamlitdatacubes
-        port: 8502
-        public: true
       - name: debuggenesis
         port: 1234
         public: true
@@ -75,7 +72,6 @@ $$
       endpoints:
       - udfendpoint
       - streamlit
-      - streamlitdatacubes
       - debuggenesis
       - voicedemo
       - voicerelay

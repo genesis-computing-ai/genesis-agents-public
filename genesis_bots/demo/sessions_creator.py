@@ -192,7 +192,6 @@ def make_session(
     bot_id_to_udf_adapter_map={},
     stream_mode=False,
     skip_vectors=False,
-    data_cubes_ingress_url=None,
     existing_slack=None,
     existing_udf=None,
     assistant_id=None,
@@ -212,7 +211,6 @@ def make_session(
         bot_id_to_udf_adapter_map (dict, optional): A dictionary mapping bot IDs to their UDF adapters.
         stream_mode (bool, optional): Indicates whether the session should be created in stream mode.
         skip_vectors (bool, optional): If True, skips vector-related operations during session creation.
-        data_cubes_ingress_url (str, optional): The URL for data cubes ingress, if applicable.
         existing_slack: An existing Slack adapter instance, if any.
         existing_udf: An existing UDF adapter instance, if any.
 
@@ -365,7 +363,7 @@ def make_session(
                     if conn['description']:
                         conn_details += f"  Description: {conn['description']}\n"
                     conn_list.append(conn_details)
-                
+
                 conn_list_str = "\n".join(conn_list)
                 instructions += f"\n\nYou have access to the following database connections:\n{conn_list_str}\n"
         except Exception as e:
@@ -381,11 +379,6 @@ def make_session(
             db_adapter.grant_all_bot_workspace(workspace_schema_name)
             instructions += f"\nYou have a workspace schema created specifically for you named {workspace_schema_name} that the user can also access. You may use this schema for creating tables, views, and stages that are required when generating answers to data analysis questions. Only use this schema if asked to create an object. Always return the full location of the object.\nYour default stage is {workspace_schema_name}.MY_STAGE. "
             instructions += "\n" + BASE_BOT_DB_CONDUCT_INSTRUCTIONS
-            if data_cubes_ingress_url:
-                logger.info(
-                    f"Setting data_cubes_ingress_url for {bot_id}: {data_cubes_ingress_url}"
-                )
-                #instructions += f"\nWhenever you show the results from run_query that may have more than 10 rows, and if you are not in the middle of running a process, also provide a link to a datacube visualization to help them understand the data you used in the form: http://{data_cubes_ingress_url}%ssql_query=select%20*%20from%20spider_data.baseball.all_star -- replace the value of the sql_query query parameter with the query you used."
         except Exception as e:
             logger.info(f"Error creating bot workspace for bot_id {bot_id}: {e} ")
 
@@ -613,7 +606,6 @@ def create_sessions(
     UNUSEDbot_id_to_udf_adapter_map,
     stream_mode=False,
     skip_vectors=False,
-    data_cubes_ingress_url=None,
     bot_list=None,
     skip_slack=False,
     max_workers=1 # New parameter to control parallel execution
@@ -673,7 +665,6 @@ def create_sessions(
                 bot_id_to_udf_adapter_map=bot_id_to_udf_adapter_map,
                 stream_mode=stream_mode,
                 skip_vectors=skip_vectors,
-                data_cubes_ingress_url=data_cubes_ingress_url,
                 assistant_id=assistant_id,
                 skip_slack=skip_slack
             )

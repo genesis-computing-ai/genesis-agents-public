@@ -768,6 +768,10 @@ EXECUTE IMMEDIATE
      EXECUTE IMMEDIATE
    'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot (bot_id varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/deploy_bot'||chr(39);
 
+
+     EXECUTE IMMEDIATE
+   'CREATE or replace FUNCTION '|| :INSTANCE_NAME ||'.endpoint_router (op_name varchar, endpoint_name varchar, payload varchar)  RETURNS varchar SERVICE='|| :INSTANCE_NAME ||'.'|| :SERVICE_NAME ||' ENDPOINT=udfendpoint AS '||chr(39)||'/udf_proxy/endpoint_router'||chr(39);
+
 -- EXECUTE IMMEDIATE
 --   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.deploy_bot ( varchar )  TO APPLICATION ROLE APP_PUBLIC';
 
@@ -784,6 +788,8 @@ EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.submit_udf ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
 EXECUTE IMMEDIATE
    'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.lookup_udf ( varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
+EXECUTE IMMEDIATE
+   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.endpoint_router ( varchar, varchar, varchar)  TO APPLICATION ROLE APP_PUBLIC';
 -- EXECUTE IMMEDIATE
 --   'GRANT USAGE ON FUNCTION '|| :INSTANCE_NAME ||'.get_slack_endpoints ( )  TO APPLICATION ROLE APP_PUBLIC';
 -- EXECUTE IMMEDIATE

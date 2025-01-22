@@ -8,8 +8,10 @@ from   genesis_bots.connectors.data_connector \
                                 import DatabaseConnector
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from   genesis_bots.core.bot_os_corpus       import URLListFileCorpus
-from   genesis_bots.core.bot_os_defaults     import (BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
+from   genesis_bots.core.bot_os_corpus \
+                                import URLListFileCorpus
+from   genesis_bots.core.bot_os_defaults \
+                                import (BASE_BOT_DB_CONDUCT_INSTRUCTIONS,
                                         BASE_BOT_INSTRUCTIONS_ADDENDUM,
                                         BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
                                         BASE_BOT_PROACTIVE_INSTRUCTIONS,
@@ -17,15 +19,19 @@ from   genesis_bots.core.bot_os_defaults     import (BASE_BOT_DB_CONDUCT_INSTRUC
                                         BASE_BOT_SLACK_TOOLS_INSTRUCTIONS,
                                         BASE_BOT_VALIDATION_INSTRUCTIONS)
 
-from   genesis_bots.core.bot_os_memory       import BotOsKnowledgeAnnoy_Metadata
+from   genesis_bots.core.bot_os_memory \
+                                import BotOsKnowledgeAnnoy_Metadata
 
 from   genesis_bots.bot_genesis.make_baby_bot \
                                 import (get_all_bots_full_details,
                                         get_available_persistent_tools)
-from   genesis_bots.core.bot_os_tools        import ToolBelt, get_tools
-from   genesis_bots.core.bot_os_tools2       import (get_global_tools_registry,
+from   genesis_bots.core.bot_os_tools \
+                                import ToolBelt, get_tools
+from   genesis_bots.core.bot_os_tools2 \
+                                import (get_global_tools_registry,
                                         get_tool_func_descriptor)
-from   genesis_bots.llm.llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
+from   genesis_bots.llm.llm_cortex.bot_os_cortex \
+                                import BotOsAssistantSnowflakeCortex
 from   genesis_bots.slack.slack_bot_os_adapter \
                                 import SlackBotAdapter
 
@@ -35,22 +41,14 @@ from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 
 
-from   ..core.logging_config    import logger
 
-from   genesis_bots.core.logging_config      import logger
+from   genesis_bots.core.logging_config \
+                                import logger
 
-from   genesis_bots.core                     import global_flags
+from   genesis_bots.core        import global_flags
 
 from   concurrent.futures       import ThreadPoolExecutor, as_completed
 
-genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
-if genbot_internal_project_and_schema == "None":
-    logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
-if genbot_internal_project_and_schema is not None:
-    genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
-db_schema = genbot_internal_project_and_schema.split(".")
-project_id = db_schema[0]
-dataset_name = db_schema[1]
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
@@ -326,7 +324,7 @@ def make_session(
         instructions += "\nYour slack user_id: " + bot_config["bot_slack_user_id"]
 
     if "snowflake_stage_tools" in tools_info.available_tool_names and "make_baby_bot" in tools_info.available_tool_names:
-        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {genbot_internal_project_and_schema}.BOT_FILES_STAGE"
+        instructions += f"\nYour Internal Files Stage for bots is at snowflake stage: {db_adapter.genbot_internal_project_and_schema}.BOT_FILES_STAGE"
         if not stream_mode:
             instructions += ". This BOT_FILES_STAGE stage is ONLY in this particular database & schema."
 

@@ -8,41 +8,38 @@ import uuid
 import threading
 from   typing                   import Mapping
 
-from   genesis_bots.connectors               import get_global_db_connector
+from   genesis_bots.connectors  import get_global_db_connector
 from   genesis_bots.connectors.connector_helpers \
                                 import llm_keys_and_types_struct
-from   genesis_bots.core.logging_config      import logger
-from genesis_bots.demo.app import genesis_app
+from   genesis_bots.core.logging_config \
+                                import logger
+from   genesis_bots.demo.app    import genesis_app
 
-genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
-if not genbot_internal_project_and_schema and os.getenv("SNOWFLAKE_METADATA", "FALSE").upper() != "TRUE":
-    os.environ["GENESIS_INTERNAL_DB_SCHEMA"] = "NONE.NONE"
 
-genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
-if  genbot_internal_project_and_schema is None:
-    genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
-if genbot_internal_project_and_schema == 'None':
-    # Todo remove, internal note
-    logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
-if genbot_internal_project_and_schema is not None:
-    genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
-db_schema = genbot_internal_project_and_schema.split('.')
-project_id = db_schema[0]
-dataset_name = db_schema[1]
-bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
+def _get_project_id_and_dataset_name(bb_db_connector):
+    # utility function to get the 'project_id' and 'dataset_name' args as used in this moddule, which is to parse the genbot_internal_project_and_schema attribute.
+    # Note that is a legacy interpretation of the 'project_id' concept which is used througyout this module. bb_db_connector.project_id may have a different value that is used for other purposes.
+    project_id, dataset_name = bb_db_connector.genbot_internal_project_and_schema.split('.')
+    return project_id, dataset_name
 
 def list_all_bots(runner_id=None, slack_details=False, with_instructions=False, thread_id=None, bot_id=None):
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
 
 def list_all_bots_wrap(runner_id=None, slack_details=False, with_instructions=False, thread_id=None, bot_id=None):
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     result = bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=False, slack_details=slack_details, with_instructions=with_instructions)
     result = json.loads(json.dumps(result).replace('!NO_RESPONSE_REQUIRED', '(exclamation point)NO_RESPONSE_REQUIRED'))
     return result
 
 def get_all_bots_full_details(runner_id):
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_list_all_bots(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, runner_id=runner_id, full=True, with_instructions=True)
 
 def set_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_token):
@@ -64,6 +61,7 @@ def save_slack_config_tokens(slack_app_config_token, slack_app_config_refresh_to
         slack_app_config_refresh_token (str): The slack app config refresh token to be saved.
     """
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_save_slack_config_tokens(slack_app_config_token=slack_app_config_token, slack_app_config_refresh_token=slack_app_config_refresh_token, project_id=project_id, dataset_name=dataset_name)
 
@@ -75,6 +73,7 @@ def get_slack_config_tokens():
         tuple: A tuple containing the slack app config token and the slack app config refresh token.
     """
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_slack_config_tokens(project_id=project_id, dataset_name=dataset_name)
 
@@ -87,6 +86,7 @@ def get_ngrok_auth_token():
         tuple: A tuple containing the ngrok authentication token, use domain flag, and domain.
     """
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_ngrok_auth_token(project_id=project_id, dataset_name=dataset_name)
 
@@ -100,6 +100,7 @@ def set_ngrok_auth_token(ngrok_auth_token, ngrok_use_domain='N', ngrok_domain=''
         ngrok_domain (str): The custom domain to use if ngrok_use_domain is 'Y'.
     """
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_set_ngrok_auth_token(ngrok_auth_token=ngrok_auth_token, ngrok_use_domain=ngrok_use_domain, ngrok_domain=ngrok_domain, project_id=project_id, dataset_name=dataset_name)
 
@@ -112,6 +113,7 @@ def get_llm_key() -> list[llm_keys_and_types_struct]:
         tuple: A tuple containing the LLM key and LLM type.
     """
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
     return bb_db_connector.db_get_llm_key(project_id=project_id, dataset_name=dataset_name)
 
@@ -424,6 +426,8 @@ def insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instruct
         bot_avatar_image: Default GenBots avatar image
     """
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     files = []
     return bb_db_connector.db_insert_new_bot(api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id, slack_signing_secret,
                    slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active,
@@ -602,6 +606,8 @@ def modify_slack_allow_list(bot_id, action, user_name=None, user_identifier=None
 
         # Update the SLACK_USER_ALLOW list in the database
         bb_db_connector = get_global_db_connector()
+        bot_servicing_table = bb_db_connector.bot_servicing_table_name
+        project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
         bb_db_connector.db_update_slack_allow_list( project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, slack_user_allow_list=slack_user_allow_list)
         if slack_user_allow_list == []:
             return {'success': True, 'action': action, 'all_allowed': 'All Slack users currently have access to this bot.'}
@@ -624,6 +630,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
     """
     # Retrieve the current available tools for the bot
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     if isinstance(new_tools, str):
@@ -649,6 +656,7 @@ def add_new_tools_to_bot(bot_id, new_tools):
     updated_tools = current_tools + new_tools_to_add
     updated_tools_str = json.dumps(updated_tools)
 
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
     return bb_db_connector.db_update_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, new_tools_to_add=new_tools_to_add, already_present=already_present, updated_tools=updated_tools)
 
 
@@ -688,6 +696,8 @@ def validate_potential_files(new_file_ids=None):
         }
 
     # Check if any file ID starts with 'file-' and return an error if found
+    bb_db_connector = get_global_db_connector()
+    genbot_internal_project_and_schema = bb_db_connector.genbot_internal_project_and_schema
     file_stage_prefix_error_ids = [file_id for file_id in new_file_ids if file_id.startswith('file-')]
     if file_stage_prefix_error_ids:
         error_message = f"Files with IDs starting with 'file-' detected. Please use _add_file_to_stage function to upload the file to the Internal Files Stage for bots at: {genbot_internal_project_and_schema}.BOT_FILES_STAGE, and ensure to give it a human-readable valid file name with an allowed extension from the following list: {', '.join(valid_extensions.keys())}."
@@ -780,6 +790,8 @@ def add_bot_files(bot_id, new_file_names=None, new_file_ids=None):
     updated_files_str = json.dumps(current_files)
 
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=new_file_ids)
 
 def remove_bot_files(bot_id, file_ids_to_remove):
@@ -831,6 +843,8 @@ def remove_bot_files(bot_id, file_ids_to_remove):
             }
 
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
     return bb_db_connector.db_update_bot_files(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_files_str=updated_files_str, current_files=current_files, new_file_ids=file_ids_to_remove)
 
 
@@ -883,6 +897,8 @@ def update_bot_instructions(bot_id, new_instructions=None, bot_instructions=None
         if session.assistant_impl.__class__.__name__ == "BotOsAssistantOpenAI":
             session.assistant_impl.instructions = new_instructions
 
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_update_bot_instructions(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, instructions=new_instructions, runner_id=runner_id)
 
 
@@ -919,6 +935,8 @@ def test_slack_app_level_token(app_level_token):
 
 def update_bot_details(bot_id, bot_slack_user_id, slack_app_token):
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_update_bot_details(bot_id, bot_slack_user_id, slack_app_token, project_id, dataset_name, bot_servicing_table)
 
 
@@ -947,6 +965,8 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
     try:
         # Call the function from the Snowflake connector to update the Slack app level key
         bb_db_connector = get_global_db_connector()
+        bot_servicing_table = bb_db_connector.bot_servicing_table_name
+        project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
         result = bb_db_connector.db_update_slack_app_level_key(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, slack_app_level_key=slack_app_level_key)
         if result.get("success"):
             if auth_url:
@@ -981,6 +1001,8 @@ def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client
     if files_json == 'null':
         files_json = None
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
                             auth_url, auth_state, udf_active, slack_active, files_json, bot_implementation, project_id, dataset_name, bot_servicing_table)
 
@@ -998,11 +1020,14 @@ def get_bot_details(bot_id):
         dict: A dictionary containing the bot details if found, otherwise None.
     """
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_get_bot_details(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
 
 def get_available_persistent_tools():
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
 
 get_available_tools = get_available_persistent_tools # for backward compatibility
@@ -1014,6 +1039,7 @@ def get_default_avatar():
 
 def add_or_update_available_tool(tool_name, tool_description):
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
 
@@ -1070,6 +1096,8 @@ def make_baby_bot(
         return retval
 
     bot_implementation = bot_implementation.lower()
+    bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
 
     files = []  # files system no longer supported
     try:
@@ -1255,7 +1283,7 @@ def make_baby_bot(
                 files_json = json.dumps(files)
                 if files_json == 'null':
                     files_json = None
-                bb_db_connector = get_global_db_connector()
+                bot_servicing_table = bb_db_connector.bot_servicing_table_name
                 bb_db_connector.db_update_existing_bot_basics(
                     bot_id=bot_id,
                     bot_name=bot_name,
@@ -1399,6 +1427,8 @@ def _remove_bot(bot_id, thread_id=None, confirmed=None):
         logger.info(f"No session found for bot with Bot ID {bot_id} proceeding to delete from database and Slack.")
 
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     bb_db_connector.db_delete_bot(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
     # Rotate the Slack app configuration token before making the Slack API call
@@ -1451,11 +1481,12 @@ def update_bot_implementation(bot_id, bot_implementation, thread_id=None):
         bot_implementation (str): The new implementation type to be set for the bot (e.g., 'openai', 'cortex').
     """
     bb_db_connector = get_global_db_connector()
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
     runner_id = os.getenv('RUNNER_ID', 'jl-local-runner')
 
     bot_config = get_bot_details(bot_id=bot_id)
     bot_implementation = bot_implementation.lower()
-
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_update_bot_implementation(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id, bot_implementation=bot_implementation, runner_id=runner_id)
 
 
@@ -1807,6 +1838,9 @@ def update_bot_endpoints(new_base_url, runner_id=None):
         new_base_url (str): The new base URL to update the bot endpoints with.
         runner_id (str, optional): The runner_id to filter the bots. Defaults to the RUNNER_ID environment variable.
     """
+    bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
+
     def get_udf_endpoint_url():
         # TODO: Duplicated code. Use the (newer) db_connector.db_get_endpoint_ingress_url
         alt_service_name = os.getenv('ALT_SERVICE_NAME',None)
@@ -1833,6 +1867,7 @@ def update_bot_endpoints(new_base_url, runner_id=None):
 
     try:
         bb_db_connector = get_global_db_connector()
+        bot_servicing_table = bb_db_connector.bot_servicing_table_name
         bots = bb_db_connector.db_get_slack_active_bots(runner_id=runner_id, project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table)
         for bot in bots:
             bot_id = bot.get('bot_id')
@@ -1927,6 +1962,7 @@ def remove_tools_from_bot(bot_id, remove_tools):
     """
     # Retrieve the current available tools for the bot
     bb_db_connector = get_global_db_connector()
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
     available_tool_names = [tool['tool_name'] for tool in available_tools_list]
     logger.info(bot_id, remove_tools)
@@ -1952,8 +1988,10 @@ def remove_tools_from_bot(bot_id, remove_tools):
         return {"success": False, "error": f"The following tools are not assigned to the bot: {invalid_tools}. The the bot has these tools currently: {current_tools}."}
 
     # Update the available_tools in the database
+    bot_servicing_table = bb_db_connector.bot_servicing_table_name
     updated_tools_str = json.dumps(updated_tools_list)
 
+    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
     return bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, invalid_tools=invalid_tools, updated_tools=updated_tools_list)
 
 

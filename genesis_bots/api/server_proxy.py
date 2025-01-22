@@ -1,4 +1,4 @@
-from   flask                    import Flask, Response
+from   flask                    import Flask
 from   genesis_bots.api.genesis_base \
                                 import (_ALL_BOTS_, get_tool_func_descriptor,
                                         is_bot_client_tool)
@@ -9,6 +9,7 @@ from   genesis_bots.demo.app.genesis_app \
 from   genesis_bots.demo.routes import main_routes, udf_routes
 import json
 import requests
+from   requests                 import Response
 
 from   abc                      import ABC, abstractmethod
 import socket
@@ -401,10 +402,22 @@ class SPCSServerProxy(GenesisServerProxyBase):
             endpoint_name = '/' + endpoint_name
         # TODO: respect the content_type and extra_headers - add them to the UDF signature. For now we are not using extra headers and always use JSON as content_type.
         sql = f"select {self._genesis_db}.{self._genesis_schema}.ENDPOINT_ROUTER(:op_name, :endpoint_name, :payload)"
-        with self._engine.connect() as conn:
-            rowset = conn.execute(sqla.text(sql), parameters={"op_name": op_name, "endpoint_name": endpoint_name, "payload": payload})
-            response = list(rowset.fetchone())[0] # the response is a single row with a single column (contains the JSON string response from the target endpoint)
-        return Response(response, status=200, mimetype="application/json")
+        try:
+            with self._engine.connect() as conn:
+                rowset = conn.execute(sqla.text(sql), parameters={"op_name": op_name, "endpoint_name": endpoint_name, "payload": payload})
+                row = rowset.fetchone()
+            if row is None:
+                result = {} # empty response
+            else:
+                result = list(row)[0] # the response is a single row with a single column (contains the JSON string response from the target endpoint)
+        except Exception as e:
+            raise RuntimeError(f"Failed to execute the ENDPOINT_ROUTER UDF: {str(e)}")
+        resp = requests.Response()
+        resp._content = result.encode('utf-8')
+        resp.status_code = 200
+        resp.headers['Content-Type'] = 'application/json'
+        return resp
+
 
 class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
     """
@@ -419,10 +432,12 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
         return cls._instance
 
 
-    def __init__(self, fast_start=False):
+    def __init__(self, fast_start=False, **kwargs):
         if hasattr(self, '_initialized') and self._initialized:
             raise RuntimeError("GenesisServerProxy should not be initialized more than once in the same process")
-        super().__init__(server_url=RESTGenesisServerProxy.LOCAL_FLASK_SERVER_URL)
+        if "server_url" in kwargs:
+            raise ValueError(f"server_url param is not allowed to be provided to {self.__class__.__name__}")
+        super().__init__(**kwargs)
 
         # Initialize a genesis_app (BotOsServer) and a flask_app accepting requests from the client in a dedicated thread
         self.genesis_app = genesis_app  # Note that genesis_app is a global singleton instance of GenesisApp;

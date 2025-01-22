@@ -1017,7 +1017,7 @@ def endpoint_router():
             #     [row_index, column_1_value, column_2_value, ...}],
             #     ...
             #   ]}
-            output_rows = [[0, response],]
+            output_rows = [[0, response.get_json(force=True, silent=True)],]
             response = make_response({"data": output_rows})
             response.headers['Content-type'] = 'application/json'
         else:

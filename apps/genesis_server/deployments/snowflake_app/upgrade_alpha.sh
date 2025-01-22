@@ -103,7 +103,7 @@ snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrar
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on schema genesis_bots_alpha.APP1 to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show applications;"
 
-python3 -c "import sys; sys.path.append('../../apps/streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
+python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/apps/streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
 
 echo "Upgrade complete"
 

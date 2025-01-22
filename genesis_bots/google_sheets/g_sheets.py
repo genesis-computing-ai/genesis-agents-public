@@ -138,7 +138,7 @@ def get_g_file_comments(user, file_id):
     Returns:
         list: A list of comments on the document.
     """
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
 
     try:
         # Authenticate using the service account JSON file
@@ -219,7 +219,7 @@ def add_reply_to_g_file_comment(
             "Missing credentials, user name, file ID, comment ID, or reply content."
         )
 
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
 
     try:
         if not creds:
@@ -264,7 +264,7 @@ def get_g_file_web_link(file_id, creds=None, user=None):
         raise Exception("Missing credentials, user name, or file ID.")
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
@@ -308,7 +308,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
         raise Exception("Missing credentials, user name, or file name.")
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
@@ -348,7 +348,7 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
         raise Exception("Missing credentials, user name, or folder ID.")
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
@@ -391,7 +391,7 @@ def add_g_file_comment(
         raise Exception(
             "Missing credentials, user name, file ID, or value."
         )
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
 
     try:
         if not creds:
@@ -460,7 +460,7 @@ def get_g_file_version(g_file_id = None, creds = None, self = None):
         raise Exception("Missing parameters in get_g_file_version - file id or user")
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{self.db_adapter.user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
@@ -561,7 +561,7 @@ def save_text_to_google_file(
         text = "No text received in save_text_to_google_file."
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{self.user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
@@ -652,7 +652,7 @@ def save_text_to_google_file(
 
 
 def create_folder_in_folder(folder_name, parent_folder_id, user):
-    SERVICE_ACCOUNT_FILE = f'g-workspace-{user}.json'
+    SERVICE_ACCOUNT_FILE = f'g-workspace-credentials.json'
     creds = Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
@@ -679,7 +679,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     # if not user:
     #     raise Exception("User not specified for google drive conventions.")
 
-    # SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+    # SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
     # try:
     #     # Authenticate using the service account JSON file
     #     creds = Credentials.from_service_account_file(
@@ -765,7 +765,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
     if not self.user:
         raise Exception("User not specified for google drive conventions.")
 
-    SERVICE_ACCOUNT_FILE = f"g-workspace-{self.user}.json"
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
     try:
         # Authenticate using the service account JSON file
         creds = Credentials.from_service_account_file(
@@ -911,7 +911,7 @@ def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=N
             "Missing credentials, user name, spreadsheet ID, or cell_range name."
         )
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
@@ -952,7 +952,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-{user}.json"
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(

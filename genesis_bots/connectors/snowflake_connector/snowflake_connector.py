@@ -1059,7 +1059,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         creds_json = json.dumps(creds_dict, indent=4)
-        with open(f'g-workspace-{self.user}.json', 'w') as json_file:
+        with open(f'g-workspace-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
 

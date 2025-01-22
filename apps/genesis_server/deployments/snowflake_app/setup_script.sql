@@ -371,7 +371,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
           RETURN '{
             "type": "CONFIGURATION",
             "payload":{
-              "host_ports":["google.serper.dev"],
+              "host_ports":["google.serper.dev", "scrape.serper.dev"],
               "allowed_secrets": "NONE"}}';
         WHEN 'OPENAI_EXTERNAL_ACCESS' THEN
           RETURN '{

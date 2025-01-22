@@ -24,10 +24,12 @@ DIRECTORY_PATH=${DIRECTORY_PATH%/}
 # snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON
 snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON | docker login dshrnxx-genesis.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
-
+# In upgrade_alpha.sh
+PROJECT_ROOT=$(git rev-parse --show-toplevel)  # If this is a git repository
+python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/apps/streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
 # Run make_alpha_sis_launch.py
 # python3 ./streamlit_gui/make_alpha_sis_launch.py
-python3 -c "import sys; sys.path.append('../../apps/streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
+# python3 -c "import sys; sys.path.append('../../apps/streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
 
 # Build Docker image
 docker build --rm -t genesis_app:latest --platform linux/amd64 .

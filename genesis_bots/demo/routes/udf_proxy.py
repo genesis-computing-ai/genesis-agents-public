@@ -945,13 +945,24 @@ def endpoint_router():
     try:
         # Parse the incoming JSON request
         message = request.json
+        if message is None:
+            raise ValueError("Invalid JSON payload")
+
         op_name = None
         endpoint_name = None
         payload_str = None
         headers = None
+        use_udf_proxy_format = False
+
         if "data" in message:
-            # this message was sent by a Snowflake UDF which passes params as rows.
+            # assume This message was sent by a Snowflake UDF which passes params as rows.
             # The UDF definition lives in setup_script.sql
+            # input format:
+            #   {"data": [
+            #     [row_index, column_1_value, column_2_value, ...],
+            #     ...
+            #   ]}
+            #
             # For UDF proxies for endpoints,see
             # https://docs.snowflake.com/en/developer-guide/snowpark-container-services/working-with-services#label-snowpark-containers-service-communicating-service-function
             input_rows = message["data"]
@@ -963,18 +974,26 @@ def endpoint_router():
             elif len(params_arr) == 4:
                 _, op_name, endpoint_name, payload_str = params_arr
             else:
-                raise ValueError(f"/udf_proxy/endpoint_router: Expected 3 or 4 params,  got {len(params_arr)}")
+                raise ValueError(f"/udf_proxy/endpoint_router: Expected 3 or 4 params, got {len(params_arr)}")
+            use_udf_proxy_format = True
         else:
+            # Message sent by a REST client
             op_name = message.get("op_name")
             endpoint_name = message.get("endpoint_name")
             headers = message.get("headers") # respected if passed in direct HTTP request (not via UDF - see TODO in server_proxy.py)
             payload_str = message.get("payload")
         # canonicalize/parse the arguments
         op_name = op_name.lower()
-        headers = headers or {"content_type": "application/json"}
+        headers = headers or {"Content-Type": "application/json"}
+
+        # Parse the payload
         payload = None
         if payload_str:
-            payload = json.loads(payload_str)
+            try:
+                payload = json.loads(payload_str)
+            except json.JSONDecodeError:
+                raise ValueError("Invalid JSON in payload")
+
         logger.debug(f"Flask endpoint_router: forwarding {op_name} request to {endpoint_name}. Payload: {str(payload_str)[:20]}")
 
         # Validate the operation name
@@ -986,14 +1005,27 @@ def endpoint_router():
         if not rule:
             return jsonify({"Success": False, "Message": f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"}), 400
 
-        # Call the endpoint function directly
+        # Call the target endpoint function directly
         endpoint_func = flask_app.view_functions[rule.endpoint]
         with flask_app.test_request_context(endpoint_name, method=op_name.upper(), json=payload):
             response = endpoint_func()
 
-        # Return the response from the target endpoint.
+        if use_udf_proxy_format:
+            # convert the response from the target view function to the format expected by the UDF
+            # output format expected by the UDF:
+            #   {"data": [
+            #     [row_index, column_1_value, column_2_value, ...}],
+            #     ...
+            #   ]}
+            output_rows = [[0, response],]
+            response = make_response({"data": output_rows})
+            response.headers['Content-type'] = 'application/json'
+        else:
+            pass # return the response from the target endpoint as is
+
         logger.debug(f"Flask endpoint_router: Response from {endpoint_name}: Response: {response}")
         return response
+
     except Exception as e:
         logger.error(f"Error in endpoint_router: {str(e)}")
         return jsonify({"Success": False, "Message": str(e)}), 500

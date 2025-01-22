@@ -2,37 +2,20 @@
 GENESIS BOT TODOS
 =================
 
+make sure openai key is set when starting server in local mode
 make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right 
-streamlit page to show project project
-x check tool call messages in slack
-x have search metada return list of connections that are not on harvest list or are not yet harvested
-x check connection string add for sqlite, decoding issues
-x eve create tables in sqlite, having trouble
-x give bots a workspace in sqlite
-x project manager tools, give to eve
-x a way to make a new sqlite database to sqlite/db connector
-x change default to sqlite mode and to non-assistant mode
-x after tool calls, the first few new chars get missed sometimes in the output 
-test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 have search metadata return the list of any data connections as well that may not be harvested 
-(reza) files out for generate image
-(later) add bot level param for completion vs assistant mode
 (aviv) test gxs with completion mode (w/git etc)
-(test) JD-comments on gsheets, bot needs to know what cell they are on
-test - (reza) links from web search results dont show right in streamlit 
-(later) make sqlite sample data load from csv files vs binary
+x test - (reza) links from web search results dont show right in streamlit 
 (aviv) make connection, harvest, search metadata, and query database work directly via api 
 (test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)
 (test) harvester on postgres
 (test) harvester on sqlite again
-(reza) generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
 make harvester autostart with main service, make it part of main service?
 trigger immediate harvest on adding something to the harvester
 add an option on add connection to add to harvest and immediately harvest
 make harvester on non-snowflake also get views
-add a database connections page to streamlit to see database connections
-add a way for Eve to write a serper key to the db
 when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
 on add connection, make sure to suggest harvesting the new connection
 harvest control, if database not found, return list of connections
@@ -44,9 +27,30 @@ signal to reset the annoy indexes when connections or connection rbac are change
 make snowpark python work when you just have a regular connection to snowflake
 add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
-test all tools
+gxs: comment handler test it out 
+
+Later:
+save connection id along with sql notes
+streamlit page to show project project
+add a database connections page to streamlit to see database connections
+test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
+add code interpreter via a dedicated assistant session
+related: generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
+x (reza) files out for generate image
+(later) make sqlite sample data load from csv files vs binary
 
 DONE:
+n (later) add bot level param for completion vs assistant mode
+x add a way for Eve to write a serper key to the db
+x check tool call messages in slack
+x have search metada return list of connections that are not on harvest list or are not yet harvested
+x check connection string add for sqlite, decoding issues
+x eve create tables in sqlite, having trouble
+x give bots a workspace in sqlite
+x project manager tools, give to eve
+x a way to make a new sqlite database to sqlite/db connector
+x change default to sqlite mode and to non-assistant mode
+x after tool calls, the first few new chars get missed sometimes in the output 
 x remove files from bot creation/ remove add files, etc 
 x allow search_metadata_detailed and search_metadata to specify a source_name
 x preharvest for baseball and f1

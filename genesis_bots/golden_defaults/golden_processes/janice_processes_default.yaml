@@ -71,7 +71,7 @@ janice_top_warehouses_spillage_golden:
     ## Process Steps:
 
     1. **Identify The Top 3 Warehouses With Data Spilling:**
-      - Use your run query tool with note_id janice_query_1 to identify top 3 warehouses with data spilling in theSnowflake account.
+      - Use the run query_database tool to run the query referenced in the note_id janice_query_1 to identify top 3 warehouses with data spilling in the Snowflake account.
       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
 
     2. **Average Queuing Times Per Month:**

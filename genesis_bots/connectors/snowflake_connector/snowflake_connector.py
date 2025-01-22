@@ -1156,6 +1156,8 @@ def get_status(site):
         check_command = "put"
     elif site == 'jira':
         url = "https://www.atlassian.net/jira/your-work"  # Replace with the allowed URL
+    elif site == 'serper':
+        url = "https://google.serper.dev"  # Replace with the allowed URL
     elif site == 'azureopenai':
         url = "{azure_endpoint}"  # Replace with the allowed URL
     else:

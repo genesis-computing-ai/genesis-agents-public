@@ -45,6 +45,14 @@ references:
       object_type: EXTERNAL ACCESS INTEGRATION
       register_callback: core.register_single_reference
       configuration_callback: core.get_config_for_ref
+  - serper_external_access:
+      label: "Serper (web access) External Access Integration"
+      description: "This is required to access the Serper Web Access API"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
   - openai_external_access:
       label: "OpenAI External Access Integration"
       description: "This is required to access OpenAI"

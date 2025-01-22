@@ -18,9 +18,10 @@ DIRECTORY_PATH=${1:-~/}
 # Ensure the directory path does not end with a slash
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
+echo "starting"
 # Run make_alpha_sis_launch.py
-python3 ../../apps/streamlit_gui/make_community_compute_pool.py
-
+python3 ./apps/streamlit_gui/make_community_compute_pool.py
+sleep 5
 
 # Login to image repo
 snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON

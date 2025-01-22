@@ -2738,7 +2738,7 @@ def get_status(site):
                 return slack_app_config_token, slack_app_config_refresh_token
             else:
                 # Log an error if no tokens were found for the runner_id
-                logger.info(f"No Slack config tokens found for runner_id: {runner_id}")
+           #     logger.info(f"No Slack config tokens found for runner_id: {runner_id}")
                 return None, None
         except Exception as e:
             logger.error(f"Failed to retrieve Slack config tokens with error: {e}")

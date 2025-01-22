@@ -31,6 +31,7 @@ $$
             GENESIS_SOURCE: Snowflake
             SNOWFLAKE_SECURE: FALSE
             LAUNCH_GUI: FALSE
+            INTERNAL_HARVESTER_ENABLED: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
@@ -165,6 +166,7 @@ $$
             GENESIS_MODE: TASK_SERVER
             AUTO_HARVEST: TRUE
             SNOWFLAKE_METADATA: TRUE
+            INTERNAL_HARVESTER_ENABLED: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o

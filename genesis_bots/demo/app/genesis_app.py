@@ -8,6 +8,9 @@ from genesis_bots.core.system_variables import SystemVariables
 from genesis_bots.demo.sessions_creator import create_sessions
 from apscheduler.schedulers.background import BackgroundScheduler
 from genesis_bots.auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
+from genesis_bots.schema_explorer import SchemaExplorer
+import time
+from datetime import datetime, timedelta
 
 
 DEFAULT_HTTP_ENDPOINT_PORT = 8080
@@ -339,7 +342,94 @@ class GenesisApp:
         ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
 
 
+    def start_harvester(self):
+        """
+        Initializes and starts the harvester process using the existing database connection
+        and LLM key configuration.
+        """
+        logger.info('Starting harvester component...')
+        
+        # Only start if harvesting is enabled
+        if os.getenv('INTERNAL_HARVESTER_ENABLED', 'TRUE').upper() != 'TRUE':
+            logger.info('Internal Harvester disabled via INTERNAL_HARVESTER_ENABLED environment variable')
+            return
+
+        # Initialize schema explorer with existing connection and key
+        if not self.llm_api_key_struct or not self.llm_api_key_struct.llm_key:
+            self.schema_explorer = None
+        else:
+            self.schema_explorer = SchemaExplorer(self.db_adapter, self.llm_api_key_struct.llm_key)
+        
+        # Add harvester job to scheduler
+        refresh_seconds = int(os.getenv("HARVESTER_REFRESH_SECONDS", 60))
+        if os.getenv("HARVEST_TEST", "FALSE").upper() == "TRUE":
+            refresh_seconds = 5
+        
+        # Flag to track if harvester is currently running
+        self.harvester_running = False
+
+        def harvester_job():
+            # Check if harvester is already running
+
+            # Check if LLM API key is set
+            if not self.llm_api_key_struct or not self.llm_api_key_struct.llm_key:
+                logger.info("LLM API key not set, skipping harvester run")
+                return
+            if self.schema_explorer is None:
+                 self.schema_explorer = SchemaExplorer(self.db_adapter, self.llm_api_key_struct.llm_key)
+            if self.harvester_running:
+                logger.info("Previous harvester job still running, skipping this run")
+                return
+            
+            try:
+                # Skip check if running locally or on SQLite
+                wake_up = False
+              #  if self.db_adapter.source_name == "SQLite":
+              #      wake_up = True
+              #  if os.getenv("GENESIS_LOCAL_RUNNER", "").upper() == "TRUE":
+              #      wake_up = True
+
+                if not wake_up:
+                    try:
+                        cursor = self.db_adapter.client.cursor()
+                        check_bot_active = f"DESCRIBE TABLE {self.db_adapter.schema}.BOTS_ACTIVE"
+                        cursor.execute(check_bot_active)
+                        result = cursor.fetchone()
+
+                        bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+                        current_time = datetime.now()
+                        time_difference = current_time - bot_active_time_dt
+
+                        if time_difference >= timedelta(minutes=5) and os.getenv("HARVEST_TEST", "false").lower() != "true":
+                            logger.info("Bots not recently active, skipping harvest")
+                            return
+                    except:
+                        logger.info('Waiting for BOTS_ACTIVE table to be created...')
+                        return
+
+                self.harvester_running = True
+                self.schema_explorer.explore_and_summarize_tables_parallel()
+            except Exception as e:
+                logger.error(f"Error in harvester job: {e}")
+            finally:
+                self.harvester_running = False
+
+        # Schedule runs with no initial delay (next_run_time=datetime.now())
+        self.scheduler.add_job(
+            harvester_job,
+            'interval', 
+            seconds=refresh_seconds,
+            id='harvester_job',
+            replace_existing=True,
+            next_run_time=datetime.now()  # This makes it start immediately
+        )
+        logger.info(f"Harvester scheduled to run every {refresh_seconds} seconds")
+
+
     def start_all(self):
+        """
+        Modified start_all to include harvester initialization
+        """
         self.generate_index_file()
         self.set_internal_project_and_schema()
         self.setup_databse()
@@ -348,6 +438,50 @@ class GenesisApp:
         self.run_ngrok()
         self.create_app_sessions()
         self.start_server()
+        self.start_harvester()  # Add harvester startup
+
+
+    def trigger_immediate_harvest(self, database_name=None, source_name=None):
+        """
+        Triggers an immediate harvest for a specific database connection.
+        
+        Args:
+            database_name (str, optional): Name of specific database to harvest. If None, uses current connection.
+            source_name (str, optional): Name of the source connection. If None, uses current connection.
+            
+        Returns:
+            bool: True if harvest was triggered successfully, False otherwise
+        """
+        if not hasattr(self, 'schema_explorer'):
+            logger.error("Harvester not initialized. Call start_harvester() first.")
+            return False
+            
+        if self.harvester_running:
+            logger.info("Harvester already running, cannot trigger immediate harvest")
+            return False
+            
+        try:
+            self.harvester_running = True
+            
+            # Create dataset filter for specific database if provided
+            dataset_filter = None
+            if database_name or source_name:
+                dataset_filter = {
+                    'database_name': database_name,
+                    'source_name': source_name or self.db_adapter.source_name
+                }
+            
+            # Run the harvest with optional filter
+            self.schema_explorer.explore_and_summarize_tables_parallel(dataset_filter=dataset_filter)
+            logger.info(f"Immediate harvest completed for {database_name or 'all databases'}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error during immediate harvest: {e}")
+            return False
+            
+        finally:
+            self.harvester_running = False
 
 
 # singleton instance of app.

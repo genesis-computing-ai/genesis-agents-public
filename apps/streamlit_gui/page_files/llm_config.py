@@ -36,7 +36,7 @@ def llm_config():
     display_setup_messages(bot_details, active_llm_type, llm_types)
 
     # LLM selection and API key input
-    llm_model = st.selectbox("Choose LLM Model:", ["Cortex", "OpenAI", "Azure OpenAI"])
+    llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "Azure OpenAI", "Cortex"])
     st.session_state.llm_type = llm_model.lower().replace(' ', '')
     llm_api_key, llm_api_endpoint = "", ""
 
@@ -51,7 +51,7 @@ def llm_config():
         llm_api_key = 'cortex_no_key_needed'
 
     # Submit button
-    if st.button("Submit Model Selection", key="sendllm", disabled=st.session_state.disable_submit):
+    if st.button("Submit Model Selection", key="sendllm"):
         st.write("One moment while I validate the key and launch the bots...")
         process_llm_configuration(llm_api_key, llm_api_endpoint, llm_model)
 

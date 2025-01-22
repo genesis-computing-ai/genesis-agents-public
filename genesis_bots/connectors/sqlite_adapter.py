@@ -44,6 +44,8 @@ class SQLiteAdapter:
                 self._ensure_harvest_control_table()
                 self._ensure_harvest_results_table()
                 self._ensure_cust_db_connections_table()
+                #self.export_harvest()                # Check and insert each connection if it doesn't exist
+
                 SQLiteAdapter._tables_initialized = True
                 logger.info("All tables initialized successfully")
             except Exception as e:
@@ -282,7 +284,6 @@ class SQLiteAdapter:
                     },
                 ]
                 
-                # Check and insert each connection if it doesn't exist
                 for conn in connections:
                     cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?", 
                                 (conn['connection_id'],))
@@ -416,7 +417,7 @@ class SQLiteAdapter:
             
             # Save to JSON file
             import json
-            output_file = "./apps/demos/demo_data/harvest_results.json"
+            output_file = "./apps/demos/demo_data/demo_harvest_results.json"
             with open(output_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
             
@@ -544,6 +545,7 @@ class SQLiteAdapter:
             cursor.execute(create_table_sql)
             self.connection.commit()
             logger.info("HARVEST_RESULTS table verified")
+
 
         except Exception as e:
             logger.error(f"Error in _ensure_harvest_results_table: {e}")

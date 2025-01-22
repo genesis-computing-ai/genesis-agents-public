@@ -37,148 +37,53 @@ class SchemaExplorer:
             self.model=os.getenv("OPENAI_HARVESTER_MODEL", 'gpt-4o')
             self.embedding_model = os.getenv("OPENAI_HARVESTER_EMBEDDING_MODEL", 'text-embedding-3-large')
 
-    def alt_get_ddl(self,table_name = None, dataset=None, matching_connection=None):
+    def alt_get_ddl(self, table_name=None, dataset=None, matching_connection=None, object_type='TABLE'):
+        """Get DDL using the appropriate query based on object type"""
         if dataset['source_name'] == 'Snowflake':
-            return self.db_connector.alt_get_ddl(table_name)
+            return self.db_connector.alt_get_ddl(table_name)  # Snowflake handles views internally
         else:
             try:
                 from genesis_bots.connectors.data_connector import DatabaseConnector
                 connector = DatabaseConnector()
-
+                
                 db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
-                sql = self.load_custom_query(db_type, 'get_ddl')
-
-                # Pre-defined DDL queries for common database types
-                if sql is None:
-                    ddl_queries = {
-                    'postgresql': '''
-                        SELECT
-                            'CREATE TABLE ' || table_schema || '.' || table_name || E'\n(\n' ||
-                            string_agg(
-                                '    ' || column_name || ' ' ||
-                                CASE
-                                    WHEN udt_name = 'varchar' THEN 'character varying(' || character_maximum_length || ')'
-                                    WHEN udt_name = 'bpchar' THEN 'character(' || character_maximum_length || ')'
-                                    WHEN udt_name = 'numeric' AND numeric_precision IS NOT NULL AND numeric_scale IS NOT NULL
-                                        THEN 'numeric(' || numeric_precision || ',' || numeric_scale || ')'
-                                    ELSE data_type
-                                END ||
-                                CASE
-                                    WHEN column_default IS NOT NULL THEN ' DEFAULT ' || column_default
-                                    ELSE ''
-                                END ||
-                                CASE
-                                    WHEN is_nullable = 'NO' THEN ' NOT NULL'
-                                    ELSE ''
-                                END,
-                                E',\n'
-                                ORDER BY ordinal_position
-                            ) ||
-                            CASE
-                                WHEN (
-                                    SELECT string_agg(
-                                        E',\n    CONSTRAINT ' || constraint_name || ' ' || constraint_definition,
-                                        ''
-                                    )
-                                    FROM (
-                                        SELECT DISTINCT
-                                            pgc.conname AS constraint_name,
-                                            pg_get_constraintdef(pgc.oid) AS constraint_definition
-                                        FROM pg_constraint pgc
-                                        JOIN pg_namespace nsp ON nsp.oid = pgc.connamespace
-                                        WHERE conrelid = (quote_ident(table_schema) || '.' || quote_ident(table_name))::regclass
-                                        AND nsp.nspname = table_schema
-                                    ) constraints
-                                ) IS NOT NULL
-                                THEN E',\n' || (
-                                    SELECT string_agg(
-                                        E'    CONSTRAINT ' || constraint_name || ' ' || constraint_definition,
-                                        E',\n'
-                                    )
-                                    FROM (
-                                        SELECT DISTINCT
-                                            pgc.conname AS constraint_name,
-                                            pg_get_constraintdef(pgc.oid) AS constraint_definition
-                                        FROM pg_constraint pgc
-                                        JOIN pg_namespace nsp ON nsp.oid = pgc.connamespace
-                                        WHERE conrelid = (quote_ident(table_schema) || '.' || quote_ident(table_name))::regclass
-                                        AND nsp.nspname = table_schema
-                                    ) constraints
-                                )
-                                ELSE ''
-                            END ||
-                            E'\n);' as ddl
-                        FROM information_schema.columns
-                        WHERE table_schema = '!schema_name!'
-                          AND table_name = '!table_name!'
-                        GROUP BY table_schema, table_name;
-                    ''',
-                    'mysql': 'SHOW CREATE TABLE !schema_name!.!table_name!',
-                    'sqlite': 'SELECT sql FROM sqlite_master WHERE type=\'table\' AND name=!table_name!',
-                    'snowflake': 'SELECT GET_DDL(\'TABLE\', \'!database_name!.!schema_name!.!table_name!\')'
-                    }
-
-                    if matching_connection['db_type'].lower() in ddl_queries:
-                        sql = ddl_queries[matching_connection['db_type'].lower()]
-
-                    if sql is None:
-                        # Generate prompt to get SQL for DDL based on database type
-                        p = [
-                            {"role": "user", "content": f"Write a SQL query to get the DDL or CREATE TABLE statement for a table in a {matching_connection['db_type']} database.  You can include placeholders !table_name!, !schema_name!, !database_name! in the query to be replaced by the actual values at runtime.  Return only the SQL query without any explanation or additional text, with no markdown formatting. The query should return a single column containing the DDL text."}
-                        ]
-
-                        sql = self.run_prompt(p)
-
-                # Extract database, schema, table from qualified name
-                parts = table_name.strip('"').split('.')
-                database_name = parts[0].strip('"')
-                schema_name = parts[1].strip('"')
-                table_name = parts[2].strip('"')
-
-                # Replace placeholders in SQL query
-                sql = sql.replace('!table_name!', table_name)
-                sql = sql.replace('!schema_name!', schema_name)
-                sql = sql.replace('!database_name!', database_name)
-
-                # Execute the generated SQL query through the connector
-                result = connector.query_database(
-                    connection_id=dataset['source_name'],
-                    bot_id='system',
-                    query=sql,
-                    max_rows=1,
-                    max_rows_override=True,
-                    bot_id_override=True,
-                    database_name=database_name
-                )
-
-                if result and 'rows' in result and len(result['rows']) > 0:
-                    if matching_connection['db_type'].lower() == 'sqlite' or matching_connection['db_type'].lower() == 'postgresql': # confirmed for sqlite and postgresql
-                        return result['rows'][0][0]
-                    elif matching_connection['db_type'].lower() == 'mysql':
-                        return result['rows'][0][1]  # confirmed for mysql
-                    else:
-                        # Try each return type and use first valid non-empty result
-                        try:
-                            result_0 = result['rows'][0][0]
-                            if result_0:
-                                return result_0
-                        except:
-                            pass
-
-                        try:
-                            result_1 = result['rows'][0][1]
-                            if result_1:
-                                return result_1
-                        except:
-                            pass
-
-                        logger.info(f'Could not get DDL for database type: {matching_connection["db_type"]}')
-                        return ""
-                return ""
-
+                
+                # Use get_view_ddl for views, get_ddl for tables
+                query_type = 'get_view_ddl' if object_type == 'VIEW' else 'get_ddl'
+                sql = self.load_custom_query(db_type, query_type)
+                
+                if sql:
+                    sql = sql.replace('!database_name!', dataset['database_name'])
+                    sql = sql.replace('!schema_name!', dataset['schema_name'])
+                    sql = sql.replace('!table_name!', table_name.split('.')[-1].strip('"'))
+                    
+                    result = connector.query_database(
+                        connection_id=dataset['source_name'],
+                        bot_id='system',
+                        query=sql,
+                        max_rows=1,
+                        max_rows_override=True,
+                        bot_id_override=True,
+                        database_name=dataset['database_name']
+                    )
+                    
+                    # Handle different result formats
+                    if isinstance(result, dict) and result.get('success') and result.get('rows'):
+                        if isinstance(result['rows'][0], dict):
+                            return next(iter(result['rows'][0].values()))
+                        else:
+                            return result['rows'][0][0]
+                    elif isinstance(result, list) and result:
+                        if isinstance(result[0], dict):
+                            return next(iter(result[0].values()))
+                        else:
+                            return result[0][0]
+                
+                return None
+                
             except Exception as e:
                 logger.info(f'Error getting DDL: {e}')
-                return ""
+                return None
 
     def format_sample_data(self, sample_data):
         # Utility method to format sample data into a string
@@ -196,16 +101,19 @@ class SchemaExplorer:
             j = ""
         return j
 
-    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None, dataset=None, matching_connection=None):
+    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None, dataset=None, matching_connection=None, object_type='TABLE'):
         """
         Generates a document including the DDL statement and a natural language description for a table.
         :param schema: The schema name.
         :param table: The table name.
+        :param object_type: The type of database object (TABLE or VIEW)
         """
         try:
             if ddl is None:
-                ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"')
-                #ddl = self.db_connector.get_table_ddl(database_name=database, schema_name=schema, table_name=table)
+                ddl = self.alt_get_ddl(table_name='"'+database+'"."'+schema+'"."'+table+'"', 
+                                     dataset=dataset, 
+                                     matching_connection=matching_connection,
+                                     object_type=object_type)
 
             sample_data_str = ""
             if not sample_data:
@@ -476,7 +384,7 @@ class SchemaExplorer:
         try:
             import configparser
             config = configparser.ConfigParser()
-            if not config.read('./harvester_queries.conf'):
+            if not config.read('./genesis_bots/default_config/harvester_queries.conf'):
                 return None
 
             db_type = db_type.lower()
@@ -712,36 +620,41 @@ class SchemaExplorer:
 
                 if isinstance(result, dict) and result.get('success'):
                     return [row[0] for row in result['rows']]
-                elif isinstance(result, list):
-                    return [row[0] for row in result]
-                else:
-                    logger.info(f'Error getting columns from {dataset["source_name"]}: {result.get("error") if isinstance(result, dict) else "Unknown error"}')
-                    return []
 
             except Exception as e:
                 logger.info(f'Error getting columns for table {table_name}: {e}')
                 return []
 
 
-
-    def explore_and_summarize_tables_parallel(self, max_to_process=1000):
-        # called by standalone_harvester.py
+    def explore_and_summarize_tables_parallel(self, max_to_process=1000, dataset_filter=None):
         try:
             self.run_number += 1
             databases = self.get_active_databases()
+            
+            # Apply dataset filter if provided
+            if dataset_filter:
+                databases = [db for db in databases if 
+                           (not dataset_filter.get('database_name') or 
+                            db['database_name'] == dataset_filter['database_name']) and
+                           (not dataset_filter.get('source_name') or 
+                            db['source_name'] == dataset_filter['source_name'])]
+                
             schemas = []
             harvesting_databases = []
 
             for database in databases:
-                # logger.info(f"checking db {database['database_name']} with initial crawl flag= {database['initial_crawl_complete']}")
                 crawl_flag = False
                 if (database["initial_crawl_complete"] == False):
                     crawl_flag = True
-                    self.update_initial_crawl_flag(database["database_name"],True)
+                    self.update_initial_crawl_flag(database["database_name"], True)
                 else:
                     if (database["refresh_interval"] > 0):
                         if (self.run_number % database["refresh_interval"] == 0):
                             crawl_flag = True
+
+                # Force crawl if this is an immediate harvest request
+                if dataset_filter:
+                    crawl_flag = True
 
                 cur_time = datetime.now()
                 if crawl_flag:
@@ -751,9 +664,6 @@ class SchemaExplorer:
                         'database_name': database["database_name"],
                         'schema_name': schema
                     } for schema in self.get_active_schemas(database)])
-              #      logger.info(f'Checking a Database for new or changed objects (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]}) {cur_time}')
-              #  else:
-              #      logger.info(f'Skipping a Database, not in current refresh cycle (cycle#: {self.run_number}, refresh every: {database["refresh_interval"]} {cur_time})')
 
             summaries = {}
             total_processed = 0
@@ -764,29 +674,28 @@ class SchemaExplorer:
 
         # todo, first build list of objects to harvest, then harvest them
 
-
-
         def process_dataset_step1(dataset, max_to_process = 1000):
-            potential_tables = []
+            potential_objects = []
             matching_connection = None
             if dataset['source_name'] == 'Snowflake':
                 try:
-                    potential_tables = self.db_connector.get_tables(dataset['database_name'], dataset['schema_name'])
+                    # For Snowflake, just get tables as before - it already handles views
+                    potential_objects = self.db_connector.get_tables(dataset['database_name'], dataset['schema_name'])
+                    for obj in potential_objects:
+                        obj['object_type'] = 'TABLE'  # Default, but Snowflake handles views internally
                 except Exception as e:
-                    logger.info(f'Error running get potential tables Error: {e}')
+                    logger.info(f'Error running get potential objects Error: {e}')
             else:
                 try:
                     from genesis_bots.connectors.data_connector import DatabaseConnector
                     connector = DatabaseConnector()
-                    # Get connection type for the source
                     connections = connector.list_database_connections(bot_id='system', bot_id_override=True)
                     if connections['success']:
                         connections = connections['connections']
                     else:
                         logger.info(f'Error listing connections: {connections.get("error")}')
-                        return None, None
+                        return None
 
-                    # Find matching connection for database source
                     matching_connection = None
                     for conn in connections:
                         if conn['connection_id'] == dataset['source_name']:
@@ -795,7 +704,7 @@ class SchemaExplorer:
 
                     if matching_connection is None:
                         logger.info(f"No matching connection found for source {dataset['source_name']}")
-                        return None, None
+                        return None
 
                     db_type = matching_connection['db_type']
                     if '+' in db_type:
@@ -804,67 +713,57 @@ class SchemaExplorer:
                     database_name = dataset['database_name']
                     schema_name = dataset['schema_name']
 
-                    # Pre-defined table listing queries for common database types
-                    sql = self.load_custom_query(db_type, 'get_tables')
+                    # Get tables
+                    sql_tables = self.load_custom_query(db_type, 'get_tables')
+                    if sql_tables:
+                        sql_tables = sql_tables.replace('!database_name!', database_name)
+                        sql_tables = sql_tables.replace('!schema_name!', schema_name)
+                        result_tables = connector.query_database(
+                            connection_id=dataset['source_name'],
+                            bot_id='system',
+                            query=sql_tables,
+                            max_rows=1000,
+                            max_rows_override=True,
+                            bot_id_override=True,
+                            database_name=database_name
+                        )
 
-                    if sql is None:
-                        table_queries = {
-                            'mysql': 'SELECT TABLE_NAME as table_name FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = \'!schema_name!\'',
-                            'oracle': 'SELECT table_name FROM all_tables WHERE owner = \'!schema_name!\' AND tablespace_name NOT IN (\'SYSTEM\', \'SYSAUX\')',
-                            'postgresql': 'SELECT table_name FROM information_schema.tables WHERE table_catalog = \'!database_name!\' AND table_schema = \'!schema_name!\' AND table_type = \'BASE TABLE\'',
-                            'sqlite': 'SELECT name as table_name FROM sqlite_master WHERE type=\'table\'',
-                            'snowflake': 'SHOW TABLES IN SCHEMA !database_name!.!schema_name!'
-                        }
+                        if isinstance(result_tables, dict) and result_tables.get('success'):
+                            for row in result_tables['rows']:
+                                potential_objects.append({
+                                    'name': row[0],
+                                    'object_type': 'TABLE'
+                                })
 
-                        # Check if we have a pre-defined query for this database type
+                    # Get views
+                    sql_views = self.load_custom_query(db_type, 'get_views')
+                    if sql_views:
+                        sql_views = sql_views.replace('!database_name!', database_name)
+                        sql_views = sql_views.replace('!schema_name!', schema_name)
+                        result_views = connector.query_database(
+                            connection_id=dataset['source_name'],
+                            bot_id='system',
+                            query=sql_views,
+                            max_rows=1000,
+                            max_rows_override=True,
+                            bot_id_override=True,
+                            database_name=database_name
+                        )
 
-                        if db_type.lower() in table_queries:
-                            sql = table_queries[db_type.lower()]
-                        else:
-                            # Generate prompt to get SQL for table listing based on database type
-                            p = [
-                                {"role": "user", "content": f"Write a SQL query to list all tables in a {db_type} database named with the placeholder !database_name!, in the schema named with the placeholder !schema_name!, which will be replaced by the actual database name and schema name at runtime. Return only the SQL query without any explanation or additional text, with no markdown formatting. For schema-less databases like sqlite, do not use the placeholders as they aren't applicable. The query should return a single column named 'table_name'."}
-                            ]
-
-                            sql = self.run_prompt(p)
-
-                    # Replace placeholders in SQL query
-                    sql = sql.replace('!database_name!', database_name)
-                    sql = sql.replace('!schema_name!', schema_name)
-                    # Execute the generated SQL query through the connector
-                    result = connector.query_database(
-                        connection_id=dataset['source_name'],
-                        bot_id='system',
-                        query=sql,
-                        max_rows=1000,
-                        max_rows_override=True,
-                        bot_id_override=True,
-                        database_name=database_name
-                    )
-
-                    if isinstance(result, dict) and result.get('success'):
-                        potential_tables = []
-                        for row in result['rows']:
-                            potential_tables.append({'table_name': row[0]})
-                    elif isinstance(result, list):
-                        potential_tables = [{'table_name': row[0]} for row in result]
-                    else:
-                        logger.info(f'Error getting tables from {dataset["source_name"]}: {result.get("error") if isinstance(result, dict) else "Unknown error"}')
-                        return None, None
-
+                        if isinstance(result_views, dict) and result_views.get('success'):
+                            for row in result_views['rows']:
+                                potential_objects.append({
+                                    'name': row[0],
+                                    'object_type': 'VIEW'
+                                })
                 except Exception as e:
-                    logger.info(f'Error connecting to {dataset["source_name"]}: {e}')
-                    return None, None
+                    logger.error(f"Error getting objects from database: {e}")
+                    potential_objects = []
 
-            #logger.info('potential tables: ',potential_tables)
             non_indexed_tables = []
 
             # Check all potential_tables at once using a single query with an IN clause
-            table_names = [table_info['table_name'] for table_info in potential_tables]
-
             db, sch = dataset['database_name'], dataset['schema_name']
-            #quoted_table_names = [f'\'"{db}"."{sch}"."{table}"\'' for table in table_names]
-            #in_clause = ', '.join(quoted_table_names)
 
             self.initialize_model()
             if os.environ.get("CORTEX_MODE", 'False') == 'True':
@@ -887,106 +786,124 @@ class SchemaExplorer:
 
             try:
                 existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
-                # Determine which field name is used for qualified table names
-                # Convert all dictionary keys to uppercase for consistency
                 existing_tables_info = [{k.upper(): v for k, v in table.items()} for table in existing_tables_info]
                 table_names_field = 'QUALIFIED_TABLE_NAME'
                 existing_tables_set = {info[table_names_field] for info in existing_tables_info}
-                non_existing_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' not in existing_tables_set]
-                needs_updating = [table[table_names_field]  for table in existing_tables_info if table["NEEDS_FULL"]]
-                needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
-                refresh_tables = [table for table in potential_tables if f'"{db}"."{sch}"."{table["table_name"]}"' in needs_updating]
-                # Print counts of each variable
-                # logger.info(f"{db}.{sch}")
-                # for tb in existing_tables_info:
-                #     if tb['NEEDS_EMBEDDING']:
-                #         logger.info(f"{tb['QUALIFIED_TABLE_NAME']} needs embedding: {tb['NEEDS_EMBEDDING']}")
-                # logger.info(f"{check_query}")
-            except Exception as e:
-                logger.info(f'Error running check query Error: {e}')
-                return None, None
-
-            non_existing_tables.extend(refresh_tables)
-            for table_info in non_existing_tables:
-              #  print(table_info)
-                try:
-                    table_name = table_info['table_name']
-                    quoted_table_name = f'"{db}"."{sch}"."{table_name}"'
-                    # logger.info(f"checking {table_name} which is {quoted_table_name}")
-                    if quoted_table_name not in existing_tables_set or quoted_table_name in needs_updating:
-                        # Table is not in metadata table
-                        # Check to see if it exists in the shared metadata table
-                        #print ("!!!! CACHING DIsABLED !!!! ")
-                        # get metadata from cache and add embeddings for all schemas, incl baseball and f1
-                        if sch == 'INFORMATION_SCHEMA':
-                            shared_table_exists = self.db_connector.check_cached_metadata('PLACEHOLDER_DB_NAME', sch, table_name)
-                        else:
-                            shared_table_exists = self.db_connector.check_cached_metadata(db, sch, table_name)
-                        # shared_table_exists = False
-                        if shared_table_exists:
-                            # print ("!!!! CACHING Working !!!! ")
-                            # Get the record from the shared metadata table with database name modified from placeholder
-                            logger.info(f"Object cache hit for {table_name}")
-                            get_from_cache_result = self.db_connector.get_metadata_from_cache(db, sch, table_name)
-                            for record in get_from_cache_result:
-                                database = record['database_name']
-                                schema = record['schema_name']
-                                table = record['table_name']
-                                summary = record['summary']
-                                ddl = record['ddl']
-                                ddl_short = record['ddl_short']
-                                sample_data = record['sample_data_text']
-
-                                # call store memory
-                                self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, sample_data=sample_data, dataset=dataset)
-
-                        else:
+                
+                # Process new or updated objects
+                for obj in potential_objects:
+                    try:
+                        qualified_name = f'"{db}"."{sch}"."{obj["name"]}"'
+                        if qualified_name not in existing_tables_set:
                             # Table is new, so get its DDL and hash
-                            current_ddl = self.alt_get_ddl(table_name=quoted_table_name, dataset=dataset, matching_connection=matching_connection)
+                            current_ddl = self.alt_get_ddl(
+                                table_name=qualified_name, 
+                                dataset=dataset, 
+                                matching_connection=matching_connection,
+                                object_type=obj['object_type']
+                            )
                             current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
-                            new_table = {"qualified_table_name": quoted_table_name, "ddl_hash": current_ddl_hash, "ddl": current_ddl, "dataset": dataset, "matching_connection": matching_connection}
+                            new_table = {
+                                "qualified_table_name": qualified_name, 
+                                "ddl_hash": current_ddl_hash, 
+                                "ddl": current_ddl, 
+                                "dataset": dataset, 
+                                "matching_connection": matching_connection,
+                                "object_type": obj['object_type']
+                            }
                             logger.info('Newly found object added to harvest array (no cache hit)')
                             non_indexed_tables.append(new_table)
 
-                            # store quick summary
-                            # logger.info(f"is the table in the existing list?")
-                            if quoted_table_name not in existing_tables_set:
-                                # logger.info(f"yep, storing summary")
-                                self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=current_ddl, summary="{!placeholder}", sample_data="", matching_connection=matching_connection)
+                            if qualified_name not in existing_tables_set:
+                                self.store_table_summary(
+                                    database=db, 
+                                    schema=sch, 
+                                    table=obj["name"], 
+                                    ddl=current_ddl, 
+                                    ddl_short=current_ddl, 
+                                    summary="{!placeholder}", 
+                                    sample_data="", 
+                                    matching_connection=matching_connection
+                                )
 
-                except Exception as e:
-                    logger.info(f'Error processing table in step1: {e}')
+                    except Exception as e:
+                        logger.info(f'Error processing table in step1: {e}')
 
-            for table_info in needs_embedding:
-                try:
-                    quoted_table_name = table_info[0]
-                    table_name = table_info[1]
-                    # logger.info(f"embedding needed for {quoted_table_name}")
+                # Process objects needing embedding updates
+                needs_updating = [table['QUALIFIED_TABLE_NAME'] for table in existing_tables_info if table["NEEDS_FULL"]]
+                needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
+                
+                for obj in potential_objects:
+                    qualified_name = f'"{db}"."{sch}"."{obj["name"]}"'
+                    if qualified_name in needs_updating:
+                        current_ddl = self.alt_get_ddl(
+                            table_name=qualified_name, 
+                            dataset=dataset, 
+                            matching_connection=matching_connection,
+                            object_type=obj['object_type']
+                        )
+                        current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                        new_table = {
+                            "qualified_table_name": qualified_name, 
+                            "ddl_hash": current_ddl_hash, 
+                            "ddl": current_ddl, 
+                            "dataset": dataset, 
+                            "matching_connection": matching_connection,
+                            "object_type": obj['object_type']
+                        }
+                        non_indexed_tables.append(new_table)
 
-                    for current_info in existing_tables_info:
-                        if current_info["QUALIFIED_TABLE_NAME"] == quoted_table_name:
-                            current_ddl = current_info['DDL']
-                            ddl_short = current_info['DDL_SHORT']
-                            summary = current_info['SUMMARY']
-                            sample_data_text = current_info['SAMPLE_DATA_TEXT']
-                            memory_uuid = current_info['MEMORY_UUID']
-                            ddl_hash = current_info['DDL_HASH']
-                            self.store_table_summary(database=db, schema=sch, table=table_name, ddl=current_ddl, ddl_short=ddl_short, summary=summary, sample_data=sample_data_text, memory_uuid=memory_uuid, ddl_hash=ddl_hash)
+                for table_info in needs_embedding:
+                    try:
+                        qualified_name = table_info[0]
+                        table_name = table_info[1]
+                        
+                        for current_info in existing_tables_info:
+                            if current_info["QUALIFIED_TABLE_NAME"] == qualified_name:
+                                current_ddl = current_info['DDL']
+                                ddl_short = current_info['DDL_SHORT']
+                                summary = current_info['SUMMARY']
+                                sample_data_text = current_info['SAMPLE_DATA_TEXT']
+                                memory_uuid = current_info['MEMORY_UUID']
+                                ddl_hash = current_info['DDL_HASH']
+                                self.store_table_summary(
+                                    database=db, 
+                                    schema=sch, 
+                                    table=table_name, 
+                                    ddl=current_ddl, 
+                                    ddl_short=ddl_short, 
+                                    summary=summary, 
+                                    sample_data=sample_data_text, 
+                                    memory_uuid=memory_uuid, 
+                                    ddl_hash=ddl_hash
+                                )
 
-                except Exception as e:
-                    logger.info(f'Error processing table in step1 embedding refresh: {e}')
+                    except Exception as e:
+                        logger.info(f'Error processing table in step1 embedding refresh: {e}')
 
-            return non_indexed_tables
+                return non_indexed_tables
 
-        def process_dataset_step2( non_indexed_tables, max_to_process = 1000):
+            except Exception as e:
+                logger.info(f'Error running check query Error: {e}')
+                return None
 
+        def process_dataset_step2(self, non_indexed_tables, max_to_process = 1000):
+            try:
                 local_summaries = {}
                 if len(non_indexed_tables) > 0:
                     logger.info(f'starting indexing of {len(non_indexed_tables)} objects...')
+                
                 for row in non_indexed_tables:
+                    database = None
+                    schema = None
+                    table = None
+                    summary = None
+                    qualified_table_name = None
+                    
                     try:
                         dataset = row.get('dataset', None)
                         matching_connection = row.get('matching_connection', None)
+                        object_type = row.get('object_type', 'TABLE')  # Default to TABLE if not specified
                         qualified_table_name = row.get('qualified_table_name',row)
                         logger.info("     -> An object")
                         database, schema, table = (part.strip('"') for part in qualified_table_name.split('.', 2))
@@ -996,20 +913,42 @@ class SchemaExplorer:
 
                         prompt = self.generate_table_summary_prompt(database, schema, table, columns)
                         summary = self.generate_summary(prompt)
-                        #logger.info(summary)
-                        #embedding = self.get_embedding(summary)
                         ddl = row.get('ddl',None)
                         ddl_short = self.get_ddl_short(ddl)
-                        #logger.info(f"storing: database: {database}, schema: {schema}, table: {table}, summary len: {len(summary)}, ddl: {ddl}, ddl_short: {ddl_short} ")
                         logger.info('Storing summary for new object')
-                        self.store_table_memory(database, schema, table, summary, ddl=ddl, ddl_short=ddl_short, dataset=dataset, matching_connection=matching_connection)
+                        self.store_table_memory(
+                            database, 
+                            schema, 
+                            table, 
+                            summary, 
+                            ddl=ddl, 
+                            ddl_short=ddl_short, 
+                            dataset=dataset, 
+                            matching_connection=matching_connection,
+                            object_type=object_type  # Pass through the object type
+                        )
+                        
+                        if qualified_table_name:
+                            local_summaries[qualified_table_name] = summary
+                            
                     except Exception as e:
                         logger.info(f"Harvester Error on Object: {e}")
-                        self.store_table_memory(database, schema, table, summary=f"Harvester Error: {e}", ddl="Harvester Error", ddl_short="Harvester Error", dataset=dataset)
-
-
-                    local_summaries[qualified_table_name] = summary
+                        if all([database, schema, table]):
+                            self.store_table_memory(
+                                database, 
+                                schema, 
+                                table, 
+                                summary=f"Harvester Error: {e}", 
+                                ddl="Harvester Error", 
+                                ddl_short="Harvester Error", 
+                                dataset=dataset
+                            )
+                
                 return local_summaries
+                
+            except Exception as e:
+                logger.error(f"Error in process_dataset_step2: {e}")
+                return {}
 
         # Using ThreadPoolExecutor to parallelize dataset processing
 
@@ -1018,7 +957,7 @@ class SchemaExplorer:
         tables_for_full_processing = []
         random.shuffle(schemas)
         try:
-            logger.info(f'Checking {len(schemas)} schemas for new (not changed) objects.')
+            logger.info(f"Harvester checking {len(schemas)} schemas for new objects.")
         except Exception as e:
             logger.info(f'Error printing schema count log line. {e}')
 
@@ -1026,7 +965,7 @@ class SchemaExplorer:
         for schema in schemas:
             tables_for_full_processing.extend(process_dataset_step1(schema))
         random.shuffle(tables_for_full_processing)
-        process_dataset_step2(tables_for_full_processing)
+        process_dataset_step2(self, tables_for_full_processing)
 
         return 'Processed'
 

@@ -2,27 +2,16 @@
 GENESIS BOT TODOS
 =================
 
-make sure openai key is set when starting server in local mode
+email collector / telemetry on local vers
 make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right 
-have search metadata return the list of any data connections as well that may not be harvested 
 (aviv) test gxs with completion mode (w/git etc)
-x test - (reza) links from web search results dont show right in streamlit 
 (aviv) make connection, harvest, search metadata, and query database work directly via api 
-(test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)
-(test) harvester on postgres
-(test) harvester on sqlite again
-make harvester autostart with main service, make it part of main service?
-trigger immediate harvest on adding something to the harvester
-add an option on add connection to add to harvest and immediately harvest
-make harvester on non-snowflake also get views
-when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
-on add connection, make sure to suggest harvesting the new connection
-harvest control, if database not found, return list of connections
-dont return snowflake permissions suggestion if not snowflake
-is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
-make config querys conf file generate if not existing 
+(test) harvester on postgres, sqlite 
+(test) harvester on standalone snowflake connection
 test/fix redshift, bigquery, databricks
+(test) axure openai, cortex on local runner via snowflake creds?
+dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed
 make snowpark python work when you just have a regular connection to snowflake
 add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
@@ -30,6 +19,14 @@ set a flag when bot data access changes so annoy indexes can be refreshed, have 
 gxs: comment handler test it out 
 
 Later:
+make knowledge server and task server part of main service like harvester now is
+make config querys conf file generate if not existing 
+is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
+when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
+have search metadata return the list of any data connections as well that may not be harvested 
+harvest control, if database not found, return list of connections
+trigger immediate harvest on adding something to the harvester
+add an option on add connection to add to harvest and immediately harvest
 save connection id along with sql notes
 streamlit page to show project project
 add a database connections page to streamlit to see database connections
@@ -40,6 +37,14 @@ x (reza) files out for generate image
 (later) make sqlite sample data load from csv files vs binary
 
 DONE:
+x make sure openai key is set when starting server in local mode
+x (test) on add connection, make sure to suggest harvesting the new connection
+x (test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)
+x (test) harvester on sqlite again
+x ddl_short not working, fix then reharvest then save new json
+x make harvester autostart with main service, make it part of main service?
+x make harvester on non-snowflake also get views
+x test - (reza) links from web search results dont show right in streamlit 
 n (later) add bot level param for completion vs assistant mode
 x add a way for Eve to write a serper key to the db
 x check tool call messages in slack

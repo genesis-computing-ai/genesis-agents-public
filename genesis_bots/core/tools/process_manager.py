@@ -328,10 +328,10 @@ def manage_processes(
 
         if process_id is not None or 'process_id' in process_details:
 
-            get_process_info(bot_id=bot_id, process_id=process_id)
+            return get_process_info(bot_id=bot_id, process_id=process_id)
         else:
             process_name = process_details['process_name']
-            get_process_info(bot_id=bot_id, process_name=process_name)
+            return get_process_info(bot_id=bot_id, process_name=process_name)
 
     process_id_created = False
     if process_id is None:

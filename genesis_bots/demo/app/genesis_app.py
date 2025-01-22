@@ -367,11 +367,12 @@ class GenesisApp:
         
         # Flag to track if harvester is currently running
         self.harvester_running = False
+        # Track last log time and consecutive inactive runs
+        self.last_inactive_log = None
+        self.consecutive_inactive_runs = 0
 
         def harvester_job():
             # Check if harvester is already running
-
-            # Check if LLM API key is set
             if not self.llm_api_key_struct or not self.llm_api_key_struct.llm_key:
                 logger.info("LLM API key not set, skipping harvester run")
                 return
@@ -382,12 +383,7 @@ class GenesisApp:
                 return
             
             try:
-                # Skip check if running locally or on SQLite
                 wake_up = False
-              #  if self.db_adapter.source_name == "SQLite":
-              #      wake_up = True
-              #  if os.getenv("GENESIS_LOCAL_RUNNER", "").upper() == "TRUE":
-              #      wake_up = True
 
                 if not wake_up:
                     try:
@@ -401,8 +397,26 @@ class GenesisApp:
                         time_difference = current_time - bot_active_time_dt
 
                         if time_difference >= timedelta(minutes=5) and os.getenv("HARVEST_TEST", "false").lower() != "true":
-                            logger.info("Bots not recently active, skipping harvest")
+                            # Implement backoff logging
+                            should_log = False
+                            if self.last_inactive_log is None:
+                                should_log = True
+                            else:
+                                # Calculate minimum time between logs based on consecutive inactive runs
+                                # Doubles each time up to max 1 hour
+                                min_log_interval = min(3600, 60 * (2 ** self.consecutive_inactive_runs))
+                                time_since_last_log = (current_time - self.last_inactive_log).total_seconds()
+                                should_log = time_since_last_log >= min_log_interval
+
+                            if should_log:
+                                logger.info("Bots not recently active, skipping harvest")
+                                self.last_inactive_log = current_time
+                                self.consecutive_inactive_runs += 1
                             return
+                        else:
+                            # Reset consecutive inactive runs when bots are active
+                            self.consecutive_inactive_runs = 0
+                            self.last_inactive_log = None
                     except:
                         logger.info('Waiting for BOTS_ACTIVE table to be created...')
                         return

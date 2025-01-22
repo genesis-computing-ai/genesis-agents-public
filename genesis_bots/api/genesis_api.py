@@ -59,7 +59,7 @@ class GenesisAPI:
                     # Insert a newline character before any occurrence of the emojis 🤖 or 🧰,
                     # but only if they are not already preceded by a newline.
                     new_content = re.sub(r'(?<!\n)(🤖|🧰)', r'\n\1', new_content)
-                    print(f"\033[96m{new_content}\033[0m", end='', flush=True)  # Cyan text
+                    ##print(f"\033[96m{new_content}\033[0m", end='', flush=True)  # Cyan text
                     last_response = response
 
                 if done:

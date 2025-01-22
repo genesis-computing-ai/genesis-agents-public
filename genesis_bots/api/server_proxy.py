@@ -498,3 +498,69 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
         super().shutdown()
         self.genesis_app.shutdown_server()
 
+
+
+
+def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
+    """
+    Load a Snowflake private key from a PEM file.
+
+    Args:
+        filename (str): The path to the PEM file containing the private key.
+        silent (bool): If True, suppresses print statements. Default is True.
+
+    Returns:
+        bytes: The private key in DER format.
+    """
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    if not silent:
+        print(f"Loading Snowflake private key from {filename}")
+    with open(filename, "rb") as finp:
+        p_key= serialization.load_pem_private_key(finp.read(), password=None, backend=default_backend()
+        )
+    pkb = p_key.private_bytes(encoding=serialization.Encoding.DER, format=serialization.PrivateFormat.PKCS8,encryption_algorithm=serialization.NoEncryption())
+    return pkb
+
+
+def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None) -> GenesisServerProxyBase:
+    """
+    Build a server proxy based on the provided server URL and optional Snowflake connection arguments.
+
+    Args:
+        server_url (str): The URL of the server. It supports three types of URLS: 
+           1. HTTP(s) server URL (e.g. "http://localhost:8080"), 
+           2. "embedded" for running the Genesis BotOsServer inside the caller's process (used for testing and development only).
+           3. Snowflake SQLAlchemy connection URL (e.g. "snowflake://user@account") that is passed to SqlAlchemy create_engine function.
+           
+        snowflake_conn_args (str|dict, optional): Additional connection arguments for a Snowflake connection if the server URL is a Snowflake connection URL. 
+        If a string, we assume it has the format key1=value1,key2=value2;... and parse it into a dictionary.
+        We pass it to SqlAlchemy.create_engine(server_url, connect_args=snowflake_conn_args).
+        For convenience, if one of the keys in the dictionary is "private_key_file", we load the private key from the provited PEM file and add it to the arguments as "private_key".                                    
+
+    Returns:
+        GenesisServerProxyBase: An instance of a server proxy based on the provided server URL and connection arguments.
+
+    Raises:
+        ValueError
+    """
+    if server_url.lower() == "embedded":
+        return EmbeddedGenesisServerProxy()
+    elif server_url.startswith('snowflake://'):
+        if snowflake_conn_args is not None:
+            args_format = "key1=value1,key2=value2;..."
+            if isinstance(snowflake_conn_args, str):
+                # parse the args from the string. Assume it has the format key1=value1,key2=value2;...
+                try:
+                    snowflake_conn_args = {k: v for k, v in [item.split('=') for item in snowflake_conn_args.split(',')]}
+                except Exception as e:
+                    raise ValueError(f"Invalid snowflake connection arguments format: {str(e)}. Expecting format {args_format}.")
+            if not isinstance(snowflake_conn_args, dict):
+                raise ValueError(f"Invalid snowflake connection arguments. Must be a dictionary or a string in the format {args_format}.")
+            private_key_file = snowflake_conn_args.pop("private_key_file", None)
+            if private_key_file:
+                pkb = _load_snowflake_private_key(private_key_file)
+                snowflake_conn_args["private_key"] = pkb
+        return SPCSServerProxy(connection_url=server_url, connect_args=snowflake_conn_args)
+    else:
+        return RESTGenesisServerProxy(server_url=server_url)

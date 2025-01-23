@@ -128,7 +128,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
             self.client = self.connection
 
-        self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
+            self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
         if os.getenv("CORTEX_MODEL", None) is not None:
             # TODO: rename self.llm_engine to self.llm_model_name.

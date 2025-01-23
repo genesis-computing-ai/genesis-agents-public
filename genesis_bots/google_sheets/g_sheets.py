@@ -974,8 +974,10 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             return None
     try:
         service = build("sheets", "v4", credentials=creds)
+        logger.info(f"Loaded sheets v4: {spreadsheet_id}")
 
         if not cell_range:
+            logger.info(f"Not in cell range: {spreadsheet_id}")
             result = (
                 service.spreadsheets()
                 .get(spreadsheetId=spreadsheet_id)
@@ -986,6 +988,9 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             col_count = result.get("sheets")[0].get("properties").get("gridProperties").get("columnCount")
             cell_range = f"Sheet1!A1:{number_to_column(col_count+1)}{row_count}"
 
+            logger.info(f"Row count: {row_count} col_count: {col_count} cell_range: {cell_range} ss_id: {spreadsheet_id}")
+
+        logger.info(f"Getting result: {spreadsheet_id}")
         result = (
             service.spreadsheets()
             .values()
@@ -996,10 +1001,12 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         rows = result.get("values", [])
 
         print(f"{len(rows)} rows retrieved")
+        logger.info(f"Retrieved row count: {len(rows)}: {spreadsheet_id}")
         return {
             "Success": True,
             "cell_values": rows,
         }
     except HttpError as error:
         print(f"An error occurred: {error}")
+        logger.info(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
         return error

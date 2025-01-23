@@ -977,11 +977,14 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         logger.info(f"Loaded sheets v4: {spreadsheet_id}")
 
         if not cell_range:
-            logger.info(f"Not in cell range: {spreadsheet_id}")
+            logger.info(f"Not in cell range so getting row/col count info: {spreadsheet_id}")
             result = (
                 service.spreadsheets()
                 .get(spreadsheetId=spreadsheet_id)
                 .execute()
+            )
+            logger.info(
+                f"Returned from getting row/col count info = result {result}"
             )
 
             row_count = result.get("sheets")[0].get("properties").get("gridProperties").get("rowCount")
@@ -990,13 +993,14 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
 
             logger.info(f"Row count: {row_count} col_count: {col_count} cell_range: {cell_range} ss_id: {spreadsheet_id}")
 
-        logger.info(f"Getting result: {spreadsheet_id}")
+        logger.info(f"Getting result for cell range {cell_range}: {spreadsheet_id}")
         result = (
             service.spreadsheets()
             .values()
             .get(spreadsheetId=spreadsheet_id, range=cell_range)
             .execute()
         )
+        logger.info(f"Result: {result}")
 
         rows = result.get("values", [])
 

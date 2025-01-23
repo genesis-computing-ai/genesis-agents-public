@@ -87,7 +87,7 @@ def call_genesis_bot(client, bot_id, request, thread = None):
         print(f"\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[92mResponse:\033[0m")  # Green label for response section
 
-        request = client.add_message(bot_id, request, thread_id=thread)
+        request = client.submit_message(bot_id, request, thread_id=thread)
         response = client.get_response(bot_id, request["request_id"])
 
         print(f"\n\033[94m{'-'*80}\033[0m")  # Blue separator

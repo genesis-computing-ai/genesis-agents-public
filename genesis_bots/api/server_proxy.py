@@ -1,6 +1,7 @@
 from   flask                    import Flask
 from   genesis_bots.api.genesis_base \
-                                import (_ALL_BOTS_, get_tool_func_descriptor,
+                                import (RequestHandle, _ALL_BOTS_,
+                                        get_tool_func_descriptor,
                                         is_bot_client_tool)
 from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
@@ -81,11 +82,7 @@ class GenesisServerProxyBase(ABC):
         return response.json()
 
 
-    def add_message(self, bot_id, message, thread_id=None) -> dict: # returns a dict with keys: request_id, bot_id, thread_id
-        # XXXAD: replace retval with an object?
-        # XXXAD: rename tp 'send_message'??
-        # TODO: docme
-
+    def submit_message(self, bot_id, message, thread_id=None) -> RequestHandle: # returns a dict with keys: request_id, bot_id, thread_id
         # create a new unique thread_id if not provided
         if not thread_id:
             thread_id = str(uuid.uuid4())
@@ -93,9 +90,7 @@ class GenesisServerProxyBase(ABC):
         data = json.dumps({"data": [[1, message, thread_id, json.dumps({"bot_id": bot_id})]]})
         response = self._send_REST_request("post", "udf_proxy/submit_udf", data)
         response_data = response.json()["data"][0][1]
-        return {"request_id": response_data,
-                "bot_id": bot_id,
-                "thread_id": thread_id}
+        return RequestHandle(request_id=response_data, bot_id=bot_id, thread_id=thread_id)
 
 
     def _get_raw_message(self, bot_id, request_id) -> str:
@@ -141,7 +136,7 @@ class GenesisServerProxyBase(ABC):
                 result_msg = UDFBotOsInputAdapter.format_action_msg("action_result",
                                                                     invocation_id=invocation_id,
                                                                     func_result=func_result)
-                self.add_message(bot_id, result_msg)
+                self.submit_message(bot_id, result_msg)
                 msg = None # this is an internal message. Hide it from the client.
             else:
                 # We do not recognize this action message.

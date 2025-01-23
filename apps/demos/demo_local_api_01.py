@@ -16,12 +16,12 @@ def main():
         print("-----------------------")
         msg = "hello"
         print(f"\n>>>> Sending '{msg}' to Eve")
-        request = client.add_message("Eve", msg)
+        request = client.submit_message("Eve", msg)
         response = client.get_response("Eve", request["request_id"])
         print(f"\n>>>> Response from Eve: {response}")
 
         msg = "Run a query to get the current date from the database. Use an arbitrary database connetion. Show me the result as well as which database connection was used."
-        request = client.add_message("Eve", msg)
+        request = client.submit_message("Eve", msg)
         response = client.get_response("Eve", request["request_id"])
         print("\n>>>>", response)
 

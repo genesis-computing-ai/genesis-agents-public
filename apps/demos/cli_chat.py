@@ -58,13 +58,13 @@ def main():
 
                 # Send message to the bot, wait for response
                 try:
-                    request = client.add_message(bot_id, user_input)
+                    request = client.submit_message(curr_bot_id, user_input, thread_id=thread_id)
                 except Exception as e:
                     print(f"{COLOR_RED}ERROR: {e}.{COLOR_RESET}")
                     continue
-                response = client.get_response(request["bot_id"], request["request_id"], timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+                response = client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
                 if not response:
-                    print(f"{COLOR_RED}ERROR: No response from bot {request['bot_id']} within {RESPONSE_TIMEOUT_SECONDS} seconds.{COLOR_RESET}")
+                    print(f"{COLOR_RED}ERROR: No response from bot {request.bot_id} within {RESPONSE_TIMEOUT_SECONDS} seconds.{COLOR_RESET}")
                     continue
 
                 # Print the bot's response

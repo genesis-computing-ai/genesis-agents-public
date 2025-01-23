@@ -50,7 +50,7 @@ def main():
     with GenesisAPI(server_proxy=server_proxy) as client:
         req_msg = "hello, Can you translate phrases in English to Swedish? Show me an example."
         print(f"\n>>>> Requesting: {req_msg}")
-        request = client.add_message("Janice", req_msg) # "Janice"
+        request = client.submit_message("Janice", req_msg) # "Janice"
         response = client.get_response("Janice", request["request_id"])
         print("\n>>>>", response)
 
@@ -59,7 +59,7 @@ def main():
         req_msg = ("Use a tool to fetch 5 random famous English phrases and translate them to Swedish. " \
                 "Return the result as a nicely formatted text table with two columns: 'Orig Phrase' and 'Translation'.")
         print(f"\n>>>> Requesting: {req_msg}")
-        request = client.add_message("Janice", req_msg)
+        request = client.submit_message("Janice", req_msg)
         response = client.get_response("Janice", request["request_id"])
         print("\n>>>>", response)
         global saved_translated_phrases
@@ -71,7 +71,7 @@ def main():
                                     "For each tranlsation of a phrase, detect its language and translate it to english. "
                                     "Return a plain text table with 4 columns: 'orig phrase', 'translation', langage of translation', and 'translted to english'.")
         print(f"\n>>>> Requesting: {req_msg}")
-        request = client.add_message("Janice", req_msg)
+        request = client.submit_message("Janice", req_msg)
         response = client.get_response("Janice", request["request_id"])
         print("\n>>>>", response)
 

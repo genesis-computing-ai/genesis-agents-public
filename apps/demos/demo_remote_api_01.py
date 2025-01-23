@@ -6,10 +6,10 @@ client = GenesisAPI(server_proxy=GenesisSnowflakeServer, scope="GENESIS_BOTS_ALP
 bots = client.get_all_bots()
 print(bots)
 
-request = client.add_message("Janice", "hello. answer in spanish")
+request = client.submit_message("Janice", "hello. answer in spanish")
 response = client.get_response("Janice", request["request_id"], timeout_seconds=10)
 print(response)
-request = client.add_message("Janice", "what is the capital of spain?", thread_id=request["thread_id"])
+request = client.submit_message("Janice", "what is the capital of spain?", thread_id=request["thread_id"])
 response = client.get_response("Janice", request["request_id"], timeout_seconds=10)
 print(response)
 

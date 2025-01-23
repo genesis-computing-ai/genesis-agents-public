@@ -26,7 +26,7 @@ def _call_genesis_bot(gclient, bot_id, request):
         print(f"\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[92mResponse:\033[0m")  # Green label for response section
 
-        request = gclient.add_message(bot_id, request)
+        request = gclient.submit_message(bot_id, request)
         with log_level_ctx("ERROR"):
             response = gclient.get_response(bot_id, request["request_id"])
 

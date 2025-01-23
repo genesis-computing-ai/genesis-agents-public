@@ -23,7 +23,7 @@ if len(notes) > 0:
 
 print(bots)
 
-request = client.add_message(bot_id, "hello")
+request = client.submit_message(bot_id, "hello")
 response = client.get_response(bot_id, request["request_id"])
 print(response)
 

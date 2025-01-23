@@ -1,4 +1,3 @@
-from   abc                      import ABC
 from   datetime                 import datetime
 import json
 import os
@@ -7,6 +6,27 @@ from   pydantic                 import BaseModel
 from   snowflake.connector      import SnowflakeConnection
 import sys
 from   typing                   import Dict, Optional, Tuple
+
+class RequestHandle:
+    '''
+    A simple class to hold message submission information. This is useful for fetching all responses associated with the sbmitted message.
+    Respects both dot notation and dict-style access.
+    '''
+    def __init__(self, request_id: str, bot_id: str, thread_id: str = None):
+        self.request_id = str(request_id)
+        self.bot_id = str(bot_id)
+        self.thread_id = str(thread_id) if thread_id is not None else None
+
+
+    def __getitem__(self, key):
+        if hasattr(self, key):
+            return getattr(self, key)
+        raise KeyError(key)
+
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(request_id={self.request_id}, bot_id={self.bot_id}, thread_id={self.thread_id})"
+
 
 class GenesisBot(BaseModel):
     BOT_ID: str
@@ -356,7 +376,7 @@ class GenesisMessage(BaseModel):
 
 # Clent-side bot_tool support
 #-----------------------------------------
-from   genesis_bots.core                     import bot_os_tools2 as core_tools
+from   genesis_bots.core        import bot_os_tools2 as core_tools
 
 _ALL_BOTS_ = core_tools._ALL_BOTS_TOKEN_
 

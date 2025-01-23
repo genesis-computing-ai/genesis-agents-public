@@ -1,8 +1,9 @@
 import re
 import time
+from   uuid                     import UUID
 
 from   genesis_bots.api.genesis_base \
-                                import GenesisBot, _ALL_BOTS_
+                                import GenesisBot, RequestHandle, _ALL_BOTS_
 from   genesis_bots.api.server_proxy \
                                 import GenesisServerProxyBase
 
@@ -38,8 +39,10 @@ class GenesisAPI:
         return self.server_proxy.upload_file(file_path, file_name, contents)
 
 
-    def add_message(self, bot_id, message:str, thread_id=None) -> dict:
-        return self.server_proxy.add_message(bot_id, message=message, thread_id=thread_id)
+    def submit_message(self, bot_id, message:str, thread_id:str|UUID=None) -> RequestHandle:
+        if thread_id is not None:
+            thread_id = str(thread_id)
+        return self.server_proxy.submit_message(bot_id, message=message, thread_id=thread_id)
 
 
     def get_response(self, bot_id, request_id=None, timeout_seconds=None) -> str:

@@ -1,7 +1,7 @@
 
 # **Genesis API**
 
-**Description:**  
+**Description:**
 A programmatic interface to the Genesis AI platform.
 ---
 
@@ -28,15 +28,13 @@ client = GenesisAPI(server_type=GenesisSnowflakeServer, scope="GENESIS_BOTS_ALPH
 bots = client.get_all_bots()
 print(bots)
 
-request = client.add_message("Janice", "hello. answer in spanish")
-response = client.get_response("Janice", request["request_id"], timeout_seconds=10)
+request = client.submit_message("Janice", "hello. answer in spanish")
+response = client.get_response("Janice", request.request_id, timeout_seconds=10)
 print(response)
-request = client.add_message("Janice", "what is the capital of spain?", thread_id=request["thread_id"])
+request = client.submit_message("Janice", "what is the capital of spain?", thread_id=request.thread_id)
 response = client.get_response("Janice", request["request_id"], timeout_seconds=10)
 print(response)
 
-projects = client.get_all_projects()
-print(projects)
 
 client.shutdown()
 ```
@@ -45,12 +43,12 @@ client.shutdown()
 
 ## **License**
 
-This project is licensed under the **Server Side Public License (SSPL)**.  
+This project is licensed under the **Server Side Public License (SSPL)**.
 
-The full text of the license is available in the [LICENSE](LICENSE) file.  
+The full text of the license is available in the [LICENSE](LICENSE) file.
 
 Please note that the SSPL is **not an OSI-approved open-source license**. Use of this software is subject to additional conditions, primarily regarding its use in providing a publicly available cloud service.
 
-For more details, visit:  
+For more details, visit:
 [MongoDB SSPL License Explanation](https://www.mongodb.com/licensing/server-side-public-license)
 

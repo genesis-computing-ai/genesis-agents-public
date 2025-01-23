@@ -214,13 +214,11 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
     @functools.cached_property
     def is_using_local_runner(self):
-        val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
-        if val:
-            if val.lower() == 'true':
-                return True
-            else:
-                logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
-        return False
+        val = os.environ.get('SPCS_MODE', 'FALSE')
+        if val.lower() == 'true':
+            return False
+        else:
+            return True
 
     # def process_scheduler(self,action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10):
     #     process_scheduler(self, action, bot_id, task_id=None, task_details=None, thread_id=None, history_rows=10)
@@ -1811,7 +1809,7 @@ def get_status(site):
             else:
                 return "a required parameter was not entered"
         except Exception as e:
-            if os.environ.get('GENESIS_LOCAL_RUNNER', '').upper() != 'TRUE':
+            if os.environ.get('SPCS_MODE', '').upper() == 'TRUE':
                 logger.info(f"Error checking cached metadata: {e}")
             return False
 
@@ -2129,25 +2127,7 @@ def get_status(site):
 
     def create_bot_workspace(self, workspace_schema_name):
         try:
-            # query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            # if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
             query = f"CREATE SCHEMA IF NOT EXISTS {workspace_schema_name}"
-            # else:
-            #     try:
-            #         workspace_schema_check_query = (
-            #             f"SHOW SCHEMAS LIKE '{workspace_schema_name}_OLD';"
-            #         )
-            #         cursor = self.client.cursor()
-            #         cursor.execute(workspace_schema_check_query)
-            #         if not cursor.fetchone():
-            #             rename_query = f"ALTER SCHEMA IF EXISTS {workspace_schema_name} RENAME TO {workspace_schema_name}_OLD"
-            #             cursor = self.client.cursor()
-            #             cursor.execute(rename_query)
-            #             self.client.commit()
-            #     except Exception as e:
-            #         pass
-            #     # logger.info(f"Workspace schema {workspace_schema_name} renamed to OLD_{workspace_schema_name}")
-            #     query = f"CREATE OR ALTER VERSIONED SCHEMA {workspace_schema_name}"
             cursor = self.client.cursor()
             cursor.execute(query)
             self.client.commit()
@@ -2162,7 +2142,7 @@ def get_status(site):
 
     def grant_all_bot_workspace(self, workspace_schema_name):
         try:
-            if os.getenv("GENESIS_LOCAL_RUNNER", "False").lower() == "true":
+            if os.getenv("SPCS_MODE", "False").lower() == "false":
                 grant_fragment = "ROLE PUBLIC"
             else:
                 grant_fragment = "APPLICATION ROLE APP_PUBLIC"

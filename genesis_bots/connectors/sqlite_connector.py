@@ -71,13 +71,11 @@ class SqliteConnector(DatabaseConnector):
         self.source_name = "Sqlite"
 
     def is_using_local_runner(self):
-        val = os.environ.get('GENESIS_LOCAL_RUNNER', None)
-        if val:
-            if val.lower() == 'true':
-                return True
-            else:
-                logger.warning(f"Ignoring invalid value for env var GENESIS_LOCAL_RUNNER = {val} (expected 'TRUE')")
-        return False
+        val = os.environ.get('SPCS_MODE', 'FALSE')
+        if val.lower() == 'true':
+            return False
+        else:
+            return True
 
     def check_cortex_available(self):
         return False

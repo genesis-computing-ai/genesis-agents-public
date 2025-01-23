@@ -390,7 +390,7 @@ def add_g_file_comment(
     # if not file_id or not content or (not creds and not user):
     #     raise Exception(
     #         "Missing credentials, user name, file ID, or value."
-        )
+        # )
     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
 
     try:

@@ -738,44 +738,47 @@ def ensure_table_exists(self):
                 logger.info(
                     f"Table EAI_CONFIG already exists."
                 )
+            
+            if self.source_name == 'Snowflake':
 
-            # ensure eai_config table matches EAI assigned to services
-            get_eai_from_services_query = f" SHOW SERVICES IN APPLICATION {self.project_id}"
-            cursor.execute(get_eai_from_services_query)
-            # self.client.commit()
-            get_eai_from_services_query = f""" select DISTINCT REPLACE(rtrim(ltrim("external_access_integrations",'['),']'),'"','') EAI_LIST from TABLE(RESULT_SCAN(LAST_QUERY_ID()));"""
-            cursor.execute(get_eai_from_services_query)
-            self.client.commit()
-            eai_list = cursor.fetchone()
-
-            values_clause = " UNION ALL ".join([f"""SELECT $${eai}$$ AS EAI_NAME, CHARINDEX('AZURE_OPENAI',$${eai}$$),
-                                iff(charindex('CONSUMER',$${eai}$$)>0,'CONSUMER',
-                                    IFF(CHARINDEX('AZURE_OPENAI',$${eai}$$)>0,'AZURE_OPENAI',
-                                        IFF(CHARINDEX('SLACK',$${eai}$$)>0,'SLACK',
-                                            IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))  AS EAI_TYPE""" for eai in eai_list if eai is not None])
-
-            # Create the full merge statement
-            if values_clause:
-                merge_statement = dedent(f"""
-                MERGE INTO {self.genbot_internal_project_and_schema}.EAI_CONFIG AS tgt
-                USING (
-                {values_clause}
-                ) AS src
-                ON tgt.EAI_TYPE = src.eai_type
-                WHEN NOT MATCHED THEN
-                INSERT (eai_type, eai_name)
-                VALUES (src.eai_type, src.eai_name);
-                """)
-                # logger.info(f"######DEBUG###### {merge_statement}")
-                cursor.execute(merge_statement)
+                # ensure eai_config table matches EAI assigned to services
+                get_eai_from_services_query = f" SHOW SERVICES IN APPLICATION {self.project_id}"
+                cursor.execute(get_eai_from_services_query)
+                # self.client.commit()
+                get_eai_from_services_query = f""" select DISTINCT REPLACE(rtrim(ltrim("external_access_integrations",'['),']'),'"','') EAI_LIST from TABLE(RESULT_SCAN(LAST_QUERY_ID()));"""
+                cursor.execute(get_eai_from_services_query)
                 self.client.commit()
-                logger.info(
-                    f"Updated EAI_CONFIG table from services"
-                )
+                eai_list = cursor.fetchone()
+
+                values_clause = " UNION ALL ".join([f"""SELECT $${eai}$$ AS EAI_NAME, CHARINDEX('AZURE_OPENAI',$${eai}$$),
+                                    iff(charindex('CONSUMER',$${eai}$$)>0,'CONSUMER',
+                                        IFF(CHARINDEX('AZURE_OPENAI',$${eai}$$)>0,'AZURE_OPENAI',
+                                            IFF(CHARINDEX('SLACK',$${eai}$$)>0,'SLACK',
+                                                IFF(CHARINDEX('OPENAI',$${eai}$$)>0,'OPENAI','CUSTOM'))))  AS EAI_TYPE""" for eai in eai_list if eai is not None])
+
+                # Create the full merge statement
+                if values_clause:
+                    merge_statement = dedent(f"""
+                    MERGE INTO {self.genbot_internal_project_and_schema}.EAI_CONFIG AS tgt
+                    USING (
+                    {values_clause}
+                    ) AS src
+                    ON tgt.EAI_TYPE = src.eai_type
+                    WHEN NOT MATCHED THEN
+                    INSERT (eai_type, eai_name)
+                    VALUES (src.eai_type, src.eai_name);
+                    """)
+                    # logger.info(f"######DEBUG###### {merge_statement}")
+                    cursor.execute(merge_statement)
+                    self.client.commit()
+                    logger.info(
+                        f"Updated EAI_CONFIG table from services"
+                    )
         except Exception as e:
-            logger.error(
-                f"An error occurred while checking or creating table EAI_CONFIG: {e}"
-            )
+            if not hasattr(e, 'msg') or "Object found is of type 'DATABASE', not specified type 'APPLICATION'" not in e.msg:
+                logger.error(
+                    f"An error occurred while checking or creating table EAI_CONFIG: {e}"
+                )
         finally:
             if cursor is not None:
                 cursor.close()

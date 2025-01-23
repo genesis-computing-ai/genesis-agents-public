@@ -523,7 +523,7 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
 
         # return (f'(i) When replying to the user in text/plain format, use the following markdown: [{title}](artifact:/{artifact_id}) \n'
         #         f'(ii) When replying to the user in text/html format, use the following markup: {html_format} \n')
-        return ("Here is a markdown syntax you (assistant) can use to render this artifact when responding to the user in a chat or to embed this artifact in an email: [{title}](artifact:/{artifact_id}). "
+        return (f"Here is a markdown syntax you (assistant) can use to render this artifact when responding to the user in a chat or to embed this artifact in an email: [{title}](artifact:/{artifact_id}). "
                 "Strictly follow this markdown syntax. Note that this markdown cannot be used by the user. DO NOT suggest to the user to use this markdown. ")
 
 

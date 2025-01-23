@@ -973,8 +973,8 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             print(f"Error loading credentials: {e}")
             return None
     try:
-        service = build("sheets", "v4", credentials=creds)
-        logger.info(f"Loaded sheets v4: {spreadsheet_id}")
+        service = build("sheets", "v3", credentials=creds)
+        logger.info(f"Loaded sheets v3: {spreadsheet_id}")
 
         if not cell_range:
             logger.info(f"Not in cell range so getting row/col count info: {spreadsheet_id}")

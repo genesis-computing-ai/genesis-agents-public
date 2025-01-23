@@ -78,6 +78,9 @@ class SnowflakeConnector(SnowflakeConnectorBase):
     def __init__(self, connection_name, bot_database_creds=None):
         super().__init__()
 
+        if not os.getenv("GENESIS_INTERNAL_DB_SCHEMA") and os.getenv("SNOWFLAKE_METADATA", "FALSE").upper() != "TRUE":
+            os.environ["GENESIS_INTERNAL_DB_SCHEMA"] = "NONE.NONE"
+
         # used to get the default value if not none, otherwise get env var. allows local mode to work with bot credentials
         def get_env_or_default(value, env_var):
             return value if value is not None else os.getenv(env_var)
@@ -4656,7 +4659,7 @@ result = 'Table FAKE_CUST created successfully.'
                         note_name = None,
                         note_type = None,
                         return_base64 = False,
-                        save_artifacts=False
+                        save_artifacts=True
                         ) -> str|dict:
         """
         Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
@@ -4945,7 +4948,7 @@ result = 'Table FAKE_CUST created successfully.'
                         # Create artifact
                         aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
                         logger.info(f"Artifact {aid} created for output from python code named {result_json['filename']}")
-                        ref_notes = af.get_llm_artifact_ref_instructions(aid)
+                        ref_notes = ref_notes = af.get_llm_artifact_ref_instructions(aid)
                         result = {
                             "success": True,
                             "result": f"Output from snowpark is an artifact, which can be later refernced using artifact_id={aid}. "
@@ -5221,8 +5224,6 @@ def _run_snowpark_python(
         code=code,
         packages=packages,
         note_id=note_id,
-        bot_id=bot_id,
-        thread_id=thread_id
     )
 
 _all_snowflake_connector_functions = (

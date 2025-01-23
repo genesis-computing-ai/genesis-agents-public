@@ -57,29 +57,29 @@ def config_web_access():
             except Exception as e:
                 st.error(f"Error configuring Serper params: {e}")
 
-    st.markdown('<p class="big-font">Spider Cloud API</p>', unsafe_allow_html=True)
-    st.markdown("""Spider is the fastest open source scraper and crawler that returns LLM-ready data.
-                It converts any website into pure HTML, markdown, metadata or text while enabling you to
-                crawl with custom actions using AI. Follow the instructions <a href="https://spider.cloud/" target="_blank">here</a> to get an API key""", unsafe_allow_html=True)
-    spider_api_key = st.text_input("Spider API Key")
+    # st.markdown('<p class="big-font">Spider Cloud API</p>', unsafe_allow_html=True)
+    # st.markdown("""Spider is the fastest open source scraper and crawler that returns LLM-ready data.
+    #             It converts any website into pure HTML, markdown, metadata or text while enabling you to
+    #             crawl with custom actions using AI. Follow the instructions <a href="https://spider.cloud/" target="_blank">here</a> to get an API key""", unsafe_allow_html=True)
+    # spider_api_key = st.text_input("Spider API Key")
 
-    # Handle submission of Spider parameters
-    if st.button("Add Spider API Key"):
-        if not spider_api_key:
-            st.error("Spider API Key is required.")
-        else:
-            try:
-                key_pairs = {"api_key": spider_api_key}
-                # Send data to metadata
-                api_config_result = set_metadata(f"api_config_params spider {json.dumps(key_pairs)}")
-                # Check if the result indicates success
-                if (isinstance(api_config_result, list) and api_config_result and
-                    api_config_result[0].get('Success') is True):
-                    st.success("Spider API parameters configured successfully!")
-                else:
-                    st.error(f"Failed to configure Spider API parameters: {api_config_result}")
-            except Exception as e:
-                st.error(f"Error configuring Spider params: {e}")
+    # # Handle submission of Spider parameters
+    # if st.button("Add Spider API Key"):
+    #     if not spider_api_key:
+    #         st.error("Spider API Key is required.")
+    #     else:
+    #         try:
+    #             key_pairs = {"api_key": spider_api_key}
+    #             # Send data to metadata
+    #             api_config_result = set_metadata(f"api_config_params spider {json.dumps(key_pairs)}")
+    #             # Check if the result indicates success
+    #             if (isinstance(api_config_result, list) and api_config_result and
+    #                 api_config_result[0].get('Success') is True):
+    #                 st.success("Spider API parameters configured successfully!")
+    #             else:
+    #                 st.error(f"Failed to configure Spider API parameters: {api_config_result}")
+    #         except Exception as e:
+    #             st.error(f"Error configuring Spider params: {e}")
 
     # Check if Web Access EAI is available and we're in Native Mode
     if not st.session_state.serper_eai_available and st.session_state.get("NativeMode", False) == True:
@@ -94,7 +94,7 @@ def config_web_access():
                 if not ref:
                     # If no reference found, allow creating a new one
                     if st.button("Create External Access Integration", key="create_eai"):
-                        import snowflake.permissions as permissions
+                        from snowflake import permissions
                         permissions.request_reference(st.session_state.eai_reference_name)
                         st.info("Request sent. Please rerun the app or try again to see updates.")
                 else:

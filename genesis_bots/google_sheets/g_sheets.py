@@ -356,7 +356,7 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
             creds = Credentials.from_service_account_file(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
-        log.info(f"Credentials loaded: {creds}")
+            log.info(f"Credentials loaded: {creds}")
         except Exception as e:
             log.error(f"Error loading credentials: {e}")
             return False

@@ -21,6 +21,8 @@ import openpyxl
 import requests
 from io import BytesIO
 
+from genesis_bots.core.logging_config import logger
+
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = [
@@ -346,19 +348,20 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     """
     # if not folder_id or (not creds and not user):
     #     raise Exception("Missing credentials, user name, or folder ID.")
+    logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         if not os.path.exists(SERVICE_ACCOUNT_FILE):
-            log.info(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
+            logger.info(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
-        log.info(f"Credentials loaded: {creds}")
+            logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
-            log.error(f"Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {e}")
             return False
 
     try:

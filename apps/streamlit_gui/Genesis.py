@@ -237,7 +237,7 @@ def show_modal():
         )
 
 
-        if st.session_state.show_email_config == True:
+        if st.session_state.show_email_config == True and  st.session_state.NativeMode:
             st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
             if st.button(" 📧 Let your Genbots Email you"):
                 st.session_state["radio"] = "Setup Email Integration"

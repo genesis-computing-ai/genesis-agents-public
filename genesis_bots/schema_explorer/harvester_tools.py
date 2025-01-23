@@ -21,7 +21,7 @@ harvester_tools_functions = [
                 "properties": {
                     "connection_id": {"type": "string", "description": "Connection id of the database connection.  Get it via _list_database_connections is not known. If Snowflake, use 'Snowflake' as the connection id."},
                     "database_name": {"type": "string", "description": "The database name for the harvest control data. Offer to the get_databases function to help figure out whats available.  Make sure to set the case properly for the database, either all upper case, or mixed case as reported by get_databases"},
-                    "initial_crawl_complete": {"type": "boolean", "description": "Flag indicating if the initial crawl is complete.", "default": False},
+                    "initial_crawl_complete": {"type": "boolean", "description": "Flag indicating if the initial crawl is complete. Set to False to trigger an immediate crawl.", "default": False},
                     "refresh_interval": {"type": "integer", "description": "The interval at which the data is refreshed in minutes.  Use 5 minutes unless the user specifies otherwise."},
                     "schema_exclusions": {
                         "type": "array",

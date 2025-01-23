@@ -91,10 +91,17 @@ class DatabaseConnector:
         try:
             allowed_bots_str = ','.join(allowed_bot_ids) if isinstance(allowed_bot_ids, list) and allowed_bot_ids else ''
 
+            # Check if allowed_bots_str is empty
+            if allowed_bots_str == '':
+                return {
+                    'success': False,
+                    'error': "allowed_bot_ids cannot be empty. Please provide either a list of allowed bot IDs or '*' to allow access to all bots."
+                }
+
             # Decode URL-encoded connection string before testing
             try:
-                from urllib.parse import unquote_plus
-                connection_string = unquote_plus(connection_string)
+                from urllib.parse import unquote
+                connection_string = unquote(connection_string)
             except Exception as e:
                 return {
                     'success': False,
@@ -761,7 +768,7 @@ class DatabaseConnector:
                     cursor.execute(
                         f"""
                         SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
-                               created_at, updated_at, description
+                               created_at, updated_at, description, connection_string
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         """
                     )
@@ -769,7 +776,7 @@ class DatabaseConnector:
                     cursor.execute(
                         f"""
                         SELECT connection_id, db_type, owner_bot_id, allowed_bot_ids,
-                               created_at, updated_at, description
+                               created_at, updated_at, description, connection_string
                         FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
                         WHERE owner_bot_id = %s
                         OR allowed_bot_ids = '*'
@@ -792,6 +799,7 @@ class DatabaseConnector:
                     }
                     if row[2] == bot_id:
                         connection['allowed_bot_ids'] = row[3].split(',') if row[3] else []
+                        connection['connection_string'] = row[7]
                     connections.append(connection)
 
                 # Add snowflake connection id if not already in the list

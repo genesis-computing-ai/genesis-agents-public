@@ -647,7 +647,21 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     },
                 )
 
+            
+
             self.client.commit()
+            
+            # Trigger immediate harvest after successful update - don't wait for result
+            try:
+                from genesis_bots.demo.app.genesis_app import genesis_app
+                if hasattr(genesis_app, 'scheduler'):
+                    genesis_app.scheduler.modify_job(
+                        'harvester_job',
+                        next_run_time=datetime.datetime.now()
+                    )
+            except Exception as e:
+                logger.info(f"Non-critical error triggering immediate harvest: {e}")
+            
             return {
                 "Success": True,
                 "Message": "Harvest control data set successfully.",
@@ -4014,7 +4028,7 @@ def get_status(site):
         }
 
         # Use the provided query or a default one if not provided
-        prompt = query if query else "What’s in this image?"
+        prompt = query if query else "What's in this image?"
 
         openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 
@@ -5036,7 +5050,8 @@ def _list_stage_contents(
     file_name="The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[snowflake_tools],)
+    _group_tags_=[snowflake_tools]
+)
 def _add_file_to_stage(
     database: str,
     schema: str,

@@ -5,11 +5,11 @@ GENESIS BOT TODOS
 email collector / telemetry on local vers
 better way to collect NGROK_TOKEN and reporting when its not set 
 make sure ngrok key is in place when in local mode before activating slack 
-repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right 
+repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
 (aviv) test gxs with completion mode (w/git etc)
 (aviv) make connection, harvest, search metadata, and query database work directly via api 
-(test) harvester on postgres, sqlite 
 (test) harvester on standalone snowflake connection
+(test) harvester on oracle
 test/fix redshift, bigquery, databricks
 (test) axure openai, cortex on local runner via snowflake creds?
 dont return snowflake permissions suggestion if not snowflake
@@ -38,6 +38,9 @@ x (reza) files out for generate image
 (later) make sqlite sample data load from csv files vs binary
 
 DONE:
+x trigger immediate harvest on adding something to the harvester
+x (test) harvester on mysql 
+x (test) harvester on postgres, sqlite 
 x make sure openai key is set when starting server in local mode
 x (test) on add connection, make sure to suggest harvesting the new connection
 x (test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)

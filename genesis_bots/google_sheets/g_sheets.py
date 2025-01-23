@@ -349,12 +349,16 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+        if not os.path.exists(SERVICE_ACCOUNT_FILE):
+            log.info(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
         try:
             # Authenticate using the service account JSON file
             creds = Credentials.from_service_account_file(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
+        log.info(f"Credentials loaded: {creds}")
         except Exception as e:
+            log.error(f"Error loading credentials: {e}")
             return False
 
     try:

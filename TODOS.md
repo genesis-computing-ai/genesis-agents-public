@@ -3,6 +3,7 @@ GENESIS BOT TODOS
 =================
 
 email collector / telemetry on local vers
+better way to collect NGROK_TOKEN and reporting when its not set 
 make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right 
 (aviv) test gxs with completion mode (w/git etc)

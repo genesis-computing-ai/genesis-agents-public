@@ -1496,24 +1496,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
       tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
 
-      # if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and metadata is not None:
-      #    primary_user = json.dumps({'user_id': metadata.get('user_id', 'unknown_id'),
-      #                   'user_name': metadata.get('user_name', 'unknown_name').
-      #                   'user_email': metadata.get('user_email', 'unknown_email')})
-      #    knowledge = self.log_db_connector.extract_knowledge(primary_user, self.bot_name, bot_id=self.bot_id)
-      #    if knowledge:
-      #          if function_call_details[0][0] == 'search_metadata' and self.first_tool_call[thread_id]:
-      #             tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the data they used from previous interactions, that may be helpful to this conversation:
-      #                            {knowledge['DATA_LEARNING']}'''
-      #             metadata["data_knowledge"] = knowledge['DATA_LEARNING']
-      #             self.first_tool_call[thread_id] = False
-      #          elif self.first_data_call[thread_id]:
-      #             tool_outputs[0]['output'] += f'''\n\nNOTE--Here are some things you know about this user and the tools they called from previous interactions, that may be helpful to this conversation:
-      #                            {knowledge['TOOL_LEARNING']}'''
-      #             metadata["tool_knowledge"] = knowledge['TOOL_LEARNING']
-      #             self.first_data_call[thread_id] = False
-
-
       # Limit the output of each tool to length 800000
       tool_outputs_limited = []
       for tool_output in tool_outputs:

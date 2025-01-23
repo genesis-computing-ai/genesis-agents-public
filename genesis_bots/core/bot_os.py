@@ -505,7 +505,7 @@ class BotOsSession:
                 logger.telemetry('add_thread:', input_message.thread_id, self.bot_id, input_message.metadata.get('user_email', 'unknown_email'),
                                   os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""))
 
-                if os.getenv("USE_KNOWLEDGE", "false").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
+                if os.getenv("USE_KNOWLEDGE", "TRUE").lower() == 'true' and not input_message.msg.startswith('NOTE--'):
 
                     primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
                                                'user_name': input_message.metadata.get('user_name', 'unknown_name'),

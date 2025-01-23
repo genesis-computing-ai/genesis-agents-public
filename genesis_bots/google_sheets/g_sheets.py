@@ -214,10 +214,10 @@ def add_reply_to_g_file_comment(
     Returns:
         dict: The created reply.
     """
-    if not file_id or not comment_id or not reply_content or not g_file_comment_id or (not creds and not user):
-        raise Exception(
-            "Missing credentials, user name, file ID, comment ID, or reply content."
-        )
+    # if not file_id or not comment_id or not reply_content or not g_file_comment_id or (not creds and not user):
+    #     raise Exception(
+    #         "Missing credentials, user name, file ID, comment ID, or reply content."
+    #     )
 
     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
 
@@ -260,8 +260,8 @@ def get_g_file_web_link(file_id, creds=None, user=None):
     Returns:
         str: The web link to the file.
     """
-    if not file_id or (not creds and not user):
-        raise Exception("Missing credentials, user name, or file ID.")
+    # if not file_id or (not creds and not user):
+    #     raise Exception("Missing credentials, user name, or file ID.")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
@@ -304,8 +304,8 @@ def find_g_file_by_name(file_name, creds=None, user=None):
     Returns:
         dict: A list of file metadata if found, otherwise None.
     """
-    if not file_name or (not creds and not user):
-        raise Exception("Missing credentials, user name, or file name.")
+    # if not file_name or (not creds and not user):
+    #     raise Exception("Missing credentials, user name, or file name.")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
@@ -344,8 +344,8 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     Returns:
         list: A list of files in the folder.
     """
-    if not folder_id or (not creds and not user):
-        raise Exception("Missing credentials, user name, or folder ID.")
+    # if not folder_id or (not creds and not user):
+    #     raise Exception("Missing credentials, user name, or folder ID.")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
@@ -387,10 +387,10 @@ def add_g_file_comment(
     Returns:
         dict: The created comment.
     """
-    if not file_id or not content or (not creds and not user):
-        raise Exception(
-            "Missing credentials, user name, file ID, or value."
-        )
+    # if not file_id or not content or (not creds and not user):
+    #     raise Exception(
+    #         "Missing credentials, user name, file ID, or value."
+        # )
     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
 
     try:
@@ -906,10 +906,10 @@ def create_google_sheet(self, shared_folder_id, title, data):
         return error
 
 def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=None, user=None):
-    if not spreadsheet_id or not cell_range or (not creds and not user):
-        raise Exception(
-            "Missing credentials, user name, spreadsheet ID, or cell_range name."
-        )
+    # if not spreadsheet_id or not cell_range or (not creds and not user):
+    #     raise Exception(
+    #         "Missing credentials, user name, spreadsheet ID, or cell_range name."
+    #     )
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
@@ -948,8 +948,8 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     TODO(developer) - See https://developers.google.com/identity
     for guides on implementing OAuth2 for the application.
     """
-    if not spreadsheet_id or (not creds and not user):
-        raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
+    # if not spreadsheet_id or (not creds and not user):
+    #     raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"

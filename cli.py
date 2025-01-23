@@ -6,7 +6,7 @@ from datetime import datetime
 import sys
 from typing import Optional
 
-from .control import GenesisService
+from control import GenesisService
 
 def setup_logging():
     logger = logging.getLogger('genesis-cli')
@@ -20,6 +20,9 @@ def setup_logging():
 logger = setup_logging()
 genesis = GenesisService()
 
+# Get available services from the instance
+AVAILABLE_SERVICES = list(genesis.AVAILABLE_SERVICES.keys())
+
 @click.group()
 @click.option('--debug', is_flag=True, help='Enable debug output')
 def cli(debug):
@@ -29,13 +32,13 @@ def cli(debug):
         logger.debug("Debug mode enabled")
 
 @cli.command()
-@click.argument('service', type=click.Choice(list(GenesisService.AVAILABLE_SERVICES.keys()) + ['all']))
+@click.argument('service', type=click.Choice(AVAILABLE_SERVICES + ['all']))
 @click.option('--wait/--no-wait', default=True, help='Wait for service to start')
 def start(service: str, wait: bool):
     """Start a service or all services"""
     try:
         if service == 'all':
-            for svc in GenesisService.AVAILABLE_SERVICES:
+            for svc in AVAILABLE_SERVICES:
                 try:
                     result = genesis.start_service(svc, wait=wait)
                     click.echo(f"Started {svc}: {result}")
@@ -49,13 +52,13 @@ def start(service: str, wait: bool):
         sys.exit(1)
 
 @cli.command()
-@click.argument('service', type=click.Choice(list(GenesisService.AVAILABLE_SERVICES.keys()) + ['all']))
+@click.argument('service', type=click.Choice(AVAILABLE_SERVICES + ['all']))
 @click.option('--timeout', default=5, help='Timeout in seconds for graceful shutdown')
 def stop(service: str, timeout: int):
     """Stop a service or all services"""
     try:
         if service == 'all':
-            for svc in GenesisService.AVAILABLE_SERVICES:
+            for svc in AVAILABLE_SERVICES:
                 try:
                     result = genesis.stop_service(svc, timeout=timeout)
                     click.echo(f"Stopped {svc}: {result}")
@@ -69,7 +72,7 @@ def stop(service: str, timeout: int):
         sys.exit(1)
 
 @cli.command()
-@click.option('--service', type=click.Choice(list(GenesisService.AVAILABLE_SERVICES.keys())),
+@click.option('--service', type=click.Choice(AVAILABLE_SERVICES),
               help='Show status for specific service')
 def status(service: Optional[str] = None):
     """Show status of services"""
@@ -103,7 +106,7 @@ def _display_service_status(name: str, info: dict):
         click.echo(f"  Log: {info['log_file']}")
 
 @cli.command()
-@click.argument('service', type=click.Choice(list(GenesisService.AVAILABLE_SERVICES.keys())))
+@click.argument('service', type=click.Choice(AVAILABLE_SERVICES))
 def logs(service: str):
     """View logs for a service"""
     try:
@@ -123,9 +126,16 @@ def main():
 if __name__ == '__main__':
     main()
 
-# usage:
-# genesis start bot_os
+# usage from package:
+# genesis start bot_os_service
 # genesis start all
 # genesis stop task_service
 # genesis status
 # genesis logs harvester_service
+
+# usage from command line:
+# python -m cli.py start bot_os_service
+# python -m cli.py start all
+# python -m cli.py stop task_service
+# python -m cli.py status
+# python -m cli.py logs harvester_service

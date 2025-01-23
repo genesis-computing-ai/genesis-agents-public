@@ -7,19 +7,40 @@ import os
 
 
 class GenesisService:
-    AVAILABLE_SERVICES = {
-        'bot_os_service': 'apps/genesis_server/bot_os_multibot_1.cpython-312-darwin.so',
-        'harvester_service': 'genesis_bots/services/standalone_harvester.cpython-312-darwin.so',
-        'task_service': 'genesis_bots/services/bot_os_task_server.cpython-312-darwin.so',
-        'knowledge_service': 'genesis_bots/services/knowledge_server.cpython-312-darwin.so'
-    }
-
-    DEFAULT_LOG_DIR = Path.home() / ".genesis" / "logs"
-    DEFAULT_PID_DIR = Path.home() / ".genesis" / "pid"
-
     def __init__(self):
+        self.DEFAULT_LOG_DIR = Path.home() / ".genesis" / "logs"
+        self.DEFAULT_PID_DIR = Path.home() / ".genesis" / "pid"
         self.DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
         self.DEFAULT_PID_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Determine if we're running from installed package
+        try:
+            import genesis_bots
+            self.is_package = True
+            self.base_path = Path(genesis_bots.__file__).parent
+        except ImportError:
+            self.is_package = False
+            self.base_path = Path(__file__).parent
+
+        # Define paths for both scenarios
+        self.AVAILABLE_SERVICES = {
+            'bot_os_service': {
+                'package': 'apps.genesis_server.bot_os_multibot_1',
+                'source': 'apps/genesis_server/bot_os_multibot_1.py'
+            },
+            'harvester_service': {
+                'package': 'genesis_bots.services.standalone_harvester',
+                'source': 'genesis_bots/services/standalone_harvester.py'
+            },
+            'task_service': {
+                'package': 'genesis_bots.services.bot_os_task_server',
+                'source': 'genesis_bots/services/bot_os_task_server.py'
+            },
+            'knowledge_service': {
+                'package': 'genesis_bots.services.knowledge_server',
+                'source': 'genesis_bots/services/knowledge_server.py'
+            }
+        }
 
     def setup_logging(self, service_name):
         log_file = self.DEFAULT_LOG_DIR / f"{service_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -66,27 +87,43 @@ class GenesisService:
 
         service_config = self.AVAILABLE_SERVICES[service_name]
 
-        # Get path to the installed package
-        import genesis_bots
-        base_path = Path(genesis_bots.__file__).parent
-
         try:
             log_file = self.DEFAULT_LOG_DIR / f"{service_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
             log_fh = open(log_file, 'w')
 
-            script_path = base_path / service_config
-            if not script_path.exists():
-                raise ValueError(f"Service script not found: {script_path}")
+            if self.is_package:
+                # Package-based execution
+                import genesis_bots
+                module_path = service_config['package']
+                
+                # Add the package root to PYTHONPATH
+                package_root = str(Path(genesis_bots.__file__).parent.parent)
+                os.environ['PYTHONPATH'] = f"{package_root}{os.pathsep}{os.environ.get('PYTHONPATH', '')}"
+                
+                process = subprocess.Popen(
+                    [sys.executable, "-c", f"import {module_path}; {module_path}.main()"],
+                    stdout=log_fh,
+                    stderr=log_fh,
+                    universal_newlines=True,
+                    env=dict(os.environ, PYTHONUNBUFFERED="1")
+                )
+            else:
+                # Source code execution
+                script_path = Path(service_config['source'])
+                if not script_path.exists():
+                    raise ValueError(f"Service script not found: {script_path}")
 
-            # Convert path to module path
-            module_path = f"genesis_bots.{service_config.replace('/', '.').replace('.cpython-312-darwin.so', '')}"
-            process = subprocess.Popen(
-                [sys.executable, "-c", f"import {module_path}; {module_path}.main()"],
-                stdout=log_fh,
-                stderr=log_fh,
-                universal_newlines=True,
-                env=dict(os.environ, PYTHONUNBUFFERED="1")
-            )
+                # Add the project root to PYTHONPATH for source execution
+                project_root = str(script_path.parent.parent.parent)
+                os.environ['PYTHONPATH'] = f"{project_root}{os.pathsep}{os.environ.get('PYTHONPATH', '')}"
+
+                process = subprocess.Popen(
+                    [sys.executable, str(script_path)],
+                    stdout=log_fh,
+                    stderr=log_fh,
+                    universal_newlines=True,
+                    env=dict(os.environ, PYTHONUNBUFFERED="1")
+                )
 
             if process.poll() is not None:
                 log_fh.close()
@@ -113,7 +150,7 @@ class GenesisService:
         if service_name not in self.AVAILABLE_SERVICES:
             raise ValueError(f"Unknown service: {service_name}")
 
-        pid_file = Path(f"{service_name}.pid")
+        pid_file = self.DEFAULT_PID_DIR / f"{service_name}.pid"
         if not pid_file.exists():
             return {'service': service_name, 'status': 'not_running'}
 
@@ -148,5 +185,5 @@ class GenesisService:
 # Usage example:
 if __name__ == "__main__":
     genesis = GenesisService()
-    result = genesis.start_service("bot_os")
+    result = genesis.start_service("bot_os_service")
     print(f"Service status: {result}")

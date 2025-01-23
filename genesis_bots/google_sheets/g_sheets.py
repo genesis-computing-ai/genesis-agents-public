@@ -463,8 +463,8 @@ def get_g_file_version(g_file_id = None, creds = None, self = None):
     Returns:
         int: The version number of the file.
     """
-    if not g_file_id or (not self and not creds):
-        raise Exception("Missing parameters in get_g_file_version - file id or user")
+    # if not g_file_id or (not self and not creds):
+    #     raise Exception("Missing parameters in get_g_file_version - file id or user")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
@@ -769,8 +769,8 @@ def create_google_sheet(self, shared_folder_id, title, data):
     from the service account to the shared folder.
     Loads pre-authorized user credentials from the environment.
     """
-    if not self.user:
-        raise Exception("User not specified for google drive conventions.")
+    # if not self.user:
+    #     raise Exception("User not specified for google drive conventions.")
 
     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
     try:
@@ -955,6 +955,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     TODO(developer) - See https://developers.google.com/identity
     for guides on implementing OAuth2 for the application.
     """
+    logger.info(f"Entering read_g_sheet with ss_id: {spreadsheet_id}")
     # if not spreadsheet_id or (not creds and not user):
     #     raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
 
@@ -962,10 +963,13 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
+            logger.info(f"Try auth: {spreadsheet_id}")
             creds = Credentials.from_service_account_file(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
+            logger.info(f"Auth success: {spreadsheet_id}")
         except Exception as e:
+            logger.info(f"Error loading credentials: {spreadsheet_id}")
             print(f"Error loading credentials: {e}")
             return None
     try:

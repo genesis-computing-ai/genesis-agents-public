@@ -169,7 +169,7 @@ class GenesisApp:
             logger.info("()()()()()()()()()()()()()")
         else:
            # logger.info("NOT RUNNING FAST START - APPLYING ONE TIME DB FIXES AND CREATING TABLES")
-            db_adapter.one_time_db_fixes()
+            # db_adapter.one_time_db_fixes()
             db_adapter.ensure_table_exists()
             db_adapter.create_google_sheets_creds()
 

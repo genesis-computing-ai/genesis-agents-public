@@ -14,6 +14,10 @@ from   genesis_bots.connectors.connector_helpers \
 from   genesis_bots.core.logging_config      import logger
 from genesis_bots.demo.app import genesis_app
 
+genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
+if not genbot_internal_project_and_schema and os.getenv("SNOWFLAKE_METADATA", "FALSE").upper() != "TRUE":
+    os.environ["GENESIS_INTERNAL_DB_SCHEMA"] = "NONE.NONE"
+
 genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
 if  genbot_internal_project_and_schema is None:
     genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')

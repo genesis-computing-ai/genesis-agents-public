@@ -534,7 +534,7 @@ def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None) ->
            3. Snowflake SQLAlchemy connection URL (e.g. "snowflake://user@account") that is passed to SqlAlchemy create_engine function.
            
         snowflake_conn_args (str|dict, optional): Additional connection arguments for a Snowflake connection if the server URL is a Snowflake connection URL. 
-        If a string, we assume it has the format key1=value1,key2=value2;... and parse it into a dictionary.
+        If a string, we assume it has the format key1=value1,key2=value2,... (no quotes) and parse it into a str->str dictionary.
         We pass it to SqlAlchemy.create_engine(server_url, connect_args=snowflake_conn_args).
         For convenience, if one of the keys in the dictionary is "private_key_file", we load the private key from the provited PEM file and add it to the arguments as "private_key".                                    
 

@@ -956,14 +956,10 @@ def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=N
 
 def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
     """
-    Creates the batch_update the user has access to.
+    Reads the content of a Google Sheet.
     Load pre-authorized user credentials from the environment.
-    TODO(developer) - See https://developers.google.com/identity
-    for guides on implementing OAuth2 for the application.
     """
     logger.info(f"Entering read_g_sheet with ss_id: {spreadsheet_id}")
-    # if not spreadsheet_id or (not creds and not user):
-    #     raise Exception("Missing credentials, user name, spreadsheet ID, or cell_range name.")
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
@@ -979,48 +975,27 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             print(f"Error loading credentials: {e}")
             return None
     try:
-        logger.info(f"Loading sheets v4: {spreadsheet_id}")
-        service = build("sheets", "v4", credentials=creds)
-        logger.info(f"Loaded sheets v4: {spreadsheet_id}")
+        service = build("drive", "v3", credentials=creds)
 
-        if not cell_range:
-            logger.info(
-                f"Not in cell range so getting row/col count info: {spreadsheet_id}"
-            )
-            result = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-            logger.info(f"Returned from getting row/col count info = result {result}")
-
-            row_count = (
-                result.get("sheets")[0]
-                .get("properties")
-                .get("gridProperties")
-                .get("rowCount")
-            )
-            col_count = (
-                result.get("sheets")[0]
-                .get("properties")
-                .get("gridProperties")
-                .get("columnCount")
-            )
-            cell_range = f"Sheet1!A1:{number_to_column(col_count+1)}{row_count}"
-
-            logger.info(
-                f"Row count: {row_count} col_count: {col_count} cell_range: {cell_range} ss_id: {spreadsheet_id}"
-            )
-
-        logger.info(f"Getting result for cell range {cell_range}: {spreadsheet_id}")
-        result = (
-            service.spreadsheets()
-            .values()
-            .get(spreadsheetId=spreadsheet_id, range=cell_range)
-            .execute()
+        request = service.files().export_media(
+            fileId=spreadsheet_id,
+            mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        logger.info(f"Result: {result}")
+        fh = BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print("Download %d%%" % int(status.progress() * 100))
+        fh.seek(0)
+        workbook = openpyxl.load_workbook(filename=fh, data_only=False)
+        worksheet = workbook['Sheet1']
 
-        rows = result.get("values", [])
+        # Extract the content of the worksheet
+        rows = []
+        for row in worksheet.iter_rows(values_only=True):
+            rows.append(list(row))
 
-        print(f"{len(rows)} rows retrieved")
-        logger.info(f"Retrieved row count: {len(rows)}: {spreadsheet_id}")
         return {
             "Success": True,
             "cell_values": rows,

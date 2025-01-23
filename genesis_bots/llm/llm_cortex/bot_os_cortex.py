@@ -37,14 +37,14 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.active_runs = deque()
 #        self.llm_engine = 'mistral-large'
 
-        #self.llm_engine = 'llama3.1-70b'
-        if os.getenv("CORTEX_MODEL", None) is not None:
-            self.llm_engine =  os.getenv("CORTEX_MODEL", None)
+        if os.getenv("CORTEX_PREMIERE_MODEL", None) is not None:
+            self.llm_engine =  os.getenv("CORTEX_PREMIERE_MODEL", None)
         else:
-            self.llm_engine = 'llama3.1-405b'
+            if os.getenv("CORTEX_MODEL", None) is not None:
+                self.llm_engine =  os.getenv("CORTEX_MODEL", None)
+            else:
+                self.llm_engine = 'claude-3-5-sonnet'
 
-
-        # TODO Make this dy
         self.event_callback = None
         self.instructions = instructions
         self.bot_name = bot_name
@@ -128,6 +128,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 curr_resp = resp
             if ') says: !model llama3.1-8b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-8b':
                 self.llm_engine = 'llama3.1-8b'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
+            if ') says: !model claude-3-5-sonnet' in last_user_message["content"] or last_user_message["content"]=='!model claude-3-5-sonnet':
+                self.llm_engine = 'claude-3-5-sonnet'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
 
@@ -338,6 +342,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 self.llm_engine = 'llama3.1-8b'
                 resp= f"The model is changed to: {self.llm_engine}"
                 curr_resp = resp
+            if ') says: !model claude-3-5-sonnet' in last_user_message["content"] or last_user_message["content"]=='!model claude-3-5-sonnet':
+                self.llm_engine = 'claude-3-5-sonnet'
+                resp= f"The model is changed to: {self.llm_engine}"
+                curr_resp = resp
             if ') says: !fast on' in last_user_message["content"] or last_user_message["content"] == '!fast on':
                 self.thread_fast_mode_map[thread_id] = True
                 resp = f"Fast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}"
@@ -437,6 +445,32 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 if resp is None:
                     resp = ''
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
+
+                if response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model '):
+                        # Try models in order until one works
+                        models_to_try = [
+                            os.getenv("CORTEX_PREMIERE_MODEL", "claude-3-5-sonnet"),
+                            os.getenv("CORTEX_MODEL", "llama3.1-405b"),
+                            os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+                        ]
+                        logger.info(f"Model not {self.llm_engine} active. Trying all models in priority order.")
+                        for model in models_to_try:
+                            
+                            request_data["model"] = model
+                            response = requests.post(url, json=request_data, stream=True, headers=headers)
+                            
+                            if response.status_code == 200 and not response.text.startswith('{"message":"unknown model '):
+                                # Found working model
+                                self.llm_engine = model
+                                os.environ["CORTEX_MODEL"] = model
+                                os.environ["CORTEX_PREMIERE_MODEL"] = model
+                                logger.info(f"Found working model {model}")
+                                break
+                            else:
+                                logger.info(f"Model {model} not working, trying next model.")
+                        else:
+                            # No models worked
+                            logger.info(f'No available Cortex models found after trying: {models_to_try}')
 
                 if response.status_code != 200:
                     msg = f"Cortex REST API Error. The Cortex REST API returned an error message. Status code: {response.status_code}."

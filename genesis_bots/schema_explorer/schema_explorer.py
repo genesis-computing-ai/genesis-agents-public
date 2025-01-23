@@ -793,7 +793,9 @@ class SchemaExplorer:
                 # Process new or updated objects
                 for obj in potential_objects:
                     try:
-                        qualified_name = f'"{db}"."{sch}"."{obj["name"]}"'
+                        if 'name' in obj and 'table_name' not in obj:
+                            obj['table_name'] = obj['name']
+                        qualified_name = f'"{db}"."{sch}"."{obj["table_name"]}"'
                         if qualified_name not in existing_tables_set:
                             # Table is new, so get its DDL and hash
                             current_ddl = self.alt_get_ddl(
@@ -818,7 +820,7 @@ class SchemaExplorer:
                                 self.store_table_summary(
                                     database=db, 
                                     schema=sch, 
-                                    table=obj["name"], 
+                                    table=obj["table_name"], 
                                     ddl=current_ddl, 
                                     ddl_short=current_ddl, 
                                     summary="{!placeholder}", 
@@ -834,7 +836,7 @@ class SchemaExplorer:
                 needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
                 
                 for obj in potential_objects:
-                    qualified_name = f'"{db}"."{sch}"."{obj["name"]}"'
+                    qualified_name = f'"{db}"."{sch}"."{obj["table_name"]}"'
                     if qualified_name in needs_updating:
                         current_ddl = self.alt_get_ddl(
                             table_name=qualified_name, 

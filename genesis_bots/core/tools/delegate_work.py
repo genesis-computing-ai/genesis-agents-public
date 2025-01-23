@@ -133,7 +133,33 @@ def _delegate_work(
                 except Exception as e:
                     pass
             if bots_udf_adapter is None:
-                raise ValueError(f'Bot {target_bot} not found, use list_all_bots to get the bot_id for Barry to use it as a target bot for the first time')
+                from genesis_bots.connectors import get_global_db_connector
+                bb_db_connector = get_global_db_connector()
+                genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
+                if genbot_internal_project_and_schema is None:
+                    genbot_internal_project_and_schema = os.getenv('ELSA_INTERNAL_DB_SCHEMA','None')
+                if genbot_internal_project_and_schema == 'None':
+                    raise ValueError("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
+                if genbot_internal_project_and_schema is not None:
+                    genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
+                db_schema = genbot_internal_project_and_schema.split('.')
+                project_id = db_schema[0]
+                dataset_name = db_schema[1]
+                bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')  
+                bots = bb_db_connector.db_list_all_bots(project_id=project_id, 
+                                                       dataset_name=dataset_name,
+                                                       bot_servicing_table=bot_servicing_table,
+                                                       runner_id=None,
+                                                       full=False,
+                                                       slack_details=False,
+                                                       with_instructions=False)
+                # Extract bot IDs and names from available bots
+                bot_info = [{"bot_id": bot.get('bot_id', ''), "bot_name": bot.get('bot_name', '')} for bot in bots]
+                return {
+                    "success": False,
+                    "message": f"Bot '{target_bot}' not found. Available bots:",
+                    "available_bots": bot_info
+                }
 
         # Create new thread
         # Find the UDFBotOsInputAdapter

@@ -14,8 +14,7 @@ test/fix redshift, bigquery, databricks
 (test) axure openai, cortex on local runner via snowflake creds?
 dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed
-make snowpark python work when you just have a regular connection to snowflake
-add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
+(test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
 gxs: comment handler test it out 
 
@@ -38,6 +37,7 @@ x (reza) files out for generate image
 (later) make sqlite sample data load from csv files vs binary
 
 DONE:
+x make snowpark python work when you just have a regular connection to snowflake
 x trigger immediate harvest on adding something to the harvester
 x (test) harvester on mysql 
 x (test) harvester on postgres, sqlite 

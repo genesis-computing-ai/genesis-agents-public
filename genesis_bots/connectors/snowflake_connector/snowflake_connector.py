@@ -4673,7 +4673,7 @@ result = 'Table FAKE_CUST created successfully.'
                         note_name = None,
                         note_type = None,
                         return_base64 = False,
-                        save_artifacts=True
+                        save_artifacts=False
                         ) -> str|dict:
         """
         Executes a given Python code snippet within a Snowflake Snowpark environment, handling various
@@ -4962,7 +4962,7 @@ result = 'Table FAKE_CUST created successfully.'
                         # Create artifact
                         aid = af.create_artifact_from_content(file_content, metadata, content_filename=result_json["filename"])
                         logger.info(f"Artifact {aid} created for output from python code named {result_json['filename']}")
-                        ref_notes = ref_notes = af.get_llm_artifact_ref_instructions(aid)
+                        ref_notes = af.get_llm_artifact_ref_instructions(aid)
                         result = {
                             "success": True,
                             "result": f"Output from snowpark is an artifact, which can be later refernced using artifact_id={aid}. "
@@ -5238,6 +5238,8 @@ def _run_snowpark_python(
         code=code,
         packages=packages,
         note_id=note_id,
+        bot_id=bot_id,
+        thread_id=thread_id
     )
 
 _all_snowflake_connector_functions = (

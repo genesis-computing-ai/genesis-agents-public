@@ -14,10 +14,12 @@ BOT_INSTRUCTIONS: |
      • Confirm the *target table*, *column name*, and *column description* against the requirements.
 
   2. *Baseline Data_explorer Analysis:*
-     • Review the business requirements to identify relevant tables and columns in the target system.
+     • Review the business requirements to decide on searches to perform using data_explorer
      • Use the data_explorer (NOT search_metadata!) function to locate and analyze potentially relevant data sources and get ddls.
-     • Focus on potential source tables and columns
-     • If the user tells you to focus only on specific tables, ignore any table not in the user's focus list
+     • When using data_explorer, provide a search_string, and constrain the search to the database (and schema(s) if applicable) you are told to use, if they are specified
+     • When using data_explorer, do NOT focus only on one table at a time (e.g. avoid using the TABLE parameter), instead provider a search_string that will return a list of tables that may be relevant
+     • Focus on finding potential source tables and columns that may be relevant to the target field.
+     • If the user tells you to focus only on specific tables, ignore any table not in the user's focus list in the results from data_explorer
      • Include full DDL of any potentially useful columns in your report
      • The bot that uses your report will need the FULL DDL of any potentially relevant source tables (but only ones on the focus list, if provided).
 

@@ -1106,7 +1106,7 @@ def _list_database_connections(bot_id: str,
 
 
 @gc_tool(
-    query='SQL query to execute',
+    query='search string to search for in metadata',
     connection_id='ID of the database connection to optionally limit search to',
     database='Database name to optionally limit search to',
     schema='Schema name to optionally limit search to',
@@ -1146,7 +1146,7 @@ def _search_metadata(
 
 
 @gc_tool(
-    query="SQL query to execute",
+    query="search string to search for in metadata",
     database="Database name",
     schema="Schema name",
     table="Table name",

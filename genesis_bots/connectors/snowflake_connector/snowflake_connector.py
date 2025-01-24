@@ -130,15 +130,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
             self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
-        if os.getenv("CORTEX_MODEL", None) is not None:
-            # TODO: rename self.llm_engine to self.llm_model_name.
-            # (in the rest of the code we typically we use the term 'engine' for the provider's name
-            # (e.g. openai, cortex))
-            self.llm_engine =  os.getenv("CORTEX_MODEL", None)
-        else:
-            self.llm_engine = 'llama3.1-405b'
+        self.llm_engine = os.getenv("CORTEX_PREMIERE_MODEL") or os.getenv("CORTEX_MODEL") or 'claude-3-5-sonnet'
 
-        # self.client = self._create_client()
         self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if self.genbot_internal_project_and_schema == "None":
             # Todo remove, internal note
@@ -356,16 +349,31 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             response = requests.post(url, json=request_data, stream=True, headers=headers)
 
             if response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model '):
-                self.llm_engine = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
-                logger.info(f"Model not found. Switching to {self.llm_engine}")
-                request_data["model"] = self.llm_engine
-                response = requests.post(url, json=request_data, stream=True, headers=headers)
-                if response.status_code != 200 or (response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model ')):
-                    logger.info(f'cortex {self.llm_engine} and {os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")} not avail: ',response.status_code, response.text)
-                    return False, False
+                # Try models in order until one works
+                models_to_try = [
+                    os.getenv("CORTEX_PREMIERE_MODEL", "claude-3-5-sonnet"),
+                    os.getenv("CORTEX_MODEL", "llama3.1-405b"),
+                    os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
+                ]
+                logger.info(f"Model not {self.llm_engine} active. Trying all models in priority order.")
+                for model in models_to_try:
+                    
+                    request_data["model"] = model
+                    response = requests.post(url, json=request_data, stream=True, headers=headers)
+                    
+                    if response.status_code == 200 and not response.text.startswith('{"message":"unknown model'):
+                        # Found working model
+                        self.llm_engine = model
+                        os.environ["CORTEX_MODEL"] = model
+                        os.environ["CORTEX_PREMIERE_MODEL"] = model
+                        logger.info(f"Found working model {model}")
+                        break
+                    else:
+                        logger.info(f"Model {model} not working, trying next model.")
                 else:
-                    os.environ["CORTEX_MODEL"] = "llama3.1-70b"
-                    self.llm_engine = os.environ["CORTEX_MODEL"]
+                    # No models worked
+                    logger.info(f'No available Cortex models found after trying: {models_to_try}')
+                    return False, False
 
             curr_resp = ''
             for line in response.iter_lines():
@@ -2626,16 +2634,22 @@ def get_status(site):
             select_str = select_str.replace("bot_instructions, ", "")
             select_str = select_str.replace(", bot_intro_prompt", "")
 
+        # Use the bot_servicing_table name for bot_table
+        bot_table = bot_servicing_table
+        # Extract table name after last dot if dots are present
+        if '.' in bot_table:
+            bot_table = bot_table.split('.')[-1]
+
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
             select_query = f"""
             SELECT {select_str}
-            FROM {bot_servicing_table}
+            FROM {project_id}.{dataset_name}.{bot_table}
             """
         else:
             select_query = f"""
             SELECT {select_str}
-            FROM {bot_servicing_table}
+            FROM {project_id}.{dataset_name}.{bot_table}
             WHERE runner_id = '{runner_id}'
             """
 

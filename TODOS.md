@@ -2,6 +2,7 @@
 GENESIS BOT TODOS
 =================
 
+next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
 email collector / telemetry on local vers
 better way to collect NGROK_TOKEN and reporting when its not set 
 make sure ngrok key is in place when in local mode before activating slack 
@@ -19,6 +20,7 @@ set a flag when bot data access changes so annoy indexes can be refreshed, have 
 gxs: comment handler test it out 
 
 Later:
+add an external api for email sending?
 make knowledge server and task server part of main service like harvester now is
 make config querys conf file generate if not existing 
 is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)

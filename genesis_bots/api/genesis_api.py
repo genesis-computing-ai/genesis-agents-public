@@ -50,30 +50,30 @@ class GenesisAPI:
         return self.server_proxy.submit_message(bot_id, message=message, thread_id=thread_id)
 
 
-    def get_response(self, bot_id, request_id=None, timeout_seconds=None) -> str:
+    def get_response(self, bot_id, request_id=None, timeout_seconds=None, print_stream=False) -> str:
         time_start = time.time()
         done = False
         last_response = "" # contains the full (cumulated) response, cleaned up from the trailing "chat" suffix ('💬')
         while timeout_seconds is None or time.time() - time_start < timeout_seconds:
             response = self.server_proxy.get_message(bot_id, request_id)
             if response is not None:
-                if response.endswith('💬'): # remove trailing chat bubble. Those mean 'there's more' and will appear only at the end.
+                if response.endswith('💬'): # remove trailing chat bubble
                     response = response[:-1]
                 else:
                     done = True
-                # Print only the new content since last response
-                if len(response) > len(last_response):
-                    new_content = response[len(last_response):]
-                    # Insert a newline character before any occurrence of the emojis 🤖 or 🧰,
-                    # but only if they are not already preceded by a newline.
-                    new_content = re.sub(r'(?<!\n)(🤖|🧰)', r'\n\1', new_content)
-                    ##print(f"\033[96m{new_content}\033[0m", end='', flush=True)  # Cyan text
-                    last_response = response
+                # Store the new content before any formatting
+                new_content = response[len(last_response):]
+                last_response = response  # Update last_response before formatting
+                
+                # Format the new content for display only
+                if print_stream:
+                    display_content = re.sub(r'(?<!\n)(🤖|🧰)', r'\n\1', new_content)
+                    print(f"\033[96m{display_content}\033[0m", end='', flush=True)  # Cyan text
 
                 if done:
                     return response
 
-            time.sleep(0.2)
+                time.sleep(0.2)
         return None
 
 

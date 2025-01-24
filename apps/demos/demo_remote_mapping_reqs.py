@@ -1,4 +1,4 @@
-from   langsmith                import Client, traceable
+
 import uuid
 
 import json
@@ -23,7 +23,7 @@ import os
 launch.json config example:
 
         {
-            "name": "Python: Current File with Env Vars Alpha",
+            "name": "Python: MappingBot",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -36,24 +36,11 @@ launch.json config example:
                 "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
                 "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
                 "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
-                // below are for local mode only
-                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.<your schema>",
-                "GENESIS_SOURCE": "Snowflake",
-                "RUNNER_ID": "snowflake-1",
-                "GIT_PATH": "./bot_git",
-                "LANGCHAIN_TRACING_V2": "true",
-                "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
-                "LANGCHAIN_API_KEY": "your langchain api key (free to get one)",
-                "LANGCHAIN_PROJECT": "your langcgain project",
-                "LOG_LEVEL": "ERROR"
             },
             "justMyCode": true
 },
 """
 
-# Initialize LangSmith client at the top of your file
-# this is just for LangSmith observability, does not use Langchain
-langsmith_client = Client()
 
 conn = snowflake.connector.connect(
     account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
@@ -79,7 +66,6 @@ def print_file_contents(title, file_path, contents):
     print("-"*80 + "\033[0m")
 
 
-@traceable(name="genesis_bot_call")
 def call_genesis_bot(client, bot_id, request, thread = None):
     """Wait for a complete response from the bot, streaming partial results."""
     try:
@@ -90,7 +76,7 @@ def call_genesis_bot(client, bot_id, request, thread = None):
         print("\033[92mResponse:\033[0m")  # Green label for response section
 
         request = client.submit_message(bot_id, request, thread_id=thread)
-        response = client.get_response(bot_id, request["request_id"])
+        response = client.get_response(bot_id, request["request_id"], print_stream=True)
 
         print(f"\n\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[93mResponse complete\033[0m")  # Yellow status
@@ -124,7 +110,7 @@ def check_git_file(client, paths, file_name):
     """
     stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
     # Get git base path from environment variable, default to ./bot_git
-    git_base = os.getenv("GIT_PATH", "./bot_git")
+    git_base = os.getenv("GIT_PATH", "/opt/bot_git")
     local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
 
     # First check local git
@@ -136,18 +122,10 @@ def check_git_file(client, paths, file_name):
             with open(local_git_path, 'r') as f:
                 contents = f.read()
 
-            # Copy to stage
-            success = client.upload_file(f"{paths['stage_base']}{paths['base_git_path']}",
-                                        file_name,
-                                        contents)
-
-            if success:
-                print(f"\033[92mCopied file from local git to stage: {stage_path}\033[0m")
-                return contents
-            else:
-                print("Failed to copy file to stage")
-                return False
-
+            return contents
+        
+        return False
+         
     except Exception as e:
         print(f"Error accessing local git file: {str(e)}")
 
@@ -165,7 +143,6 @@ def check_git_file(client, paths, file_name):
 
     return False
 
-@traceable(name="source_research")
 def perform_source_research(client, requirement, paths, bot_id):
     """Execute source research step and validate results."""
     try:
@@ -405,7 +382,8 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
     """
     try:
         # Get the correct answers file
-        with open("./bot_git/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
+        git_base = os.getenv("GIT_PATH", "/opt/bot_git")
+        with open(f"{git_base}/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
             answers_content = f.read()
 
 
@@ -823,7 +801,10 @@ def main():
         # regroup ideas
             # have it auto-save to g-sheet with Jeff's thing
 
+    TODO: make it work on remote snow, put answers etc on remote snow and document how to do that 
 
+    [connections.GENESIS_DEV_CONSUMER_API]
+    [connections.GENESIS_ALPHA_CONSUMER_API]
     """
     args = parse_arguments()
     server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args)

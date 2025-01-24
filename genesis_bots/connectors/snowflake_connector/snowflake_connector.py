@@ -2630,12 +2630,12 @@ def get_status(site):
         if runner_id is None:
             select_query = f"""
             SELECT {select_str}
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             """
         else:
             select_query = f"""
             SELECT {select_str}
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             WHERE runner_id = '{runner_id}'
             """
 
@@ -3018,7 +3018,7 @@ def get_status(site):
         """
 
         insert_query = f"""
-            INSERT INTO {project_id}.{dataset_name}.{bot_servicing_table} (
+            INSERT INTO {bot_servicing_table} (
                 api_app_id, bot_slack_user_id, bot_id, bot_name, bot_instructions, runner_id,
                 slack_signing_secret, slack_channel_id, available_tools, auth_url, auth_state, client_id, client_secret, udf_active, slack_active,
                 files, bot_implementation, bot_intro_prompt, bot_avatar_image
@@ -3065,13 +3065,13 @@ def get_status(site):
             if not slack_user_allow:
                 if self.source_name.lower() == "snowflake":
                     slack_user_allow_update_query = f"""
-                        UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                        UPDATE {bot_servicing_table}
                         SET slack_user_allow = parse_json(%s)
                         WHERE upper(bot_id) = upper(%s)
                         """
                 else:
                     slack_user_allow_update_query = f"""
-                        UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                        UPDATE {bot_servicing_table}
                         SET slack_user_allow = %s
                         WHERE upper(bot_id) = upper(%s)
                         """
@@ -3110,7 +3110,7 @@ def get_status(site):
         from ...core import global_flags
         # Query to update the available_tools in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET available_tools = %s
             WHERE upper(bot_id) = upper(%s)
         """
@@ -3152,7 +3152,7 @@ def get_status(site):
     ):
         # Query to update the files in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET files = %s
             WHERE upper(bot_id) = upper(%s)
         """
@@ -3192,7 +3192,7 @@ def get_status(site):
             dict: A dictionary with the result of the operation, indicating success or failure.
         """
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET SLACK_APP_LEVEL_KEY = %s
             WHERE upper(bot_id) = upper(%s)
         """
@@ -3229,7 +3229,7 @@ def get_status(site):
 
         # Query to update the bot instructions in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET bot_instructions = %s
             WHERE upper(bot_id) = upper(%s) AND runner_id = %s
         """
@@ -3286,7 +3286,7 @@ def get_status(site):
 
         # Query to update the bot implementation in the database
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET bot_implementation = %s
             WHERE upper(bot_id) = upper(%s) AND runner_id = %s
         """
@@ -3294,7 +3294,7 @@ def get_status(site):
         # Check if bot_id is valid
         valid_bot_query = f"""
             SELECT COUNT(*)
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """
         try:
@@ -3359,13 +3359,13 @@ def get_status(site):
         # Query to update the SLACK_USER_ALLOW list in the database
         if self.source_name.lower() == "snowflake":
             update_query = f"""
-                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                UPDATE {bot_servicing_table}
                 SET slack_user_allow = parse_json(%s)
                 WHERE upper(bot_id) = upper(%s)
                 """
         else:
             update_query = f"""
-                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                UPDATE {bot_servicing_table}
                 SET slack_user_allow = %s
                 WHERE upper(bot_id) = upper(%s)
                 """
@@ -3374,7 +3374,7 @@ def get_status(site):
         slack_user_allow_list_str = json.dumps(slack_user_allow_list)
         if slack_user_allow_list == []:
             update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET SLACK_USER_ALLOW = null
             WHERE upper(bot_id) = upper(%s)
                """
@@ -3444,7 +3444,7 @@ def get_status(site):
         # Query to select the bot details
         select_query = f"""
             SELECT *
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """
 
@@ -3461,7 +3461,7 @@ def get_status(site):
                 bot_details = dict(zip(columns, result))
                 return bot_details
             else:
-                logger.info(f"No details found for bot_id: {bot_id} in {project_id}.{dataset_name}.{bot_servicing_table}")
+                logger.info(f"No details found for bot_id: {bot_id} in {bot_servicing_table}")
                 return None
         except Exception as e:
             logger.exception(
@@ -3484,7 +3484,7 @@ def get_status(site):
         select_query = f"""
             SELECT bot_id, database_credentials
 
-                        FROM {project_id}.{dataset_name}.{bot_servicing_table}
+                        FROM {bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """
 
@@ -3547,7 +3547,7 @@ def get_status(site):
         bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
 
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET API_APP_ID = %s, BOT_SLACK_USER_ID = %s, CLIENT_ID = %s, CLIENT_SECRET = %s,
                 SLACK_SIGNING_SECRET = %s, AUTH_URL = %s, AUTH_STATE = %s,
                 UDF_ACTIVE = %s, SLACK_ACTIVE = %s, FILES = %s, BOT_IMPLEMENTATION = %s
@@ -3615,7 +3615,7 @@ def get_status(site):
         files_string = json.dumps(files) if not isinstance(files, str) else files
 
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET BOT_NAME = %s,
                 BOT_IMPLEMENTATION = %s,
                 FILES = %s,
@@ -3665,7 +3665,7 @@ def get_status(site):
         """
 
         update_query = f"""
-            UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+            UPDATE {bot_servicing_table}
             SET BOT_SLACK_USER_ID = %s, SLACK_APP_TOKEN = %s
             WHERE upper(BOT_ID) = upper(%s)
         """
@@ -3762,7 +3762,7 @@ def get_status(site):
 
         # Query to delete the bot from the database table
         delete_query = f"""
-            DELETE FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            DELETE FROM {bot_servicing_table}
             WHERE upper(bot_id) = upper(%s)
         """
 
@@ -3799,7 +3799,7 @@ def get_status(site):
         # Query to select the bots from the BOT_SERVICING table
         select_query = f"""
             SELECT bot_id, api_app_id, slack_app_token
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {bot_servicing_table}
             WHERE runner_id = %s AND slack_active = 'Y'
         """
 
@@ -4087,7 +4087,7 @@ def get_status(site):
 
         # Query to update the available_tools in the database
         update_query = f"""
-                UPDATE {project_id}.{dataset_name}.{bot_servicing_table}
+                UPDATE {bot_servicing_table}
                 SET available_tools = %s
                 WHERE upper(bot_id) = upper(%s)
             """

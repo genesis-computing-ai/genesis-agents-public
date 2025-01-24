@@ -79,17 +79,65 @@ if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
 
 # Main content of the app
-
+def is_running_from_package():
+    """Check if we're running from an installed package"""
+    try:
+        import pkg_resources
+        pkg_resources.get_distribution('genesis_bots')
+        return True
+    except pkg_resources.DistributionNotFound:
+        return False
+        
 def render_image(filepath: str, width = None):
-   """
-   filepath: path to the image. Must have a valid file extension.
-   """
-   mime_type = filepath.split('.')[-1:][0].lower()
-   with open(filepath, "rb") as f:
-    content_bytes = f.read()
-    content_b64encoded = base64.b64encode(content_bytes).decode()
-    image_string = f'data:image/{mime_type};base64,{content_b64encoded}'
-    st.sidebar.image(image_string, width=width)
+    """
+    filepath: path to the image. Must have a valid file extension.
+    Handles both package and direct execution paths.
+    """
+    try:
+        image_path = None
+        
+        # List of possible paths to try
+        paths_to_try = [
+            # Direct path for development
+            filepath,
+            os.path.join("apps/streamlit_gui", filepath),
+            os.path.join("./apps/streamlit_gui", filepath),
+            # Path relative to current file
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), filepath),
+        ]
+        
+        # Try package resources if we're running from package
+        try:
+            import pkg_resources
+            paths_to_try.append(pkg_resources.resource_filename('apps.streamlit_gui', filepath))
+        except Exception:
+            pass
+            
+        try:
+            from importlib import resources
+            with resources.path('apps.streamlit_gui', filepath) as path:
+                paths_to_try.append(str(path))
+        except Exception:
+            pass
+
+        # Try each path until we find one that exists
+        for path in paths_to_try:
+            if os.path.exists(path):
+                image_path = path
+                break
+
+        if not image_path:
+            return
+
+        mime_type = filepath.split('.')[-1:][0].lower()
+        with open(image_path, "rb") as f:
+            content_bytes = f.read()
+            content_b64encoded = base64.b64encode(content_bytes).decode()
+            image_string = f'data:image/{mime_type};base64,{content_b64encoded}'
+            st.sidebar.image(image_string, width=width)
+    except Exception as e:
+        # Silently handle any errors without showing warnings
+        pass
 
 a = """
     <style>
@@ -350,7 +398,14 @@ if st.session_state.data:
     if native_mode:
         render_image("Genesis-Computing-Logo-White.png", width=250)
     else:
-        st.sidebar.image("./apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
+        if is_running_from_package():
+            # When running from package, use pkg_resources to get the correct path
+            import pkg_resources
+            image_path = pkg_resources.resource_filename('apps.streamlit_gui', 'Genesis-Computing-Logo-White.png')
+            st.sidebar.image(image_path, width=250)
+        else:
+            # Direct development path
+            st.sidebar.image("./apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
 
     # Set the default selection page
     selected_page_id = None
@@ -439,3 +494,4 @@ else:
     except Exception as e:
         st.error(f"Error accessing page {st.session_state.get('radio')}: {e}")
         st.rerun()
+

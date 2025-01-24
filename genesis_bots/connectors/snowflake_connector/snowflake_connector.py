@@ -130,13 +130,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
             self.schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "GENESIS_INTERNAL")
 
-        if os.getenv("CORTEX_PREMIERE_MODEL", None) is not None:
-            self.llm_engine =  os.getenv("CORTEX_PREMIERE_MODEL", None)
-        else:
-            if os.getenv("CORTEX_MODEL", None) is not None:
-                self.llm_engine =  os.getenv("CORTEX_MODEL", None)
-            else:
-                self.llm_engine = 'claude-3-5-sonnet'
+        self.llm_engine = os.getenv("CORTEX_PREMIERE_MODEL") or os.getenv("CORTEX_MODEL") or 'claude-3-5-sonnet'
 
         self.genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
         if self.genbot_internal_project_and_schema == "None":
@@ -367,7 +361,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     request_data["model"] = model
                     response = requests.post(url, json=request_data, stream=True, headers=headers)
                     
-                    if response.status_code == 200 and not response.text.startswith('{"message":"unknown model '):
+                    if response.status_code == 200 and not response.text.startswith('{"message":"unknown model'):
                         # Found working model
                         self.llm_engine = model
                         os.environ["CORTEX_MODEL"] = model
@@ -2640,16 +2634,22 @@ def get_status(site):
             select_str = select_str.replace("bot_instructions, ", "")
             select_str = select_str.replace(", bot_intro_prompt", "")
 
+        # Use the bot_servicing_table name for bot_table
+        bot_table = bot_servicing_table
+        # Extract table name after last dot if dots are present
+        if '.' in bot_table:
+            bot_table = bot_table.split('.')[-1]
+
         # Query to select all bots from the BOT_SERVICING table
         if runner_id is None:
             select_query = f"""
             SELECT {select_str}
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {project_id}.{dataset_name}.{bot_table}
             """
         else:
             select_query = f"""
             SELECT {select_str}
-            FROM {project_id}.{dataset_name}.{bot_servicing_table}
+            FROM {project_id}.{dataset_name}.{bot_table}
             WHERE runner_id = '{runner_id}'
             """
 

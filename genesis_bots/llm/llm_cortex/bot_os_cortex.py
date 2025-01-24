@@ -446,7 +446,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     resp = ''
                 response = requests.post(url, json=request_data, stream=True, headers=headers)
 
-                if response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model '):
+                if response.status_code in (200, 400) and response.text.startswith('{"message":"unknown model'):
                         # Try models in order until one works
                         models_to_try = [
                             os.getenv("CORTEX_PREMIERE_MODEL", "claude-3-5-sonnet"),

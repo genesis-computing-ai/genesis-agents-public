@@ -8,6 +8,7 @@ RUN pip install --upgrade pip && \
 EXPOSE 8501 8080 8000 5678 1234 3000 8081 8502 7681
 # COPY genesis-voice ./genesis-voice
 
+
 # Install Node.js 18.x and npm
 # WORKDIR /src/app/genesis-voice
 # RUN apt-get update && apt-get install -y curl && \
@@ -25,6 +26,12 @@ RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=Tr
 # RUN npm install express cors node-fetch dotenv http https ws http-proxy
 # RUN npm i github:openai/openai-realtime-api-beta --save
 # RUN npm install react-scripts
+
+# Install gcloud
+RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+RUN sudo apt-get install apt-transport-https ca-certificates gnupg curl
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && apt-get update -y && apt-get install google-cloud-cli -y
+RUN gcloud services enable drive.googleapis.com
 
 WORKDIR /src/app
 RUN mkdir -p /src/app/apps/genesis_server
@@ -51,6 +58,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     echo "root:root" | chpasswd
+
+RUN gcloud services enable drive.googleapis.com
 
 RUN chmod +x /entrypoint.sh
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health

@@ -44,8 +44,8 @@ def main():
         if curr_bot_id is None:
             welcome_msg += "\nStart your first message with @<bot_id> to chat with that bot. Use it again to switch bots."
         else:
-            welcome_msg += f"\nYou are chatting with bot {curr_curr_bot_id}. Start your message with @<bot_id> to switch bots."
-            bot_to_thread_map[curr_bot_id] = uuid.uuid4()
+            welcome_msg += f"\nYou are chatting with bot {curr_bot_id}. Start your message with @<bot_id> to switch bots."
+            bot_to_thread_map[curr_bot_id] = uuid4()
         print(welcome_msg)
         print("-"*len(welcome_msg))
 

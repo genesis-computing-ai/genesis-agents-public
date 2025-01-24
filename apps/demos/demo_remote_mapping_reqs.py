@@ -6,8 +6,10 @@ import snowflake.connector
 
 import yaml
 
-from   genesis_bots.api         import EmbeddedGenesisServerProxy, GenesisAPI, RESTGenesisServerProxy
 
+import argparse
+from   genesis_bots.api         import GenesisAPI, build_server_proxy
+from   genesis_bots.api.utils   import add_default_argparse_options
 import os
 
 #requires these environment variables:
@@ -802,6 +804,14 @@ def reanalyze_with_o1():
         print(f"\n{result}")
 
 
+
+def parse_arguments():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="A simple CLI chat interface to Genesis bots")
+    add_default_argparse_options(parser)
+    return parser.parse_args()
+
+
 def main():
     """Main execution flow.
         # todo - startup speed with local bot definitions
@@ -815,6 +825,9 @@ def main():
 
 
     """
+    args = parse_arguments()
+    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args)
+
 
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below)
    # local_bots = [
@@ -830,7 +843,7 @@ def main():
 
     scope, sub_scope = internal_schema.split(".")
 
-    with GenesisAPI(server_proxy=RESTGenesisServerProxy()) as client:
+    with GenesisAPI(server_proxy=server_proxy) as client:
 
         # if you want to see what bots are already on the server
         #bots = client.get_all_bots()

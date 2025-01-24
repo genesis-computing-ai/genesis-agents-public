@@ -2,7 +2,7 @@ from   flask                    import Flask
 from   genesis_bots.api.genesis_base \
                                 import (RequestHandle, _ALL_BOTS_,
                                         get_tool_func_descriptor,
-                                        is_bot_client_tool)
+                                        is_bot_client_tool, GenesisBotConfig)
 from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 from   genesis_bots.demo.app.genesis_app \
@@ -80,6 +80,24 @@ class GenesisServerProxyBase(ABC):
         })
         response = self._send_REST_request("post", "udf_proxy/create_baby_bot", data)
         return response.json()
+
+
+    def list_available_bots(self) -> list[GenesisBotConfig]:
+        data = json.dumps({"data": [[0]]})
+        response = self._send_REST_request("post", "udf_proxy/list_available_bots", data)
+        if response.status_code != 200:
+            raise RuntimeError(f"Failed to list available bots: {response.text}")
+        data = response.json()["data"][0][1]
+
+        # ignore some attributes that are not needed by the client
+        ignored_keys = ["api_app_id", "auth_state", "auth_url", "bot_avatar_image", "bot_intro_prompt", "bot_slack_user_id"]
+
+        bot_configs = []
+        for bot_data in data:
+            for ikey in ignored_keys:
+                bot_data.pop(ikey, None)
+            bot_configs.append(GenesisBotConfig(**bot_data))
+        return bot_configs
 
 
     def submit_message(self, bot_id, message, thread_id=None) -> RequestHandle: # returns a dict with keys: request_id, bot_id, thread_id

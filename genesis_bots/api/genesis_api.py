@@ -3,7 +3,8 @@ import time
 from   uuid                     import UUID
 
 from   genesis_bots.api.genesis_base \
-                                import GenesisBot, RequestHandle, _ALL_BOTS_
+                                import (GenesisBotConfig, RequestHandle,
+                                        _ALL_BOTS_)
 from   genesis_bots.api.server_proxy \
                                 import GenesisServerProxyBase
 
@@ -23,8 +24,12 @@ class GenesisAPI:
         self.server_proxy.connect()
 
 
-    def register_bot(self, bot: GenesisBot):
+    def register_bot(self, bot: GenesisBotConfig):
         self.server_proxy.register_bot(bot)
+
+
+    def list_available_bots(self) -> list[GenesisBotConfig]:
+        return self.server_proxy.list_available_bots()
 
 
     def register_client_tool(self, bot_id, tool_func, timeout_seconds=60):

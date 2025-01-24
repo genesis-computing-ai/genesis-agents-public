@@ -14,6 +14,9 @@ def main():
     server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args)
     with GenesisAPI(server_proxy=server_proxy) as client:
         print("-----------------------")
+        all_bot_configs = client.list_available_bots()
+        all_bot_ids = sorted([bot.bot_id for bot in all_bot_configs])
+        print(f'Available bots: {", ".join(all_bot_ids)}')
         msg = "hello"
         print(f"\n>>>> Sending '{msg}' to Eve")
         request = client.submit_message("Eve", msg)

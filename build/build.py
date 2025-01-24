@@ -3,6 +3,9 @@ import shutil
 import subprocess
 from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION
 
+# Check environment variable for Cython compilation
+COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
+
 def create_build_directory():
     """Create a clean build directory with copied source files."""
     # Create dist directory if it doesn't exist
@@ -20,7 +23,6 @@ def create_build_directory():
     print(f"Creating new build directory: {build_dir}")
     os.makedirs(build_dir)
     
-    # Copy genesis_bots directory
     def ignore_patterns(path, names):
         relative_paths = [os.path.join(path, name).replace('\\', '/') for name in names]
         return [n for n, p in zip(names, relative_paths) 
@@ -29,9 +31,18 @@ def create_build_directory():
                 p in IGNORE_FILES]
     
     print("Copying source files...")
+    # Copy genesis_bots directory
     shutil.copytree(
         'genesis_bots', 
         os.path.join(build_dir, 'genesis_bots'),
+        ignore=ignore_patterns
+    )
+    
+    # Copy apps directory
+    print("Copying apps directory...")
+    shutil.copytree(
+        'apps',
+        os.path.join(build_dir, 'apps'),
         ignore=ignore_patterns
     )
     
@@ -49,14 +60,20 @@ def build_package(build_dir):
         # Change to build directory
         os.chdir(build_dir)
         
-        print("\nCompiling extensions...")
-        subprocess.run(['python', 'compile_setup.py', 'build_ext', '--inplace'], check=True)
+        if COMPILE_CYTHON:
+            print("\nCompiling extensions...")
+            subprocess.run(['python', 'compile_setup.py', 'build_ext', '--inplace'], check=True)
+        else:
+            print("\nSkipping Cython compilation...")
         
         print("\nBuilding wheel...")
         subprocess.run(['python', 'setup.py', 'bdist_wheel'], check=True)
         
-        print("\nCleaning up compiled files...")
-        subprocess.run(['python', 'cleanup.py'], check=True)
+        if COMPILE_CYTHON:
+            print("\nCleaning up compiled files...")
+            subprocess.run(['python', 'cleanup.py'], check=True)
+        else:
+            print("\nSkipping cleanup of Python source files...")
         
         # Move the wheel file to build/dist directory
         wheel_dir = os.path.join('dist')
@@ -76,6 +93,7 @@ def build_package(build_dir):
 
 def main():
     print("Starting build process...")
+    print(f"Cython compilation {'enabled' if COMPILE_CYTHON else 'disabled'}")
     build_dir = create_build_directory()
     build_package(build_dir)
     

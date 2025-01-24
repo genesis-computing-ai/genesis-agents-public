@@ -3,13 +3,6 @@ from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 import os
 from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION
 
-this_directory = os.path.join(os.path.abspath(os.path.dirname(__file__)), "genesis_bots")
-
-# Get the project root directory (3 levels up from dist/package/version)
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-with open(os.path.join(root_dir, "requirements.txt")) as f:
-    required = f.read().splitlines()
-
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
         super().finalize_options()
@@ -29,8 +22,19 @@ def find_packages_excluding(exclude_dirs, exclude_files):
         
         return False
     
-    all_packages = find_namespace_packages(include=['genesis_bots', 'genesis_bots.*', 'apps', 'apps.*'])
+    # Make sure we're including both genesis_bots and apps packages
+    all_packages = find_namespace_packages(include=[
+        'genesis_bots',
+        'genesis_bots.*',
+        'apps',
+        'apps.*'
+    ])
     return [pkg for pkg in all_packages if not is_excluded(pkg)]
+
+# Get the project root directory
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+with open(os.path.join(root_dir, "requirements.txt")) as f:
+    required = f.read().splitlines()
 
 setup(
     name="genesis_bots",
@@ -38,12 +42,14 @@ setup(
     description="Genesis Bots Package",
     packages=find_packages_excluding(IGNORE_DIRS, IGNORE_FILES),
     package_dir={
-        "": ".",
-        "genesis_bots.apps": "apps",  # Map apps to genesis_bots.apps namespace
+        "": ".",  # Look for packages in the current directory
+        "genesis_bots.apps": "apps",  # Map apps to genesis_bots.apps
     },
+    py_modules=['apps'],  # Explicitly include apps as a module
     package_data={
          'genesis_bots': ['**/*.yaml', '**/*.so', '**/*.py'],
-         'apps': ['**/*.yaml', '**/*.so', '**/*.py', 'demos/demo_data/*'],  # Include demo data
+         'apps': ['**/*.yaml', '**/*.so', '**/*.py', 'demos/demo_data/*', '**/*.png'],
+         'genesis_bots.apps': ['**/*.yaml', '**/*.so', '**/*.py', 'demos/demo_data/*', '**/*.png'],
     },
     data_files=[],
     zip_safe=False,

@@ -59,7 +59,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     echo "root:root" | chpasswd
 
-RUN gcloud services enable drive.googleapis.com
+#RUN gcloud services enable drive.googleapis.com
 
 RUN chmod +x /entrypoint.sh
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health

@@ -567,7 +567,7 @@ def load_bots_from_yaml(client, bot_team_path, onlybot=None):
             bot_config = yaml.safe_load(file)
 
         # Skip if bot ID doesn't contain 'source' (case insensitive)
-        if 'dddd' not in bot_config.get('BOT_ID', '').lower():
+        if 'ddd' not in bot_config.get('BOT_ID', '').lower():
             continue
 
         # Skip if onlybot specified and doesn't match BOT_ID

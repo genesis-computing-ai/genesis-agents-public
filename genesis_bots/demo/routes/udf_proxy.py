@@ -834,7 +834,6 @@ def unregister_client_tool():
 def endpoint_router():
     try:
         # Parse the incoming JSON request
-        logger.error("#@#@#@#@#@#@#@#@#@#@# IN ENDPOINT ROUTER #@#@#@#@#@#@#@#@#@#@#")
         message = request.json
         if message is None:
             logger.error("Invalid JSON payload")

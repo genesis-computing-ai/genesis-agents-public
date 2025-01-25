@@ -444,7 +444,6 @@ class GenesisApp:
         """
         Modified start_all to include harvester initialization
         """
-        logger.error("#@#@#@#@#@#@#@#@#@#@# STARTING NEW VERSION JL YAYAY  #@#@#@#@#@#@#@#@#@#@#")
         self.generate_index_file()
         self.set_internal_project_and_schema()
         self.setup_databse()

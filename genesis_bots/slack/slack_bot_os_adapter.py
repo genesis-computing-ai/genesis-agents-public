@@ -26,7 +26,7 @@ meta_lock = threading.Lock()
 thread_ts_dict = {}
 uniq = random.randint(100000, 999999)
 
-logger.info("     ┌───/────┐     ")
+logger.info("     ┌───────┐     ")
 logger.info("    ╔═════════╗    ")
 logger.info("   ║  ◉   ◉  ║   ")
 logger.info("  ║    ───    ║  ")

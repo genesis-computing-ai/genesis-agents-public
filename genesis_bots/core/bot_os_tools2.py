@@ -186,12 +186,49 @@ class ToolFuncParamDescriptor:
         """
         origin = get_origin(python_type) or python_type
         args = get_args(python_type)
+        
+        # Handle case where type might be passed as string
+        if isinstance(python_type, str):
+            # Handle generic types in string form like 'list[str]'
+            if '[' in python_type and ']' in python_type:
+                base_type = python_type.split('[')[0].strip().lower()
+                inner_type = python_type[python_type.index('[')+1:python_type.rindex(']')].strip()
+                
+                if base_type == 'list':
+                    return {'type': 'array', 'items': cls._python_type_to_llm_type(inner_type)}
+                elif base_type == 'dict':
+                    if ',' not in inner_type:
+                        return {'type': 'object'}
+                    k_type, v_type = [t.strip() for t in inner_type.split(',', 1)]
+                    kn = cls._python_type_to_llm_type(k_type)['type']
+                    vn = cls._python_type_to_llm_type(v_type)
+                    return {
+                        'type': 'object',
+                        'properties': {kn: vn}
+                    }
+            
+            # Handle simple types
+            if python_type.lower() == 'str':
+                return {'type': 'string'}
+            elif python_type.lower() == 'int':
+                return {'type': 'integer'}
+            elif python_type.lower() == 'float':
+                return {'type': 'float'}
+            elif python_type.lower() == 'bool':
+                return {'type': 'boolean'}
+            elif python_type.lower() == 'dict':
+                return {'type': 'object'}
+            elif python_type.lower() == 'list':
+                return {'type': 'array'}
+            else:
+                raise ValueError(f"Could not convert string type annotation '{python_type}' to llm type")
+            
         if origin in (list, List):
             if not args: # a list without type arguments (e.g. x: List). We do 'best effort' and just ommit the items field
                 raise ValueError(f"type hint of type {python_type} is missing type arguments (did you mean List[int] or List[str]?)")
             assert len(args) == 1, f"Expected a single type argument for list type {python_type}, got {args}"
             return {'type': 'array', 'items': cls._python_type_to_llm_type(args[0])}
-        elif origin in (dict, Dict):
+        elif origin in (dict, Dict) or (isinstance(origin, str) and origin.lower() == 'dict'):  # Handle both actual Dict type and string 'dict'
             if not args: # a dict without type arguments (e.g. x: Dict). We do 'best effort' and just ommit the properties field
                 return {'type': 'object'}
             assert len(args) == 2, f"Expected a key, value argument for dict type {python_type}, got {args}"
@@ -203,13 +240,13 @@ class ToolFuncParamDescriptor:
                 'type': 'object',
                 'properties': {kn: vn}
             }
-        elif python_type is int:
+        elif python_type is int or python_type == int:
             return {'type': 'integer'}
-        elif python_type is str:
+        elif python_type is str or python_type == str:
             return {'type': 'string'}
-        elif python_type is float:
+        elif python_type is float or python_type == float:
             return {'type': 'float'}
-        elif python_type is bool:
+        elif python_type is bool or python_type == bool:
             return {'type': 'boolean'}
         elif python_type is Any:
             return {'type': 'object'}

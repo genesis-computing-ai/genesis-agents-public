@@ -9,17 +9,20 @@ import string
 from   textwrap                 import dedent
 import yaml
 
-from genesis_bots import core
-from genesis_bots.connectors.sqlite_adapter import SQLiteAdapter
+from   genesis_bots             import core
+from   genesis_bots.connectors.sqlite_adapter \
+                                import SQLiteAdapter
 
-from   genesis_bots.core.bot_os_defaults     import (BASE_EVE_BOT_INSTRUCTIONS,
+from   genesis_bots.core.bot_os_defaults \
+                                import (BASE_EVE_BOT_AVAILABLE_TOOLS_SNOWFLAKE,
+                                        BASE_EVE_BOT_INSTRUCTIONS,
                                         ELIZA_INTRO_PROMPT, EVE_INTRO_PROMPT,
-                                        BASE_EVE_BOT_AVAILABLE_TOOLS_SNOWFLAKE,
                                         JANICE_INTRO_PROMPT,
                                         JANICE_JANITOR_INSTRUCTIONS,
                                         STUART_INTRO_PROMPT)
 
-from   genesis_bots.core.logging_config      import logger
+from   genesis_bots.core.logging_config \
+                                import logger
 
 def one_time_db_fixes(self):
     try:
@@ -89,7 +92,7 @@ def one_time_db_fixes(self):
                 #         update = True
 
                 if "autonomous_tools" in tools_list:
-                    print("Found autonomous_tools in tools list")
+                    logger.info("Found autonomous_tools in tools list")
                     tools_list.remove("autonomous_tools")
                     update = True
 
@@ -99,7 +102,7 @@ def one_time_db_fixes(self):
                         tools_list.append('project_manager_tools')
 
                 if 'database_tools' in tools_list:
-                    print("Found database_tools in tools list")
+                    logger.info("Found database_tools in tools list")
                     tools_list.remove('database_tools')
                     if "snowflake_tools" not in tools_list:
                         tools_list.append('snowflake_tools')
@@ -108,7 +111,7 @@ def one_time_db_fixes(self):
                     update = True
 
                 if "snowflake_stage_tools" in tools_list:
-                    print("Found snowflake_stage_tools in tools list")
+                    logger.info("Found snowflake_stage_tools in tools list")
                     tools_list.remove("snowflake_stage_tools")
                     if "snowflake_tools" not in tools_list:
                         tools_list.append("snowflake_tools")
@@ -738,7 +741,7 @@ def ensure_table_exists(self):
                 logger.info(
                     f"Table EAI_CONFIG already exists."
                 )
-            
+
             if self.source_name == 'Snowflake':
 
                 # ensure eai_config table matches EAI assigned to services
@@ -1681,9 +1684,9 @@ $$
     try:
         cursor.execute(stored_proc_ddl)
         self.client.commit()
-        print(f"Stored procedure {self.schema}.execute_snowpark_code created.")
+        logger.info(f"Stored procedure {self.schema}.execute_snowpark_code created.")
     except Exception as e:
-        print(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
+        logger.error(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
 
 
 

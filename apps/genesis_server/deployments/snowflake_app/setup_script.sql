@@ -46,6 +46,7 @@ $$
             LAST_K_KNOWLEGE: 0
             OPENAI_USE_ASSISTANTS: FALSE
             GIT_PATH: /opt/bot_git
+            LOG_LEVEL: INFO
         readinessProbe:
             port: 8080
             path: /healthcheck
@@ -111,6 +112,7 @@ $$
             SNOWFLAKE_SECURE: FALSE
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
+            LOG_LEVEL: INFO
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -147,6 +149,7 @@ $$
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini
             GENESIS_INTERNAL_DB_SCHEMA: {{app_db_sch}}
             GENESIS_SOURCE: Snowflake
+            LOG_LEVEL: INFO
       endpoints:
       - name: udfendpoint
         port: 8080
@@ -191,6 +194,7 @@ $$
             GENESIS_SOURCE: Snowflake
             OPENAI_USE_ASSISTANTS: FALSE
             GIT_PATH: /opt/bot_git
+            LOG_LEVEL: INFO
       volumes:
       - name: botgit
         source: "@app1.bot_git"

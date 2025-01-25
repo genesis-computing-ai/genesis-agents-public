@@ -7,9 +7,10 @@ from   contextlib               import contextmanager
 # Logging format use for root logger and GENESIS logger.
 DEFAULT_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(filename)s:%(lineno)s][%(funcName)s]:: %(message)s'
 GENESIS_LOGGER_FOMRAT = '[%(asctime)s][%(levelname)s][%(caller_filename)s:%(caller_lineno)s]:: %(message)s'
-
 GENESIS_LOGGER_NAME = "GENESIS"
+GENESIS_LOGGER_DEFAULT_LEVEL = logging.WARNING
 TELEMETRY_LEVEL = 25
+
 
 def _setup_root_logger():
     root_logger = logging.getLogger()
@@ -29,6 +30,8 @@ class GenesisLogger(logging.Logger):
         self.telemetry_logs = {'messages': 0, 'prompt_tokens': 0, 'completion_tokens': 0}
 
     def _log(self, level, msg, args, **kwargs):
+        # this override allows logging syntax that matches print statments syntax e.g. (print("hello", end="").
+        # (since we bulk-converted many prints to logs, we retained this behavior messages).
         if args:
             msg = msg + ' ' + ' '.join(str(arg) for arg in args)
             args = ()
@@ -42,8 +45,10 @@ class GenesisLogger(logging.Logger):
         # Call the parent class's log method to actually log the message
         super()._log(level, msg, args, **kwargs, extra=self._get_caller_info())
 
+
     def reset_telemetry(self):
         self.telemetry_logs = {'messages': 0, 'prompt_tokens': 0, 'completion_tokens': 0}
+
 
     def _get_caller_info(self):
         return {
@@ -80,7 +85,7 @@ def _setup_genesis_logger(name=GENESIS_LOGGER_NAME):
     logging.setLoggerClass(GenesisLogger)
     logger = logging.getLogger(name)
     logger.propagate = False # do not propagate to the root logger. We thus override its default
-    level = os.environ.get('LOG_LEVEL', 'INFO')
+    level = os.environ.get('LOG_LEVEL') or GENESIS_LOGGER_DEFAULT_LEVEL
     logger.setLevel(level)
 
     # Define custom log level name and value
@@ -213,5 +218,6 @@ def log_level_ctx(new_level: int|str):
 #-----------------------------------------
 _setup_root_logger()
 
-# this was done to allow logging syntax that matches print statments syntax (since we auto-converted them to log messages) e.g. (print("hello", end="")
+# create the genesis logger singleton at import time
 logger = _setup_genesis_logger()
+

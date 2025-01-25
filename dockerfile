@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.10-slim
 WORKDIR /src/app
 COPY requirements.txt /src/app
 RUN apt-get update && apt-get install gcc -y && apt-get install g++ -y && apt-get install python3-dev -y && apt-get clean

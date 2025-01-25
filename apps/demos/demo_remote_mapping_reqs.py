@@ -558,11 +558,17 @@ def load_bots_from_yaml(client, bot_team_path, onlybot=None):
     yaml_files = [f for f in os.listdir(bot_team_path) if f.endswith('.yaml')]
 
     for yaml_file in yaml_files:
+        # Skip if file doesn't contain 'source' in bot_id
+
         file_path = os.path.join(bot_team_path, yaml_file)
 
         # Load bot config from YAML
         with open(file_path, 'r') as file:
             bot_config = yaml.safe_load(file)
+
+        # Skip if bot ID doesn't contain 'source' (case insensitive)
+        if 'dddd' not in bot_config.get('BOT_ID', '').lower():
+            continue
 
         # Skip if onlybot specified and doesn't match BOT_ID
         if onlybot and not bot_config.get('BOT_ID', '') == (onlybot):

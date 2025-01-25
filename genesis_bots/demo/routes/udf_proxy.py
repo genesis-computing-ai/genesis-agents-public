@@ -834,8 +834,10 @@ def unregister_client_tool():
 def endpoint_router():
     try:
         # Parse the incoming JSON request
+        logger.error("#@#@#@#@#@#@#@#@#@#@# IN ENDPOINT ROUTER #@#@#@#@#@#@#@#@#@#@#")
         message = request.json
         if message is None:
+            logger.error("Invalid JSON payload")
             raise ValueError("Invalid JSON payload")
 
         op_name = None
@@ -847,6 +849,7 @@ def endpoint_router():
         if "data" in message:
             input_rows = message["data"]
             if len(input_rows) != 1:
+                logger.error(f"/udf_proxy/endpoint_router: Expected 1 row, got {len(input_rows)}")
                 raise ValueError(f"/udf_proxy/endpoint_router: Expected 1 row, got {len(input_rows)}")
             params_arr = input_rows[0]
             if len(params_arr) == 3:
@@ -854,6 +857,7 @@ def endpoint_router():
             elif len(params_arr) == 4:
                 _, op_name, endpoint_name, payload_str = params_arr
             else:
+                logger.error(f"/udf_proxy/endpoint_router: Expected 3 or 4 params, got {len(params_arr)}")
                 raise ValueError(f"/udf_proxy/endpoint_router: Expected 3 or 4 params, got {len(params_arr)}")
             use_udf_proxy_format = True
             logger.debug(f"Using UDF proxy format with params: op={op_name}, endpoint={endpoint_name}, payload={payload_str[:100] if payload_str else None}")
@@ -876,14 +880,16 @@ def endpoint_router():
                 logger.error(f"Failed to parse payload JSON: {payload_str[:100]}")
                 raise ValueError("Invalid JSON in payload")
 
-        logger.debug(f"Flask endpoint_router: forwarding {op_name} request to {endpoint_name}. Payload: {str(payload_str)[:20]}")
-
-        assert op_name in ["post", "get", "put", "delete"], "Invalid operation name"
+        if op_name not in ["post", "get", "put", "delete"]:
+            logger.error(f"Invalid operation name: {op_name}")
+            raise ValueError("Invalid operation name")
 
         flask_app = current_app
         rule = next((r for r in flask_app.url_map.iter_rules() if r.rule == endpoint_name), None)
         if not rule:
-            return jsonify({"Success": False, "Message": f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"}), 400
+            error_msg = f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"
+            logger.error(error_msg)
+            return jsonify({"Success": False, "Message": error_msg}), 400
 
         endpoint_func = flask_app.view_functions[rule.endpoint]
         logger.debug(f"Found endpoint function: {endpoint_func.__name__}")

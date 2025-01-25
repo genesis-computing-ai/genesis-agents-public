@@ -19,9 +19,17 @@ def llm_config():
         "assign_disabled": True,
         "disable_create": False,
         "disable_submit": True,
+        "data_source": "snowflake",
     }
     for key, value in session_defaults.items():
         st.session_state.setdefault(key, value)
+
+    # Check if Snowflake metadata or not
+    metadata_response = get_metadata('check_db_source')
+    # st.write("Debug - metadata_response:", metadata_response)  # Debug print
+    st.session_state.data_source = "other"
+    if metadata_response == True:
+        st.session_state.data_source = "snowflake"
 
     # Check External Access Integration status
     check_eai_availability('openai', 'openai_external_access')
@@ -36,7 +44,11 @@ def llm_config():
     display_setup_messages(bot_details, active_llm_type, llm_types)
 
     # LLM selection and API key input
-    llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "Azure OpenAI", "Cortex"])
+    # llm_model = st.selectbox("Choose LLM Model:", ["OpenAI", "Azure OpenAI", "Cortex"])
+    llm_options = ["OpenAI", "Azure OpenAI"]
+    if st.session_state.get("data_source", "").lower() == "snowflake":
+        llm_options.append("Cortex")
+    llm_model = st.selectbox("Choose LLM Model:", llm_options)
     st.session_state.llm_type = llm_model.lower().replace(' ', '')
     llm_api_key, llm_api_endpoint = "", ""
 

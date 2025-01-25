@@ -566,10 +566,6 @@ def load_bots_from_yaml(client, bot_team_path, onlybot=None):
         with open(file_path, 'r') as file:
             bot_config = yaml.safe_load(file)
 
-        # Skip if bot ID doesn't contain 'source' (case insensitive)
-        if 'ddd' not in bot_config.get('BOT_ID', '').lower():
-            continue
-
         # Skip if onlybot specified and doesn't match BOT_ID
         if onlybot and not bot_config.get('BOT_ID', '') == (onlybot):
             continue
@@ -808,6 +804,7 @@ def main():
             # have it auto-save to g-sheet with Jeff's thing
 
     TODO: make it work on remote snow, put answers etc on remote snow and document how to do that 
+    TODO: have it set up the git structure and load in the files from demo directory to that git 
 
     [connections.GENESIS_DEV_CONSUMER_API]
     [connections.GENESIS_ALPHA_CONSUMER_API]

@@ -81,7 +81,7 @@ def main():
         python_requires=">=3.6",
         entry_points={
             'console_scripts': [
-                'install-genesis-demos=genesis_bots.install_demos:copy_demos_to_documents',
+                'install-genesis-resources=genesis_bots.install_resources:install_resources',
             ],
         },
     )

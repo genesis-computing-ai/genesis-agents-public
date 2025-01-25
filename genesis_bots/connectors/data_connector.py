@@ -362,6 +362,21 @@ class DatabaseConnector:
             if db_type.lower() == 'postgresql' and database_name: # postgres needs seprate connections for each database
                 connection_id_string = f"{connection_id}_{database_name}"
             if connection_id_string not in self.connections:
+                if db_type == 'sqlite':
+                    # Verify SQLite file exists or parent directory is writable
+                    db_path = connection_string.split('sqlite:///')[1]
+                    if not os.path.exists(db_path):
+                        dir_path = os.path.dirname(db_path)
+                        if not os.path.exists(dir_path):
+                            return {
+                                'success': False,
+                                'error': f"Directory does not exist for SQLite database: {dir_path}"
+                            }
+                        if not os.access(dir_path, os.W_OK):
+                            return {
+                                'success': False,
+                                'error': f"No write permission for SQLite database directory: {dir_path}"
+                            }
                 # Add database name to postgresql connection string if not present
                 if connection_string.lower().startswith('postgresql'):
                     if database_name and f'/{database_name}' not in connection_string:
@@ -372,7 +387,21 @@ class DatabaseConnector:
                             connection_string = f"{connection_string}/{database_name}"
                         elif connection_string[-4:].isdigit():
                             connection_string = f"{connection_string[:-4]}/{database_name}"
-                self.connections[connection_id_string] = create_engine(connection_string)
+                try:
+                    self.connections[connection_id_string] = create_engine(connection_string)
+                except Exception as e:
+                    error_msg = str(e)
+                    if db_type == 'sqlite':
+                        error_msg += "\nFor SQLite, ensure:\n" + \
+                                   "1. The path is correct\n" + \
+                                   "2. The directory exists\n" + \
+                                   "3. You have read/write permissions\n" + \
+                                   "4. Use 3 slashes for relative paths (sqlite:///path/to/db.sqlite)\n" + \
+                                   "5. Use 4 slashes for absolute paths (sqlite:////abs/path/to/db.sqlite)"
+                    return {
+                        'success': False,
+                        'error': error_msg
+                    }
             engine = self.connections[connection_id_string]
             with engine.connect() as conn:
                 trans = conn.begin()
@@ -472,7 +501,7 @@ class DatabaseConnector:
                     }
 
         except Exception as e:
-            logger.error(f"Query execution error: {str(e)}")
+            logger.error(f"Query execution error: {str(e)} ")
             return {
                 'success': False,
                 'error': str(e)

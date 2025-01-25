@@ -896,11 +896,20 @@ def endpoint_router():
             logger.debug("Converting response to UDF proxy format")
             # Handle different response types
             if isinstance(response, tuple):
-                logger.debug(f"Handling tuple response: {response[0]}")
+                logger.debug(f"Handling tuple response with length {len(response)}: {response}")
                 # Response with status code
                 response_data = response[0]
-                if isinstance(response_data, (str, dict)):
-                    response_data = response_data if isinstance(response_data, dict) else json.loads(response_data)
+                if isinstance(response_data, Response):
+                    logger.debug("Tuple contains Response object, extracting JSON")
+                    response_data = response_data.get_json(force=True, silent=True)
+                elif isinstance(response_data, str):
+                    logger.debug("Tuple contains string, parsing as JSON")
+                    response_data = json.loads(response_data)
+                elif isinstance(response_data, dict):
+                    logger.debug("Tuple contains dictionary, using directly")
+                else:
+                    logger.debug(f"Tuple contains unexpected type: {type(response_data)}")
+                    response_data = {"data": response_data}
             elif isinstance(response, Response):
                 logger.debug("Handling Flask Response object")
                 # Flask Response object
@@ -909,7 +918,15 @@ def endpoint_router():
             else:
                 logger.debug(f"Handling direct return value of type {type(response)}")
                 # Direct return value
-                response_data = response if isinstance(response, dict) else json.loads(response)
+                if isinstance(response, dict):
+                    response_data = response
+                elif isinstance(response, str):
+                    try:
+                        response_data = json.loads(response)
+                    except json.JSONDecodeError:
+                        response_data = {"data": response}
+                else:
+                    response_data = {"data": response}
 
             logger.debug(f"Final response_data before formatting: {response_data}")
             output_rows = [[0, response_data]]
@@ -922,6 +939,9 @@ def endpoint_router():
 
     except Exception as e:
         logger.error(f"Error in endpoint_router: {str(e)}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         error_response = {"Success": False, "Message": str(e)}
         if use_udf_proxy_format:
             logger.debug("Returning error in UDF proxy format")

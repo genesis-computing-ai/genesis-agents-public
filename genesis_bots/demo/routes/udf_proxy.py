@@ -196,6 +196,9 @@ def get_metadata():
 
         if metadata_type == "harvest_control":
             result = genesis_app.db_adapter.get_harvest_control_data_as_json()
+        elif metadata_type == "check_db_source":
+            metadata_response = os.getenv("SNOWFLAKE_METADATA", "False").upper() == "TRUE"
+            result = {"Success": True, "Data": json.dumps(metadata_response)}
         elif metadata_type == "harvest_summary":
             result = genesis_app.db_adapter.get_harvest_summary()
         elif metadata_type == "available_databases":

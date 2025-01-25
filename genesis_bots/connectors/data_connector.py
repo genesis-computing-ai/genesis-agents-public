@@ -248,6 +248,9 @@ class DatabaseConnector:
     ) -> dict:
         """Add thread_id parameter to docstring"""
 
+        if connection_id is None and self.db_adapter.source_name == 'Snowflake':
+            connection_id = 'Snowflake'
+
         # TODO - if connection_id (?) = Snowflake, run run_query
         if connection_id == 'Snowflake':
             if self.db_adapter.source_name != 'Snowflake':
@@ -838,6 +841,7 @@ class DatabaseConnector:
         verbosity: str = "low",
         full_ddl: bool = False,
         connection_id: str = None,
+        search_string: str = None,
         knowledge_base_path: str = "./kb_vector",
         bot_id: str = None,
         thread_id: str = None,
@@ -865,6 +869,7 @@ class DatabaseConnector:
             - metadata: List of metadata objects (if successful)
             - error: Error message (if unsuccessful)
         """
+        query = query or search_string
 
         from genesis_bots.core.logging_config import logger
         from genesis_bots.core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
@@ -1106,7 +1111,7 @@ def _list_database_connections(bot_id: str,
 
 
 @gc_tool(
-    query='search string to search for in metadata',
+    search_string='String to search for in metadata',
     connection_id='ID of the database connection to optionally limit search to',
     database='Database name to optionally limit search to',
     schema='Schema name to optionally limit search to',
@@ -1119,6 +1124,7 @@ def _list_database_connections(bot_id: str,
 )
 def _search_metadata(
     query: str = None,
+    search_string: str = None,
     database: str = None,
     schema: str = None,
     table: str = None,
@@ -1130,7 +1136,7 @@ def _search_metadata(
 ):
     """Search database metadata for tables, columns, and other objects"""
     return DatabaseConnector().search_metadata(
-        query=query,
+        query=query or search_string,
         database=database,
         schema=schema,
         table=table,
@@ -1146,7 +1152,7 @@ def _search_metadata(
 
 
 @gc_tool(
-    query="search string to search for in metadata",
+    search_string="String to search for in metadata",
     database="Database name",
     schema="Schema name",
     table="Table name",
@@ -1157,7 +1163,7 @@ def _search_metadata(
     _group_tags_=[data_connector_tools],
 )
 def _data_explorer(
-    query: str = None,
+    search_string: str = None,
     database: str = None,
     schema: str = None,
     table: str = None,
@@ -1169,7 +1175,7 @@ def _data_explorer(
 ):
     """Explore data"""
     return DatabaseConnector().search_metadata(
-        query=query,
+        search_string=search_string,
         database=database,
         schema=schema,
         table=table,

@@ -1,4 +1,4 @@
-from   langsmith                import Client, traceable
+
 import uuid
 
 import json
@@ -6,8 +6,10 @@ import snowflake.connector
 
 import yaml
 
-from   genesis_bots.api         import EmbeddedGenesisServerProxy, GenesisAPI, RESTGenesisServerProxy
 
+import argparse
+from   genesis_bots.api         import GenesisAPI, build_server_proxy
+from   genesis_bots.api.utils   import add_default_argparse_options
 import os
 
 #requires these environment variables:
@@ -21,7 +23,7 @@ import os
 launch.json config example:
 
         {
-            "name": "Python: Current File with Env Vars Alpha",
+            "name": "Python: MappingBot",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -34,24 +36,11 @@ launch.json config example:
                 "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
                 "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
                 "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
-                // below are for local mode only
-                "GENESIS_INTERNAL_DB_SCHEMA": "GENESIS_TEST.<your schema>",
-                "GENESIS_SOURCE": "Snowflake",
-                "RUNNER_ID": "snowflake-1",
-                "GIT_PATH": "./bot_git",
-                "LANGCHAIN_TRACING_V2": "true",
-                "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
-                "LANGCHAIN_API_KEY": "your langchain api key (free to get one)",
-                "LANGCHAIN_PROJECT": "your langcgain project",
-                "LOG_LEVEL": "ERROR"
             },
             "justMyCode": true
 },
 """
 
-# Initialize LangSmith client at the top of your file
-# this is just for LangSmith observability, does not use Langchain
-langsmith_client = Client()
 
 conn = snowflake.connector.connect(
     account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
@@ -77,7 +66,6 @@ def print_file_contents(title, file_path, contents):
     print("-"*80 + "\033[0m")
 
 
-@traceable(name="genesis_bot_call")
 def call_genesis_bot(client, bot_id, request, thread = None):
     """Wait for a complete response from the bot, streaming partial results."""
     try:
@@ -88,7 +76,7 @@ def call_genesis_bot(client, bot_id, request, thread = None):
         print("\033[92mResponse:\033[0m")  # Green label for response section
 
         request = client.submit_message(bot_id, request, thread_id=thread)
-        response = client.get_response(bot_id, request["request_id"])
+        response = client.get_response(bot_id, request["request_id"], print_stream=True)
 
         print(f"\n\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[93mResponse complete\033[0m")  # Yellow status
@@ -122,7 +110,7 @@ def check_git_file(client, paths, file_name):
     """
     stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
     # Get git base path from environment variable, default to ./bot_git
-    git_base = os.getenv("GIT_PATH", "./bot_git")
+    git_base = os.getenv("GIT_PATH", "/opt/bot_git")
     local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
 
     # First check local git
@@ -134,18 +122,10 @@ def check_git_file(client, paths, file_name):
             with open(local_git_path, 'r') as f:
                 contents = f.read()
 
-            # Copy to stage
-            success = client.upload_file(f"{paths['stage_base']}{paths['base_git_path']}",
-                                        file_name,
-                                        contents)
-
-            if success:
-                print(f"\033[92mCopied file from local git to stage: {stage_path}\033[0m")
-                return contents
-            else:
-                print("Failed to copy file to stage")
-                return False
-
+            return contents
+        
+        return False
+         
     except Exception as e:
         print(f"Error accessing local git file: {str(e)}")
 
@@ -163,7 +143,6 @@ def check_git_file(client, paths, file_name):
 
     return False
 
-@traceable(name="source_research")
 def perform_source_research(client, requirement, paths, bot_id):
     """Execute source research step and validate results."""
     try:
@@ -403,7 +382,8 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
     """
     try:
         # Get the correct answers file
-        with open("./bot_git/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
+        git_base = os.getenv("GIT_PATH", "/opt/bot_git")
+        with open(f"{git_base}/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
             answers_content = f.read()
 
 
@@ -578,11 +558,17 @@ def load_bots_from_yaml(client, bot_team_path, onlybot=None):
     yaml_files = [f for f in os.listdir(bot_team_path) if f.endswith('.yaml')]
 
     for yaml_file in yaml_files:
+        # Skip if file doesn't contain 'source' in bot_id
+
         file_path = os.path.join(bot_team_path, yaml_file)
 
         # Load bot config from YAML
         with open(file_path, 'r') as file:
             bot_config = yaml.safe_load(file)
+
+        # Skip if bot ID doesn't contain 'source' (case insensitive)
+        if 'ddd' not in bot_config.get('BOT_ID', '').lower():
+            continue
 
         # Skip if onlybot specified and doesn't match BOT_ID
         if onlybot and not bot_config.get('BOT_ID', '') == (onlybot):
@@ -802,6 +788,14 @@ def reanalyze_with_o1():
         print(f"\n{result}")
 
 
+
+def parse_arguments():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="A simple CLI chat interface to Genesis bots")
+    add_default_argparse_options(parser)
+    return parser.parse_args()
+
+
 def main():
     """Main execution flow.
         # todo - startup speed with local bot definitions
@@ -813,8 +807,14 @@ def main():
         # regroup ideas
             # have it auto-save to g-sheet with Jeff's thing
 
+    TODO: make it work on remote snow, put answers etc on remote snow and document how to do that 
 
+    [connections.GENESIS_DEV_CONSUMER_API]
+    [connections.GENESIS_ALPHA_CONSUMER_API]
     """
+    args = parse_arguments()
+    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args)
+
 
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below)
    # local_bots = [
@@ -830,7 +830,7 @@ def main():
 
     scope, sub_scope = internal_schema.split(".")
 
-    with GenesisAPI(server_proxy=RESTGenesisServerProxy()) as client:
+    with GenesisAPI(server_proxy=server_proxy) as client:
 
         # if you want to see what bots are already on the server
         #bots = client.get_all_bots()

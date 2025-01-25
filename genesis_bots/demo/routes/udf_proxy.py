@@ -834,8 +834,10 @@ def unregister_client_tool():
 def endpoint_router():
     try:
         # Parse the incoming JSON request
+        logger.error("#@#@#@#@#@#@#@#@#@#@# IN ENDPOINT ROUTER #@#@#@#@#@#@#@#@#@#@#")
         message = request.json
         if message is None:
+            logger.error("Invalid JSON payload")
             raise ValueError("Invalid JSON payload")
 
         op_name = None
@@ -845,80 +847,113 @@ def endpoint_router():
         use_udf_proxy_format = False
 
         if "data" in message:
-            # assume This message was sent by a Snowflake UDF which passes params as rows.
-            # The UDF definition lives in setup_script.sql
-            # input format:
-            #   {"data": [
-            #     [row_index, column_1_value, column_2_value, ...],
-            #     ...
-            #   ]}
-            #
-            # For UDF proxies for endpoints,see
-            # https://docs.snowflake.com/en/developer-guide/snowpark-container-services/working-with-services#label-snowpark-containers-service-communicating-service-function
             input_rows = message["data"]
             if len(input_rows) != 1:
+                logger.error(f"/udf_proxy/endpoint_router: Expected 1 row, got {len(input_rows)}")
                 raise ValueError(f"/udf_proxy/endpoint_router: Expected 1 row, got {len(input_rows)}")
             params_arr = input_rows[0]
             if len(params_arr) == 3:
-                _, op_name, endpoint_name = params_arr # first param is the row number, ignored
+                _, op_name, endpoint_name = params_arr
             elif len(params_arr) == 4:
                 _, op_name, endpoint_name, payload_str = params_arr
             else:
+                logger.error(f"/udf_proxy/endpoint_router: Expected 3 or 4 params, got {len(params_arr)}")
                 raise ValueError(f"/udf_proxy/endpoint_router: Expected 3 or 4 params, got {len(params_arr)}")
             use_udf_proxy_format = True
+            logger.debug(f"Using UDF proxy format with params: op={op_name}, endpoint={endpoint_name}, payload={payload_str[:100] if payload_str else None}")
         else:
-            # Message sent by a REST client
             op_name = message.get("op_name")
             endpoint_name = message.get("endpoint_name")
-            headers = message.get("headers") # respected if passed in direct HTTP request (not via UDF - see TODO in server_proxy.py)
+            headers = message.get("headers")
             payload_str = message.get("payload")
-        # canonicalize/parse the arguments
+            logger.debug(f"Using direct format with params: op={op_name}, endpoint={endpoint_name}, headers={headers}")
+
         op_name = op_name.lower()
         headers = headers or {"Content-Type": "application/json"}
 
-        # Parse the payload
         payload = None
         if payload_str:
             try:
                 payload = json.loads(payload_str)
+                logger.debug(f"Successfully parsed payload JSON: {str(payload)[:100]}...")
             except json.JSONDecodeError:
+                logger.error(f"Failed to parse payload JSON: {payload_str[:100]}")
                 raise ValueError("Invalid JSON in payload")
 
-        logger.debug(f"Flask endpoint_router: forwarding {op_name} request to {endpoint_name}. Payload: {str(payload_str)[:20]}")
+        if op_name not in ["post", "get", "put", "delete"]:
+            logger.error(f"Invalid operation name: {op_name}")
+            raise ValueError("Invalid operation name")
 
-        # Validate the operation name
-        assert op_name in ["post", "get", "put", "delete"], "Invalid operation name"
-
-        # Validate the endpoint name is internal to this flask app
         flask_app = current_app
         rule = next((r for r in flask_app.url_map.iter_rules() if r.rule == endpoint_name), None)
         if not rule:
-            return jsonify({"Success": False, "Message": f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"}), 400
+            error_msg = f"Endpoint name {endpoint_name} is not registered with Flask app {flask_app.name}"
+            logger.error(error_msg)
+            return jsonify({"Success": False, "Message": error_msg}), 400
 
-        # Call the target endpoint function directly
         endpoint_func = flask_app.view_functions[rule.endpoint]
+        logger.debug(f"Found endpoint function: {endpoint_func.__name__}")
+        
         with flask_app.test_request_context(endpoint_name, method=op_name.upper(), json=payload):
             response = endpoint_func()
+            logger.debug(f"Raw response from endpoint: type={type(response)}, value={str(response)[:200]}")
 
         if use_udf_proxy_format:
-            # convert the response from the target view function to the format expected by the UDF
-            # output format expected by the UDF:
-            #   {"data": [
-            #     [row_index, column_1_value, column_2_value, ...}],
-            #     ...
-            #   ]}
-            output_rows = [[0, response.get_json(force=True, silent=True)],]
+            logger.debug("Converting response to UDF proxy format")
+            # Handle different response types
+            if isinstance(response, tuple):
+                logger.debug(f"Handling tuple response with length {len(response)}: {response}")
+                # Response with status code
+                response_data = response[0]
+                if isinstance(response_data, Response):
+                    logger.debug("Tuple contains Response object, extracting JSON")
+                    response_data = response_data.get_json(force=True, silent=True)
+                elif isinstance(response_data, str):
+                    logger.debug("Tuple contains string, parsing as JSON")
+                    response_data = json.loads(response_data)
+                elif isinstance(response_data, dict):
+                    logger.debug("Tuple contains dictionary, using directly")
+                else:
+                    logger.debug(f"Tuple contains unexpected type: {type(response_data)}")
+                    response_data = {"data": response_data}
+            elif isinstance(response, Response):
+                logger.debug("Handling Flask Response object")
+                # Flask Response object
+                response_data = response.get_json(force=True, silent=True)
+                logger.debug(f"Extracted JSON from Response: {response_data}")
+            else:
+                logger.debug(f"Handling direct return value of type {type(response)}")
+                # Direct return value
+                if isinstance(response, dict):
+                    response_data = response
+                elif isinstance(response, str):
+                    try:
+                        response_data = json.loads(response)
+                    except json.JSONDecodeError:
+                        response_data = {"data": response}
+                else:
+                    response_data = {"data": response}
+
+            logger.debug(f"Final response_data before formatting: {response_data}")
+            output_rows = [[0, response_data]]
             response = make_response({"data": output_rows})
             response.headers['Content-type'] = 'application/json'
-        else:
-            pass # return the response from the target endpoint as is
+            logger.debug("Successfully created UDF proxy format response")
 
-        logger.debug(f"Flask endpoint_router: Response from {endpoint_name}: Response: {response}")
+        logger.debug(f"Flask endpoint_router: Final response from {endpoint_name}: {response}")
         return response
 
     except Exception as e:
         logger.error(f"Error in endpoint_router: {str(e)}")
-        return jsonify({"Success": False, "Message": str(e)}), 500
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        error_response = {"Success": False, "Message": str(e)}
+        if use_udf_proxy_format:
+            logger.debug("Returning error in UDF proxy format")
+            return make_response({"data": [[0, error_response]]})
+        logger.debug("Returning error in direct format")
+        return jsonify(error_response), 500
 
 
 

@@ -17,6 +17,7 @@ main_server = None
 
 def main():
 
+    
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
     genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
     if not genbot_internal_project_and_schema and os.getenv("SNOWFLAKE_METADATA", "FALSE").upper() != "TRUE":

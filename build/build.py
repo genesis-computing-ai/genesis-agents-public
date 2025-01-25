@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION
+from multiprocessing import freeze_support
 
 # Check environment variable for Cython compilation
 COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
@@ -62,6 +63,8 @@ def build_package(build_dir):
         
         if COMPILE_CYTHON:
             print("\nCompiling extensions...")
+            # Set environment variable to disable multiprocessing in Cython
+            os.environ['CYTHON_PARALLEL'] = '0'
             subprocess.run(['python', 'compile_setup.py', 'build_ext', '--inplace'], check=True)
         else:
             print("\nSkipping Cython compilation...")
@@ -102,4 +105,5 @@ def main():
     print("Wheel file has been moved to build/dist directory")
 
 if __name__ == '__main__':
+    freeze_support()
     main() 

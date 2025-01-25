@@ -1,5 +1,6 @@
 from setuptools import setup, find_namespace_packages
 import os
+import shutil
 from build_config import PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES, VERSION
 
 # Check environment variable for Cython compilation
@@ -7,21 +8,13 @@ COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
 
 # Only import Cython and set up extensions if we're compiling
 extensions = None
-compiler_directives = None
 if COMPILE_CYTHON:
     from setuptools.command.build_ext import build_ext
     from setuptools.extension import Extension
     from Cython.Build import cythonize
     
-    # Cython-specific compiler directives
-    compiler_directives = {
-        "language_level": "3",
-        "boundscheck": False,
-        "wraparound": False,
-        "initializedcheck": False,
-        "nonecheck": False,
-        "cdivision": True,
-    }
+    # Disable multiprocessing completely for Cython
+    os.environ['CYTHON_PARALLEL'] = '0'
     
     extensions = []
     for root, dirs, files in os.walk('genesis_bots'):
@@ -36,19 +29,17 @@ if COMPILE_CYTHON:
                     file != '__init__.py' and 
                     path not in IGNORE_FILES):
                     module_path = path[:-3].replace(os.path.sep, '.')
-                    extensions.append(
-                        Extension(
-                            module_path, 
-                            [path],
-                            extra_compile_args=["-O3"]  # Optimization flag
-                        )
-                    )
+                    extensions.append(Extension(module_path, [path]))
     
+    # Configure Cython compilation with single thread
     extensions = cythonize(
         extensions,
-        compiler_directives=compiler_directives,
-        nthreads=os.cpu_count(),  # Use all available CPU cores
-        annotate=True  # Generate HTML annotation files
+        compiler_directives={
+            'language_level': "3",
+            'always_allow_keywords': True
+        },
+        nthreads=1,  # Force single-threaded compilation
+        force=True   # Force recompilation
     )
 
 setup(
@@ -69,8 +60,9 @@ setup(
              '**/*.yaml', 
              '**/*.so', 
              '**/*.py', 
-             'demos/demo_data/*',
-             'streamlit_gui/*.png',
+             'demos/**/*',  # Include all files in demos directory
+             'streamlit_gui/**/*',
+             'streamlit_gui/**/*.png',  # Explicitly include PNG files
          ],
     },
     include_package_data=True,
@@ -84,4 +76,9 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
+    entry_points={
+        'console_scripts': [
+            'install-genesis-demos=genesis_bots.install_demos:copy_demos_to_documents',
+        ],
+    },
 ) 

@@ -357,10 +357,10 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 ]
                 logger.info(f"Model not {self.llm_engine} active. Trying all models in priority order.")
                 for model in models_to_try:
-                    
+
                     request_data["model"] = model
                     response = requests.post(url, json=request_data, stream=True, headers=headers)
-                    
+
                     if response.status_code == 200 and not response.text.startswith('{"message":"unknown model'):
                         # Found working model
                         self.llm_engine = model
@@ -658,10 +658,10 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     },
                 )
 
-            
+
 
             self.client.commit()
-            
+
             # Trigger immediate harvest after successful update - don't wait for result
             try:
                 from genesis_bots.demo.app.genesis_app import genesis_app
@@ -672,7 +672,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                     )
             except Exception as e:
                 logger.info(f"Non-critical error triggering immediate harvest: {e}")
-            
+
             return {
                 "Success": True,
                 "Message": "Harvest control data set successfully.",
@@ -1080,6 +1080,11 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             return False
 
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
+
+        logger.info(f"creds_dict: {creds_dict}")
+
+        for key, value in creds_dict.items():
+            print(f"{key}: {len(value)}")
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:

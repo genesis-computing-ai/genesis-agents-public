@@ -1086,6 +1086,9 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         for key, value in creds_dict.items():
             print(f"{key}: {len(value)}")
 
+        for chr in creds_dict['private_key']:
+            print(f"{chr}: {ord(chr)}")
+
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:
             json_file.write(creds_json)

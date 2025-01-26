@@ -930,7 +930,7 @@ def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=N
             logger.info(f"Error loading credentials: {e}")
             return None
 
-    service = build("drive", "v3", credentials=creds)
+    service = build("sheets", "v4", credentials=creds)
     body = {"values": [[value]]}
 
     logger.info(f"Service set to v3 - cell range: {cell_range} - body: {body}")
@@ -979,9 +979,9 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             print(f"Error loading credentials: {e}")
             return None
     try:
-        logger.info(f"Loading sheets v3: {spreadsheet_id}")
-        service = build("drive", "v3", credentials=creds)
-        logger.info(f"Loaded sheets v3: {spreadsheet_id}")
+        logger.info(f"Loading sheets v4: {spreadsheet_id}")
+        service = build("sheets", "v4", credentials=creds)
+        logger.info(f"Loaded sheets v4: {spreadsheet_id}")
 
         if not cell_range:
             logger.info(

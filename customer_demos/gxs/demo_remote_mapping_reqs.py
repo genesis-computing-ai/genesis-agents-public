@@ -836,6 +836,7 @@ def main():
 
                     summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
 
+                
                     # Get the full content of each file from git
                     source_research_content = client.get_file_contents(
                         f"{paths['stage_base']}{paths['base_git_path']}",

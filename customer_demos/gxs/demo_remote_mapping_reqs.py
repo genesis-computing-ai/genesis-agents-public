@@ -143,116 +143,6 @@ def check_git_file(client, paths, file_name):
 
     return False
 
-def perform_source_research(client, requirement, paths, bot_id):
-    """Execute source research step and validate results."""
-    try:
-        print("\033[34mExecuting source research...\033[0m")
-
-        # Create placeholder file
-   #     success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-   #                                  paths["source_research_file"],
-   #                                  "Placeholder for source research")
-   #     if not success:
-   #         raise Exception("Failed to put placeholder source research file to stage")
-
-        research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-        Delegate to the SourceResearchBot microbot and tell them to research this field and save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
-
-        Tell the microbot that there are two past projects to use in its past project consideration step, stored in git at:
-        1. in git at: knowledge/past_projects/loan_data_project.txt
-        2. in git at: knowledge/past_projects/loan_lending_project.txt
-
-        Remind the microbot that it is important to analyze BOTH the data exploration, and ALSO the past projects, and to discuss both in its report.
-
-        Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
-        This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
-
-        response = call_genesis_bot(client, bot_id, research_prompt)
-        if 'SUCCESS' not in response:
-            raise Exception('Error on source research')
-
-        contents = check_git_file(client, paths=paths, file_name=paths["source_research_file"])
-
-        if not contents or contents.startswith('Placeholder '):
-            raise Exception('Source research file not found or contains only placeholder')
-
-        print_file_contents("SOURCE RESEARCH",
-                           f"{paths['base_git_path']}{paths['source_research_file']}",
-                           contents)
-        return contents
-
-    except Exception as e:
-        raise e
-
-def perform_mapping_proposal(client, requirement, paths, bot_id):
-    """Execute mapping proposal step and validate results."""
-    print("\033[34mExecuting mapping proposal...\033[0m")
-
-    #success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-    #                             paths["mapping_proposal_file"],
-    #                             "Placeholder for mapping proposal")
-    #if not success:
-    #    raise Exception("Failed to put placeholder mapping proposal file to stage")
-
-    mapping_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-    The source research bot has already run and saved its results at this git location: {paths["base_git_path"]}{paths["source_research_file"]}\n
-    Now call the mapping proposer microbot and have it perform a mapping proposal for this field, give it the requirements and the git location of the source research file (including the path), and save its results at this git location: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n
-    If it has trouble finding the source research document, make sure it is using the correct GIT path, or if that fails, get it yourself and provide the text of it it in your prompt to the mapping proposer bot.
-    Then validate the microbot has saved the report in the right place, if so return SUCCESS.  If not return FAILURE.
-    This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
-
-    response = call_genesis_bot(client, bot_id, mapping_prompt)
-    if 'SUCCESS' not in response:
-        raise Exception('Error on mapping proposal')
-
-    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
-
-    if not contents or contents.startswith('Placeholder '):
-        raise Exception('Mapping proposal file not found or contains only placeholder')
-
-    print_file_contents("MAPPING PROPOSAL",
-                       f"{paths['base_git_path']}{paths['mapping_proposal_file']}",
-                       contents)
-    return contents
-
-
-
-def perform_confidence_analysis(client, requirement, paths, bot_id):
-    """Execute confidence analysis step and validate results."""
-    print("\033[34mExecuting confidence analysis...\033[0m")
-
-    #success = write_file_to_stage(f'{paths["stage_base"]}{paths["base_git_path"]}',
-    #                             paths["confidence_report_file"],
-    #                             "Placeholder for confidence report")
-    #if not success:
-    #    raise Exception("Failed to put placeholder confidence report file to stage")
-
-    confidence_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
-    The source research bot has saved its results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
-    The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n
-    Now call the confidence analyst microbot and have it analyze the confidence level of this mapping proposal.
-    Tell it to use git_action to retrieve both of the files listed above.
-    Have it review both the source research and mapping proposal documents from the git locations provided above.
-    If it has trouble finding these documents, explain in mode detail how to find them using git_action, or if needed
-    you can get them and provide the full contents to the confidence bot yourself.
-    Tell it to save its confidence analysis report at this git location: {paths["base_git_path"]}{paths["confidence_report_file"]}\n
-    Then validate the microbot has saved the report in the right place, if so return SUCCESS. If not return FAILURE.
-    This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
-
-    response = call_genesis_bot(client, bot_id, confidence_prompt)
-    if 'SUCCESS' not in response:
-        raise Exception('Error on confidence analysis')
-
-    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
-
-    if not contents or contents.startswith('Placeholder '):
-        raise Exception('Confidence report file not found or contains only placeholder')
-
-    print_file_contents("CONFIDENCE REPORT",
-                       f"{paths['base_git_path']}{paths['confidence_report_file']}",
-                       contents)
-    return contents
-
 
 def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = False):
     """Have PM bot analyze results and provide structured summary."""
@@ -384,7 +274,6 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
         # Get the correct answers file
         git_base = os.getenv("GIT_PATH", "/opt/bot_git")
         with open(f"{git_base}/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
-            answers_content = f.read()
 
 
         # First get just the correct answer for this field

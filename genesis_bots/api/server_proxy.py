@@ -1,8 +1,8 @@
 from   flask                    import Flask
 from   genesis_bots.api.genesis_base \
-                                import (RequestHandle, _ALL_BOTS_,
-                                        get_tool_func_descriptor,
-                                        is_bot_client_tool, GenesisBotConfig)
+                                import (GenesisBotConfig, RequestHandle,
+                                        _ALL_BOTS_, get_tool_func_descriptor,
+                                        is_bot_client_tool)
 from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 from   genesis_bots.demo.app.genesis_app \
@@ -13,6 +13,7 @@ import requests
 from   requests                 import Response
 
 from   abc                      import ABC, abstractmethod
+import collections
 import socket
 import sqlalchemy as sqla
 import threading
@@ -161,6 +162,18 @@ class GenesisServerProxyBase(ABC):
                 raise ValueError(f"Internal error:Unrecognized action message: {action_msg}")
 
         return msg
+
+
+    def run_genesis_tool(self, tool_name, params, bot_id) -> dict:
+        if not isinstance(params, (dict, collections.abc.Mapping)):
+            raise ValueError("params must be a dictionary/mapping")
+        data = json.dumps(dict(bot_id=bot_id, tool_name=tool_name, params=params))
+        response = self._send_REST_request("post", "/realtime/genesis_tool", data)
+        raw_response = response.json()
+        if raw_response.get("success", False):
+            return raw_response.get("results", {})
+        else:
+            raise RuntimeError(f"Failed to run Genesis tool {tool_name} for bot {bot_id}: {raw_response.get('message', 'Unknown error')}")
 
 
     def _invoke_client_tool(self, tool_name:str, kwargs):

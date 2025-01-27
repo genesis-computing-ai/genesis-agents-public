@@ -17,7 +17,7 @@ db_adapter = get_global_db_connector()
 from genesis_bots.core.file_diff_handler import GitFileManager
 git_manager = GitFileManager()
 
-git_action = ToolFuncGroup(
+git_action_grp = ToolFuncGroup(
     name="git_action",
     description="",
     lifetime="PERSISTENT",
@@ -108,7 +108,7 @@ git_action = ToolFuncGroup(
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    _group_tags_=[git_action],
+    _group_tags_=[git_action_grp],
 )
 def git_action(
     action: str,

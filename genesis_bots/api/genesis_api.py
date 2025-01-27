@@ -36,6 +36,10 @@ class GenesisAPI:
         self.server_proxy.register_client_tool(bot_id, tool_func, timeout_seconds)
 
 
+    def run_genesis_tool(self, tool_name: str, params: dict, bot_id: str) -> dict:
+        return self.server_proxy.run_genesis_tool(tool_name, params, bot_id)
+
+
     def unregister_client_tool(self, func_or_name, bot_id=_ALL_BOTS_):
         self.server_proxy.unregister_client_tool(func_or_name, bot_id)
 
@@ -64,7 +68,7 @@ class GenesisAPI:
                 # Store the new content before any formatting
                 new_content = response[len(last_response):]
                 last_response = response  # Update last_response before formatting
-                
+
                 # Format the new content for display only
                 if print_stream:
                     display_content = re.sub(r'(?<!\n)(🤖|🧰)', r'\n\1', new_content)

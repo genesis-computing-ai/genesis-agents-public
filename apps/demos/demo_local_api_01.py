@@ -23,10 +23,17 @@ def main():
         response = client.get_response("Eve", request["request_id"])
         print(f"\n>>>> Response from Eve: {response}")
 
-        msg = "Run a query to get the current date from the database. Use an arbitrary database connetion. Show me the result as well as which database connection was used."
+        msg = "Run a query to get the current date from the database. Use an arbitrary database connection. Show me the result as well as which database connection was used and what the query was."
         request = client.submit_message("Eve", msg)
         response = client.get_response("Eve", request["request_id"])
         print("\n>>>>", response)
+
+        # Example of listing and reading files from the internal git repo using the 'raw' tool invocation method
+        res = client.run_genesis_tool(tool_name="git_action", params={"action": "list_files"}, bot_id="Eve")
+        print("\n>>>>", res)
+
+        res = client.run_genesis_tool(tool_name="git_action", params={"action": "read_file", "file_path": "README.md"}, bot_id="Eve")
+        print("\n>>>>", res)
 
 
 if __name__ == "__main__":

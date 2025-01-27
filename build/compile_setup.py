@@ -58,14 +58,24 @@ def main():
             "": ".",
         },
         package_data={
-            'genesis_bots': ['**/*.yaml', '**/*.so', '**/*.py', 'requirements.txt'],
+            'genesis_bots': [
+                '**/*.yaml',
+                '**/*.so',
+                '**/*.py',
+                '**/*.conf',
+                '**/*.json',
+                'default_config/*',
+                'requirements.txt'
+            ],
             'apps': [
                 '**/*.yaml', 
                 '**/*.so', 
                 '**/*.py', 
+                '**/*.conf',
+                '**/*.json',
                 'demos/**/*',
                 'streamlit_gui/**/*',
-                'streamlit_gui/**/*.png',
+                'sdk_examples/**/*'
             ],
         },
         include_package_data=True,

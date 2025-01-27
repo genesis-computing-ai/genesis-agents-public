@@ -1,6 +1,7 @@
 import json
 import sys
 sys.path.append(".")
+from genesis_bots.core.logging_config import logger
 
 import streamlit as st
 from utils import (
@@ -82,7 +83,7 @@ def config_g_sheets():
         client_id = st.text_input("Client ID*:")
         client_email = st.text_input("Client Email*:")
         private_key_id = st.text_input("Private Key ID*:")
-        private_key = st.text_area("Private Key*:")
+        private_key = st.text_area("Private Key*:").replace("\n", "&")
         shared_folder_id = st.text_input("Shared Folder ID:")
 
         if st.button("Add Google Worksheet API parameters to access Google Worksheet account from Genesis"):
@@ -108,7 +109,7 @@ def config_g_sheets():
                     "type": "service_account",
                     "project_id": project_id,
                     "private_key_id": private_key_id,
-                    "private_key": private_key,
+                    "private_key": private_key.replace('\n','&'),
                     "client_email": client_email,
                     "client_id": client_id,
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -121,6 +122,7 @@ def config_g_sheets():
                     key_pairs["shared_folder_id"] = shared_folder_id
             try:
                 key_pairs_str = json.dumps(key_pairs)
+                logger.info(f"Google API params: {key_pairs_str}")
                 google_api_config_result = set_metadata(f"api_config_params g-sheets {key_pairs_str}")
                 if isinstance(google_api_config_result, list) and len(google_api_config_result) > 0:
                     if 'Success' in google_api_config_result[0] and google_api_config_result[0]['Success']==True:

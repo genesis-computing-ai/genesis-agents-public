@@ -1028,7 +1028,11 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             for key, value in key_pairs.items():
                 if isinstance(value, str):
 
-                    value = value.replace("\n", "")
+                    if key == 'private_key':
+                        value = value.replace("\\n", "&")
+                    else:
+                        value = value.replace("\n", "")
+
 
                     # Check if record exists
                     check_query = f"""
@@ -1061,8 +1065,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 # Commit the changes
                 self.client.commit()
 
-                if service_name == 'g-sheets':
-                    self.create_google_sheets_creds()
+            if service_name == 'g-sheets':
+                self.create_google_sheets_creds()
 
             json_data = json.dumps([{'Success': True}])
             return {"Success": True, "Data": json_data}
@@ -1081,13 +1085,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
-        logger.info(f"creds_dict: {creds_dict}")
-
-        for key, value in creds_dict.items():
-            print(f"{key}: {len(value)}")
-
-        for chr in creds_dict['private_key']:
-            print(f"{chr}: {ord(chr)}")
+        creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:

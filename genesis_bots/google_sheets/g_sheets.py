@@ -1025,7 +1025,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             "Success": True,
             "cell_values": rows,
         }
-    except HttpError as error:
+    except Exception as error:
         print(f"An error occurred: {error}")
         logger.info(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
         return error

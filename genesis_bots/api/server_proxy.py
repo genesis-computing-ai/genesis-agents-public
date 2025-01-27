@@ -20,6 +20,8 @@ import time
 from   typing                   import Any, Dict
 import uuid
 
+DEFAULT_GENESIS_DB = "GENESIS_BOTS"
+
 class GenesisServerProxyBase(ABC):
     """
     GenesisServerProxyBase is an abstract base class that defines the interface for connecting to a Genesis server.
@@ -376,10 +378,11 @@ class SPCSServerProxy(GenesisServerProxyBase):
     SPCSServerProxy is a concrete subclass of GenesisServerProxyBase that connects to the Genesis server
     running as a Snowflake native app (SPCS).
     """
+
     def __init__(self,
                  connection_url: str, # a SQLAlchemy connection string
                  connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine,
-                 genesis_db: str = "GENESIS_BOTS",
+                 genesis_db: str = DEFAULT_GENESIS_DB,
                  ):
 
         super().__init__()
@@ -537,7 +540,7 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
     return pkb
 
 
-def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None, genesis_db: str = "GENESIS_BOTS") -> GenesisServerProxyBase:
+def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None, genesis_db: str = DEFAULT_GENESIS_DB) -> GenesisServerProxyBase:
     """
     Build a server proxy based on the provided server URL and optional Snowflake connection arguments.
 

@@ -1,0 +1,84 @@
+### Mapping Proposal for Target Field: `CUSTOMER_ID`
+#### **Target Field Description**
+- **Physical Column Name**: `CUSTOMER_ID`
+- **Logical Column Name**: `Customer ID`
+- **Column Description**: Unique identifier for the customer
+- **Data Type**: `VARCHAR`
+- **Length**: 20
+
+#### **Source Examination**
+Based on the detailed research and metadata exploration, I have identified relevant tables with potential mappings for the `CUSTOMER_ID` field:
+
+1. **Table:** `TEST_GENESIS.DATA.CUSTOMERS`  
+   - **Field:** `CUSTOMER_ID` (NUMBER)
+   - **Characteristics:** Holds unique identifiers for customers, likely a primary key.
+   - **Matching Details:** Provides customer information such as customer ID, first name, last name, etc.
+   - **SQL Transformation for VARCHAR Conversion:** `CAST(CUSTOMER_ID AS VARCHAR)`
+   - **Validation:** Numbers are consistent with the target format as `VARCHAR(20)` after transformation.
+
+2. **Table:** `INSURANCE_DEMO.PUBLIC.CUSTOMER_INFO`  
+   - **Field:** `CUSTOMER_ID` (NUMBER with IDENTITY DEFAULT)
+   - **Characteristics:** Ensures uniqueness as it is an auto-incrementing field.
+   - **Matching Details:** Primarily stores customer information such as name, age, gender.
+   - **SQL Transformation for VARCHAR Conversion:** `CAST(CUSTOMER_ID AS VARCHAR)`
+   - **Validation:** This source is less focused compared to `TEST_GENESIS.DATA.CUSTOMERS` but can serve as a secondary option.
+
+3. **Table:** `DEMO_ANALYTICS.PUBLIC.DEMO_CUSTOMER_TGT`  
+   - **Field:** `CUSTOMER_ID` (VARCHAR)
+   - **Characteristics:** A direct match to the target data type and length requirement.
+   - **Matching Details:** Customer information focused on purchases and behaviors.
+   - **Transformation Required:** None, as the type is already a string.
+   - **Validation:** Focused on analytics where customer activity is recorded, not general customer information.
+
+---
+
+### **Primary Proposed Mapping**
+#### Source Table:
+- **`TEST_GENESIS.DATA.CUSTOMERS`**
+
+#### Source Column:
+- **`CUSTOMER_ID`**
+
+#### Mapping Logic:
+- Select the `CUSTOMER_ID` field from `TEST_GENESIS.DATA.CUSTOMERS` and convert the datatype from `NUMBER` to `VARCHAR(20)`.
+
+#### SQL Mapping:
+```sql
+SELECT 
+    CAST(CUSTOMER_ID AS VARCHAR(20)) AS CUSTOMER_ID
+FROM TEST_GENESIS.DATA.CUSTOMERS;
+```
+
+#### Justification:
+- The primary source (`CUSTOMER_ID` in `TEST_GENESIS.DATA.CUSTOMERS`) is highly reliable, containing well-defined and specific customer information.
+- Conversion to the target data type is straightforward with this table, and it complies with the target format requirement.
+
+---
+
+### **Secondary Option**
+#### Source Table:
+- **`INSURANCE_DEMO.PUBLIC.CUSTOMER_INFO`**
+
+#### Source Column:
+- **`CUSTOMER_ID`**
+
+#### Mapping Logic:
+- Convert `CUSTOMER_ID` from `NUMBER` to `VARCHAR` using the `CAST()` function.
+
+#### SQL Mapping:
+```sql
+SELECT 
+    CAST(CUSTOMER_ID AS VARCHAR(20)) AS CUSTOMER_ID
+FROM INSURANCE_DEMO.PUBLIC.CUSTOMER_INFO;
+```
+
+#### Justification:
+- Although this table also contains general customer information, it focuses on broader demographic data like age, gender, and state, making it slightly less focused for this project.
+- It can still provide a valid and unique identifier for customers.
+
+---
+
+### **Validation**
+- Both options were validated against their respective tables to ensure sources contain the necessary `CUSTOMER_ID` field.
+- Transformation logic respects the target field's data type and length requirements (`VARCHAR(20)`).
+- Null handling is unnecessary as the `CUSTOMER_ID` fields are not nullable in the examined sources.

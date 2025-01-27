@@ -42,14 +42,17 @@ launch.json config example:
 """
 
 
-conn = snowflake.connector.connect(
-    account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
-    user=os.environ['SNOWFLAKE_USER_OVERRIDE'],
-    password=os.environ['SNOWFLAKE_PASSWORD_OVERRIDE'],
-    database=os.environ['SNOWFLAKE_DATABASE_OVERRIDE'],
-    warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
-    role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
-)
+def get_snowflake_connection(args=None):
+    """Get Snowflake connection using either environment variables or provided args"""
+
+    return snowflake.connector.connect(
+        account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
+        user=os.environ['SNOWFLAKE_USER_OVERRIDE'], 
+        password=os.environ['SNOWFLAKE_PASSWORD_OVERRIDE'],
+        database=os.environ['SNOWFLAKE_DATABASE_OVERRIDE'],
+        warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
+        role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
+    )
 
 def print_file_contents(title, file_path, contents):
     """
@@ -85,9 +88,9 @@ def call_genesis_bot(client, bot_id, request, thread = None):
     except Exception as e:
         raise e
 
-def setup_paths(physical_column_name, run_number = 1):
+def setup_paths(physical_column_name, run_number = 1, genesis_db = 'GENESIS_BOTS'):
     """Setup file paths and names for a given requirement."""
-    stage_base = f"@{os.getenv('GENESIS_INTERNAL_DB_SCHEMA', 'GENESIS_TEST.GENESIS_INTERNAL')}.bot_git/"
+    stage_base = f"@{genesis_db}.APP1.bot_git/"
     base_git_path = f'requirements/run{run_number}/'
 
     return {
@@ -110,32 +113,44 @@ def check_git_file(client, paths, file_name):
     """
     stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
     # Get git base path from environment variable, default to ./bot_git
-    git_base = os.getenv("GIT_PATH", "/opt/bot_git")
-    local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
 
-    # First check local git
-    try:
-        if os.path.exists(local_git_path):
-            print(f"\033[93mFile found in local git: {local_git_path}\033[0m")
+    if False:  # remote only for now
+        git_base = os.getenv("GIT_PATH", "/opt/bot_git")
+        local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
 
-            # Read local file
-            with open(local_git_path, 'r') as f:
-                contents = f.read()
+        # First check local git
+        try:
+            if os.path.exists(local_git_path):
+                print(f"\033[93mFile found in local git: {local_git_path}\033[0m")
 
-            return contents
-        
-        return False
-         
-    except Exception as e:
-        print(f"Error accessing local git file: {str(e)}")
+                # Read local file
+                with open(local_git_path, 'r') as f:
+                    contents = f.read()
+
+                return contents
+            
+            return False
+            
+        except Exception as e:
+            print(f"Error accessing local git file: {str(e)}")
 
     # If not in local git, check stage
     try:
-        stage_contents = client.get_file(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
+
+        git_get_query = f"GET {paths['stage_base']}{paths['base_git_path']}{file_name} file://./"
+        cursor = conn.cursor()
+        cursor.execute(git_get_query)
+        stage_contents = cursor.fetchone()[0]
+       # stage_contents = client.get_file(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
         # stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
        # stage_contents = client.get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
 
-        if stage_contents and not stage_contents.startswith('Placeholder'):
+        if stage_contents.split('/')[-1] == file_name:
+            # Read the local file that was just retrieved from stage
+            with open(file_name, 'r') as f:
+                stage_contents = f.read()
+
+        if stage_contents and not stage_contents.startswith('Placeholder') and stage_contents.split('/')[-1] != file_name and len(stage_contents) > 50:
             print(f"\033[92mFile found in stage: {stage_path}\033[0m")
             return stage_contents
     except Exception as e:
@@ -701,6 +716,8 @@ def main():
 
     server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args, args.genesis_db)
 
+    conn = get_snowflake_connection()
+
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below)
    # local_bots = [
    #     "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
@@ -735,7 +752,7 @@ def main():
         # MAIN WORKFLOW
         try:
 
-            run_number = 22;
+            run_number = 30;
             table_name = "genesis_gxs.requirements.flexicard_pm_jl_set2"  # Changed from genesis_gxs.requirements.flexicard_pm
             focus_field = 'EXPOSURE_END_DATE';
         # focus_field = None
@@ -815,7 +832,7 @@ def main():
                     }
                     print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
-                    paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number)
+                    paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db)
 
 
                     # test source
@@ -838,14 +855,8 @@ def main():
 
                 
                     # Get the full content of each file from git
-                    source_research_content = client.get_file_contents(
-                        f"{paths['stage_base']}{paths['base_git_path']}",
-                        paths["source_research_file"]
-                    )
-                    mapping_proposal_content = client.get_file_contents(
-                        f"{paths['stage_base']}{paths['base_git_path']}",
-                        paths["mapping_proposal_file"]
-                    )
+                    source_research_content = source_research
+                    mapping_proposal_content = mapping_proposal
                 #    confidence_output_content = client.get_file_contents(
                 #        f"{paths['stage_base']}{paths['base_git_path']}",
                 #        paths["confidence_report_file"]

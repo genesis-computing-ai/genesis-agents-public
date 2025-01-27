@@ -1815,12 +1815,22 @@ def make_date_tz_aware(date, tz='UTC'):
     return date_str
 
 def load_default_processes_and_notebook(self, cursor):
-        folder_path = 'genesis_bots/golden_defaults/golden_processes'
+        # Check both possible locations for the golden defaults
+        folder_paths = [
+            'genesis_bots/golden_defaults/golden_processes',
+            '.genesis_bots/golden_defaults/golden_processes'
+        ]
         self.process_data = pd.DataFrame()
 
-        files = glob.glob(os.path.join(folder_path, '*.yaml'))
+        # Try each path until we find files
+        files = []
+        for folder_path in folder_paths:
+            files = glob.glob(os.path.join(folder_path, '*.yaml'))
+            if files:
+                logger.info(f"Found process files in {folder_path}")
+                break
 
-        if not files or len(files) == 0:
+        if not files:
             logger.info("No files found in golden_defaults/golden_processes")
             return
 
@@ -1963,11 +1973,22 @@ def upgrade_timestamp_columns(self, table_name):
 
 def load_default_notes(self, cursor):
     logger.info("load_default_notes")
-    folder_path = 'genesis_bots/golden_defaults/golden_notes'
+    # Check both possible locations for the golden defaults
+    folder_paths = [
+        'genesis_bots/golden_defaults/golden_notes',
+        '.genesis_bots/golden_defaults/golden_notes'
+    ]
     notes_data = pd.DataFrame()
 
-    files = glob.glob(os.path.join(folder_path, '*.yaml'))
-    if not files or len(files) == 0:
+    # Try each path until we find files
+    files = []
+    for folder_path in folder_paths:
+        files = glob.glob(os.path.join(folder_path, '*.yaml'))
+        if files:
+            logger.info(f"Found note files in {folder_path}")
+            break
+
+    if not files:
         logger.info("No files found in golden_defaults/golden_notes")
         return
 

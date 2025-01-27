@@ -47,9 +47,25 @@ setup(
     },
     py_modules=['apps'],  # Explicitly include apps as a module
     package_data={
-         'genesis_bots': ['**/*.yaml', '**/*.so', '**/*.py'],
-         'apps': ['**/*.yaml', '**/*.so', '**/*.py', 'demos/demo_data/*', '**/*.png'],
-         'genesis_bots.apps': ['**/*.yaml', '**/*.so', '**/*.py', 'demos/demo_data/*', '**/*.png'],
+        'genesis_bots': [
+            '**/*.yaml',
+            '**/*.so',
+            '**/*.py',
+            '**/*.conf',
+            '**/*.json',
+            'requirements.txt',
+            'default_config/*'
+        ],
+        'apps': [
+            '**/*.yaml', 
+            '**/*.so', 
+            '**/*.py', 
+            '**/*.conf',
+            '**/*.json',
+            'demos/**/*',
+            'streamlit_gui/**/*',
+            'sdk_examples/**/*'
+        ]
     },
     data_files=[],
     zip_safe=False,

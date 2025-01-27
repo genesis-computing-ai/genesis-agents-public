@@ -503,7 +503,7 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
 
         self.flask_app = flask_app
         self.flask_thread = threading.Thread(target=run_flask)
-        self.flask_thread.setDaemon(True) # this allows the main thread to exit without 'joining' the flask thread
+        self.flask_thread.daemon = True # this allows the main thread to exit without 'joining' the flask thread
         self.flask_thread.start()
 
 

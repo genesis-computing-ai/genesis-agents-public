@@ -23,3 +23,9 @@ def add_default_argparse_options(parser: argparse.ArgumentParser):
                             ''')
                         )
 
+    parser.add_argument('--genesis_db', '-d', type=str, required=False, default="GENESIS_BOTS",
+                        help=dedent('''
+                            The name of the Genesis database to use. Defaults to GENESIS_BOTS.
+                            ''')
+                        )
+    

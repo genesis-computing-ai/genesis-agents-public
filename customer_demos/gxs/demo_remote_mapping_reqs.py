@@ -275,27 +275,26 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
         git_base = os.getenv("GIT_PATH", "/opt/bot_git")
         with open(f"{git_base}/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
 
+            # First get just the correct answer for this field
+            message = {
+                "requirement": filtered_requirement,
+                "correct_answers": answers_content,
+                "instruction": """
+                    You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
 
-        # First get just the correct answer for this field
-        message = {
-            "requirement": filtered_requirement,
-            "correct_answers": answers_content,
-            "instruction": """
-                You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
+                    To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
 
-                To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
+                    The field name to look for is in the requirement.  Return both the correct database, schema, table and column for any source columns,
+                    and also any required transformation logic.
 
-                The field name to look for is in the requirement.  Return both the correct database, schema, table and column for any source columns,
-                and also any required transformation logic.
+                    Format your response as a simple JSON with one field:
+                    {
+                        "correct_answer": "the correct answer text for this specific field, including DATABASE.SCHEMA.TABLE and Column information and any required mappings or transformations"
+                    }
 
-                Format your response as a simple JSON with one field:
-                {
-                    "correct_answer": "the correct answer text for this specific field, including DATABASE.SCHEMA.TABLE and Column information and any required mappings or transformations"
-                }
-
-                We will then use your extracted correct answer to judge the output of the other bot.
-            """
-        }
+                    We will then use your extracted correct answer to judge the output of the other bot.
+                """
+            }
 
         # Get the correct answer first
         message_str = json.dumps(message)
@@ -699,8 +698,8 @@ def main():
     [connections.GENESIS_ALPHA_CONSUMER_API]
     """
     args = parse_arguments()
-    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args)
 
+    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args, args.genesis_db)
 
     local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below)
    # local_bots = [
@@ -725,10 +724,10 @@ def main():
         # LOAD AND ACTIVATE BOTS FROM YAML FILES
         # adds or updates bots defined in YAML to metadata and activates the listed bots
 
-        pm_bot_id = 'RequirementsPM-jllocal'
-        source_research_bot_id = 'sourceResearchBot-jllocal'
-        mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
-        confidence_analyst_bot_id = 'confidenceanalyst-jllocal'
+        pm_bot_id = 'requirementsPM-GXS'
+        source_research_bot_id = 'sourceResearchBot-GXS'
+        mapping_proposer_bot_id = 'mappingProposerBot-GXS'
+        confidence_analyst_bot_id = 'confidenceAnalystBot-GXS'
 
         bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
         load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server

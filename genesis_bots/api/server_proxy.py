@@ -378,7 +378,8 @@ class SPCSServerProxy(GenesisServerProxyBase):
     """
     def __init__(self,
                  connection_url: str, # a SQLAlchemy connection string
-                 connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine
+                 connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine,
+                 genesis_db: str = "GENESIS_BOTS",
                  ):
 
         super().__init__()
@@ -389,7 +390,7 @@ class SPCSServerProxy(GenesisServerProxyBase):
             raise ValueError(f"Invalid SQLAlchemy connection string: {str(e)}")
 
         self._engine = None
-        self._genesis_db = "GENESIS_BOTS"
+        self._genesis_db = genesis_db
         self._genesis_schema = "APP1"
         self._connect_args = connect_args or {}
 
@@ -536,7 +537,7 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
     return pkb
 
 
-def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None) -> GenesisServerProxyBase:
+def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None, genesis_db: str = "GENESIS_BOTS") -> GenesisServerProxyBase:
     """
     Build a server proxy based on the provided server URL and optional Snowflake connection arguments.
 
@@ -574,6 +575,6 @@ def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None) ->
             if private_key_file:
                 pkb = _load_snowflake_private_key(private_key_file)
                 snowflake_conn_args["private_key"] = pkb
-        return SPCSServerProxy(connection_url=server_url, connect_args=snowflake_conn_args)
+        return SPCSServerProxy(connection_url=server_url, connect_args=snowflake_conn_args, genesis_db=genesis_db)
     else:
         return RESTGenesisServerProxy(server_url=server_url)

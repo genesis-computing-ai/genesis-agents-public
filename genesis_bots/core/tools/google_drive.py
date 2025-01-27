@@ -45,8 +45,9 @@ google_drive_tools = ToolFuncGroup(
             ADD_COMMENT - Adds a comment to a file given a g_file_id
             ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id.  Also includes the anchor tag which specifies the cell where the comment is located
             GET_SHEET - (Also can be READ_SHEET) - Gets the contents of a Google Sheet given a g_file_id
-            EDIT_SHEET - (Also can be WRITE SHEET) - Edits a Google Sheet given a g_file_id and values.  Passing
-                a cell range is optional
+            EDIT_SHEET - (Also can be WRITE SHEET) - Edits a Google Sheet given a g_file_id and values.  A cell_range is required as well as a
+                range of values to fill in the cells.  The cell_range should be in the format 'A1: B1'.  Send the entire cell range string to the
+                tool, do not send them as individual cells one at a time.  Also include all of the values received.
             GET_LINK_FROM_FILE_ID - Gets the url link to a file given a g_file_id
             GET_FILE_BY_NAME - Searches for a file by name and returns the file id
             SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet

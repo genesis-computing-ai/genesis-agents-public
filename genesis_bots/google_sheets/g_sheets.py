@@ -22,6 +22,7 @@ import requests
 from io import BytesIO
 
 from genesis_bots.core.logging_config import logger
+import re
 
 
 # If modifying these scopes, delete the file token.json.
@@ -45,6 +46,30 @@ def number_to_column(num: int) -> str:
         result = chr(num % 26 + 65) + result
         num //= 26
     return result
+
+def parse_cell_range(cell_range):
+    cell_range = re.sub(r'[^A-Za-z0-9:]', '', cell_range)
+    if cell_range.count(':') > 1:
+        parts = cell_range.split(':')
+        cell_range = parts[0] + ':' + parts[1]
+    match = re.match(r"([A-Za-z]+)(\d+)(?::([A-Za-z]+)(\d+))?", cell_range)
+    if not match:
+        raise ValueError("Invalid cell range format")
+
+    start_col, start_row, end_col, end_row = match.groups()
+    start_col_num = column_to_number(start_col)
+    start_row_num = int(start_row)
+
+    if end_col and end_row:
+        end_col_num = column_to_number(end_col)
+        end_row_num = int(end_row)
+    else:
+        end_col_num = start_col_num
+        end_row_num = start_row_num
+
+    num_cells = (end_col_num - start_col_num + 1) * (end_row_num - start_row_num + 1)
+    return start_col_num, start_row_num, end_col_num, end_row_num, num_cells
+
 
 def insert_into_g_drive_file_version_table(self, data):
     """
@@ -830,7 +855,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
             batch = data[i:i + batch_size]
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 row_args = [(self, row, stage_column_index, stage_column_folder_ids, creds)
-                           for row in batch]
+                    for row in batch]
                 batch_results = list(executor.map(process_row, row_args))
                 processed_rows.extend(batch_results)
                 time.sleep(1)  # Add delay between batches
@@ -854,7 +879,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
         print(f"\n\nRange name: {cell_range} | {len(columns[0])} | {len(columns)}\n\n")
         body = {
                 "values": columns
-               }
+                }
 
         result = (
             service.spreadsheets()
@@ -918,34 +943,94 @@ def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=N
     #         "Missing credentials, user name, spreadsheet ID, or cell_range name."
     #     )
     logger.info(f"Entering write_g_sheet with ss_id: {spreadsheet_id}")
+
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
         try:
             # Authenticate using the service account JSON file
+            logger.info(f"Try auth: {spreadsheet_id}")
             creds = Credentials.from_service_account_file(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
+            logger.info(f"Auth success: {spreadsheet_id}")
         except Exception as e:
+            logger.info(f"Error loading credentials: {spreadsheet_id}")
             print(f"Error loading credentials: {e}")
-            logger.info(f"Error loading credentials: {e}")
             return None
 
-    service = build("sheets", "v4", credentials=creds)
-    body = {"values": [[value]]}
+    service = build("drive", "v3", credentials=creds)
 
-    logger.info(f"Service set to v3 - cell range: {cell_range} - body: {body}")
+    result = read_g_sheet(spreadsheet_id, cell_range, creds, user)
 
-    result = (
-        service.spreadsheets()
-        .values()
-        .update(
-            spreadsheetId=spreadsheet_id,
-            range=cell_range,
-            valueInputOption="USER_ENTERED",
-            body=body,
-        )
-        .execute()
+    start_col, start_row, end_col, end_row, num_cells = (
+        parse_cell_range(cell_range)
     )
+
+    value_arr = value.split(",")
+
+    if len(value_arr) != num_cells:
+        raise ValueError("Number of values does not match the number of cells in cell_range")
+
+    print(f"Start Column: {start_col}, Start Row: {start_row}, End Column: {end_col}, End Row: {end_row}")
+
+    # Update the result['cell_values'] with the values from value_arr
+    index = 0
+    for col in range(start_col - 1, end_col):
+        for row in range(start_row - 1, end_row):
+            result['cell_values'][row][col] = value_arr[index]
+            index += 1
+
+    # # Prepare the body for the update request
+    # body = {
+    #     "values": result['cell_values'][start_row - 1:end_row]
+    # }
+
+    # Update the Google Sheet with the new values - DOES NOT WORK ON SPCS DOCKER
+    # service = build("sheets", "v4", credentials=creds)
+    # result = (
+    #     service.spreadsheets()
+    #     .values()
+    #     .update(
+    #         spreadsheetId=spreadsheet_id,
+    #         range=cell_range,
+    #         valueInputOption='USER_ENTERED',
+    #         body=body,
+    #     )
+    #     .execute()
+    # )
+    # Write the updated values back to the Google Sheet using openpyxl
+    try:
+        # Create a new workbook and worksheet
+        new_workbook = openpyxl.Workbook()
+        new_worksheet = new_workbook.active
+
+        # Write the updated cell values to the new worksheet
+        for row_idx, row in enumerate(result['cell_values'], start=1):
+            for col_idx, cell_value in enumerate(row, start=1):
+                new_worksheet.cell(row=row_idx, column=col_idx, value=cell_value)
+
+        # Save the workbook to a temporary file
+        temp_file_path = "temp_google_sheet.xlsx"
+        new_workbook.save(temp_file_path)
+
+        # Upload the file back to Google Drive
+        # service = result['service'] #build("drive", "v3", credentials=creds)
+        media = MediaFileUpload(temp_file_path, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        file = service.files().update(fileId=spreadsheet_id, media_body=media).execute()
+
+        print(f"File ID: {file.get('id')}")
+        return {
+            "Success": True,
+            "updatedCells": result.get("updatedCells"),
+            "file_id": file.get("id"),
+        }
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return {
+            "Success": False,
+            "Error": str(e),
+        }
 
     logger.info(f"Executed - Result: {result}")
     return {
@@ -989,7 +1074,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             print("Download %d%%" % int(status.progress() * 100))
         fh.seek(0)
         workbook = openpyxl.load_workbook(filename=fh, data_only=False)
-        worksheet = workbook['Sheet1']
+        worksheet = workbook[workbook.sheetnames[0]]
 
         # Extract the content of the worksheet
         rows = []
@@ -999,6 +1084,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         return {
             "Success": True,
             "cell_values": rows,
+            "service": service,
         }
     except Exception as error:
         print(f"An error occurred: {error}")

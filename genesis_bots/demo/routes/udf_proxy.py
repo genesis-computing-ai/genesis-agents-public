@@ -895,13 +895,19 @@ def endpoint_router():
 
         endpoint_func = flask_app.view_functions[rule.endpoint]
         logger.debug(f"Found endpoint function: {endpoint_func.__name__}")
-        
+
+        # Call the endpoint
         with flask_app.test_request_context(endpoint_name, method=op_name.upper(), json=payload):
             response = endpoint_func()
             logger.debug(f"Raw response from endpoint: type={type(response)}, value={str(response)[:200]}")
 
         if use_udf_proxy_format:
             logger.debug("Converting response to UDF proxy format")
+            # convert the response to the format expected by a caller usind a UDF:
+            #  {"data": [
+            #      [row_id, col1_vlaue, col2_value, ...],
+            #      ...
+            #  ]}
             # Handle different response types
             if isinstance(response, tuple):
                 logger.debug(f"Handling tuple response with length {len(response)}: {response}")

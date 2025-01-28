@@ -29,12 +29,30 @@ def main():
         print("\n>>>>", response)
 
         # Example of listing and reading files from the internal git repo using the 'raw' tool invocation method
+        print("\n>>>> git_action: list_files")
         res = client.run_genesis_tool(tool_name="git_action", params={"action": "list_files"}, bot_id="Eve")
         print("\n>>>>", res)
 
+        print("\n>>>> git_action: read_file")
         res = client.run_genesis_tool(tool_name="git_action", params={"action": "read_file", "file_path": "README.md"}, bot_id="Eve")
         print("\n>>>>", res)
 
+        # example of listing/reading/writing git files
+        print("\n>>>> gitfiles.list_files")
+        res = client.gitfiles.list_files()
+        print("\n>>>>", res)
+
+        print("\n>>>> gitfiles.read(README.md)")
+        res = client.gitfiles.read("README.md")
+        print("\n>>>>", res)
+
+        print("\n>>>> gitfiles.write(test1.txt, 'Hello, world!')")
+        res = client.gitfiles.write("test1.txt", "Hello, world!")
+        print("\n>>>>", res)
+
+        print("\n>>>> gitfiles.read(test1.txt)")
+        res = client.gitfiles.read("test1.txt")
+        print("\n>>>>", res)
 
 if __name__ == "__main__":
     main()

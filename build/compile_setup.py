@@ -101,13 +101,16 @@ def main():
             "snowflake_connector_python==3.12.3",
             "urllib3==1.26.19",
             "ngrok",
+            "setuptools>=61.0.0",
+            "wheel>=0.37.0"
         ],
+        setup_requires=['setuptools>=61.0.0', 'wheel>=0.37.0'],
         classifiers=[
             "Programming Language :: Python :: 3",
             "License :: Other/Proprietary License",
             "Operating System :: OS Independent",
         ],
-        python_requires=">=3.6",
+        python_requires=">=3.8",
         entry_points={
             'console_scripts': [
                 'install-genesis-resources=genesis_bots.install_resources:install_resources',

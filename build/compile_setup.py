@@ -27,6 +27,7 @@ def main():
             extra_compile_args = ['-O2']
         
         extensions = []
+        compiled_files = []  # Keep track of files we've compiled
         for root, dirs, files in os.walk('genesis_bots'):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
             
@@ -44,13 +45,23 @@ def main():
                             define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
                         )
                         extensions.append(extension)
+                        compiled_files.append(path)  # Add to list of files to remove
         
+        # Cythonize all extensions
         extensions = cythonize(
             extensions,
             compiler_directives={"language_level": "3"},
             nthreads=1,
             force=True
         )
+
+        # Remove original .py files after successful compilation
+        for py_file in compiled_files:
+            try:
+                os.remove(py_file)
+                print(f"Removed source file: {py_file}")
+            except OSError as e:
+                print(f"Error removing {py_file}: {e}")
 
     setup(
         name="genesis_bots",

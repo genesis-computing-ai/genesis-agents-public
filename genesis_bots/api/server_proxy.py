@@ -18,7 +18,7 @@ import socket
 import sqlalchemy as sqla
 import threading
 import time
-from   typing                   import Any, Dict
+from   typing                   import Any, Dict, Union
 import uuid
 
 DEFAULT_GENESIS_DB = "GENESIS_BOTS"
@@ -166,7 +166,7 @@ class GenesisServerProxyBase(ABC):
         return msg
 
 
-    def run_genesis_tool(self, tool_name, params, bot_id) -> dict:
+    def run_genesis_tool(self, tool_name, params, bot_id) -> Union[dict, list, str]:
         if not isinstance(params, (dict, collections.abc.Mapping)):
             raise ValueError("params must be a dictionary/mapping")
         data = json.dumps(dict(bot_id=bot_id, tool_name=tool_name, params=params))

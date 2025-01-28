@@ -90,7 +90,7 @@ process_runner_functions = [
 
 process_runner_tools = {
     "_run_process": "tool_belt.run_process",
-    "_send_email": "tool_belt.send_email",
+    # "_send_email": "tool_belt.send_email",
 }
 
 

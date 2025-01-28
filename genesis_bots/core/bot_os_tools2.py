@@ -186,14 +186,14 @@ class ToolFuncParamDescriptor:
         """
         origin = get_origin(python_type) or python_type
         args = get_args(python_type)
-        
+
         # Handle case where type might be passed as string
         if isinstance(python_type, str):
             # Handle generic types in string form like 'list[str]'
             if '[' in python_type and ']' in python_type:
                 base_type = python_type.split('[')[0].strip().lower()
                 inner_type = python_type[python_type.index('[')+1:python_type.rindex(']')].strip()
-                
+
                 if base_type == 'list':
                     return {'type': 'array', 'items': cls._python_type_to_llm_type(inner_type)}
                 elif base_type == 'dict':
@@ -206,7 +206,7 @@ class ToolFuncParamDescriptor:
                         'type': 'object',
                         'properties': {kn: vn}
                     }
-            
+
             # Handle simple types
             if python_type.lower() == 'str':
                 return {'type': 'string'}
@@ -222,7 +222,7 @@ class ToolFuncParamDescriptor:
                 return {'type': 'array'}
             else:
                 raise ValueError(f"Could not convert string type annotation '{python_type}' to llm type")
-            
+
         if origin in (list, List):
             if not args: # a list without type arguments (e.g. x: List). We do 'best effort' and just ommit the items field
                 raise ValueError(f"type hint of type {python_type} is missing type arguments (did you mean List[int] or List[str]?)")
@@ -812,6 +812,7 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.image_tools.get_image_functions",
                 "genesis_bots.core.tools.jira_connector.get_jira_connector_functions",
                 "genesis_bots.core.bot_os_web_access.get_web_access_functions",
+                "genesis_bots.core.tools.send_email.get_send_email_functions",
                 # "core.tools.run_process.run_process_functions",
                 # "core.tools.notebook_manager.get_notebook_manager_functions",
                 # make_baby_bot

@@ -32,7 +32,6 @@ def copy_resources():
             dst_file = demo_data_dest / file_name
             if src_file.exists():
                 shutil.copy2(src_file, dst_file)
-                print(f"Copied: {src_file} -> {dst_file}")
     
     # Copy database demo files
     db_demos_src = demo_src / "database_demos"
@@ -42,7 +41,6 @@ def copy_resources():
             dst_file = db_demos_dest / file_name
             if src_file.exists():
                 shutil.copy2(src_file, dst_file)
-                print(f"Copied: {src_file} -> {dst_file}")
     
     # Copy golden defaults structure
     if golden_src.exists():
@@ -56,7 +54,6 @@ def copy_resources():
                 dst_file = golden_notes_dest / file_name
                 if src_file.exists():
                     shutil.copy2(src_file, dst_file)
-                    print(f"Copied: {src_file} -> {dst_file}")
         
         # Copy golden_processes
         golden_processes_src = golden_src / "golden_processes"
@@ -68,7 +65,7 @@ def copy_resources():
                 dst_file = golden_processes_dest / file_name
                 if src_file.exists():
                     shutil.copy2(src_file, dst_file)
-                    print(f"Copied: {src_file} -> {dst_file}")
 
 if __name__ == '__main__':
     copy_resources() 
+    print("Resources copied successfully.")

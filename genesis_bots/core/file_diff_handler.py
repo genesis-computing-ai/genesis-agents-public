@@ -8,37 +8,43 @@ from typing import List, Dict, Optional, Union
 
 
 class GitFileManager:
-    def __init__(self, repo_path: str = "bot_git"):
+
+    @classmethod
+    def get_default_git_repo_path(cls):
+        return os.path.join(os.getcwd(), 'bot_git')
+
+
+    def __init__(self, repo_path: str = None):
         """Initialize GitFileManager with a repository path"""
-        
-        self.repo_path = os.getenv('GIT_PATH', repo_path)
-        
+
+        self.repo_path = os.getenv('GIT_PATH', self.get_default_git_repo_path())
+
         try:
             # Create directory if it doesn't exist
             os.makedirs(self.repo_path, exist_ok=True)
-            
+
             # Try to initialize repository
             try:
                 self.repo = Repo(self.repo_path)
             except:
                 # If repository doesn't exist, initialize it
                 self.repo = Repo.init(self.repo_path)
-                
+
                 # Configure git user for initial commit
                 with self.repo.config_writer() as git_config:
                     git_config.set_value('user', 'email', 'bot@example.com')
                     git_config.set_value('user', 'name', 'Bot')
-                
+
                 # Create an initial empty commit
                 # First create an empty file to commit
                 readme_path = os.path.join(self.repo_path, 'README.md')
                 with open(readme_path, 'w') as f:
                     f.write('# Git Repository\nInitialized by Bot')
-                
+
                 # Stage and commit
                 self.repo.index.add(['README.md'])
                 self.repo.index.commit("Initial commit")
-                
+
         except Exception as e:
             raise Exception(f"Failed to initialize git repository: {str(e)}")
 
@@ -54,7 +60,7 @@ class GitFileManager:
         full_path = os.path.join(self.repo_path, file_path)
         if not os.path.exists(full_path):
             raise FileNotFoundError(f"File not found: {file_path}")
-        
+
         with open(full_path, 'r') as f:
             return f.read()
 
@@ -63,7 +69,7 @@ class GitFileManager:
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(os.path.join(self.repo_path, file_path)), exist_ok=True)
-            
+
             # Write the file
             with open(os.path.join(self.repo_path, file_path), 'w') as f:
                 f.write(content)
@@ -92,7 +98,7 @@ class GitFileManager:
         """Generate a unified diff between two content strings"""
         old_lines = old_content.splitlines(keepends=True)
         new_lines = new_content.splitlines(keepends=True)
-        
+
         return ''.join(unified_diff(
             old_lines, new_lines,
             fromfile='old',
@@ -106,12 +112,12 @@ class GitFileManager:
             lines = diff_content.splitlines()
             if not lines:
                 return False
-                
+
             # Basic unified diff format validation
             # Should start with --- and +++ lines
             has_header = False
             has_changes = False
-            
+
             for line in lines:
                 if line.startswith('--- '):
                     has_header = True
@@ -124,7 +130,7 @@ class GitFileManager:
                     continue
                 if line.startswith('+') or line.startswith('-'):
                     has_changes = True
-                    
+
             return has_header and has_changes
         except:
             return False
@@ -133,37 +139,37 @@ class GitFileManager:
         """Apply a diff to a file"""
         try:
             from difflib import unified_diff, restore
-            
+
             full_path = os.path.join(self.repo_path, file_path)
-            
+
             # Read the current file content
             with open(full_path, 'r') as f:
                 current_content = f.read()
-            
+
             # Split content into lines
             current_lines = current_content.splitlines(True)
-            
+
             # Parse and apply the diff
             patch_lines = diff_content.splitlines(True)
             new_lines = list(restore(patch_lines, 1))  # 1 means to apply the changes
             new_content = ''.join(new_lines)
-            
+
             # Write the new content
             with open(full_path, 'w') as f:
                 f.write(new_content)
-            
+
             # Add and commit if requested
             self.repo.index.add([file_path])
             if commit_message:
                 self.commit_changes(commit_message)
                 return {
-                    "success": True, 
+                    "success": True,
                     "message": "Diff applied and changes committed successfully",
                     "content": new_content
                 }
             else:
                 return {
-                    "success": True, 
+                    "success": True,
                     "message": "Diff applied successfully. Remember to commit changes with git_action('commit', message='your message')",
                     "content": new_content
                 }
@@ -246,11 +252,11 @@ class GitFileManager:
                 "untracked": untracked,
                 "staged": staged
             }
-            
+
             # Add reminder if there are uncommitted changes
             if modified or untracked or staged:
                 result["message"] = "There are uncommitted changes. Remember to commit them with git_action('commit', message='your message')"
-            
+
             return result
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -278,18 +284,18 @@ class GitFileManager:
 
         try:
             action = action.lower()
-            
+
             if action == "list_files":
                 path = kwargs.get("path")
                 files = self.list_files(path)
                 return {"success": True, "files": files}
-            
+
             elif action == "read_file":
                 if "file_path" not in kwargs:
                     return {"success": False, "error": "file_path is required"}
                 content = self.read_file(kwargs["file_path"])
                 return {"success": True, "content": content}
-            
+
             elif action == "write_file":
                 if "file_content" in kwargs and "content" not in kwargs:
                     kwargs["content"] = kwargs["file_content"]
@@ -302,7 +308,7 @@ class GitFileManager:
                     kwargs["content"],
                     kwargs.get("commit_message")
                 )
-            
+
             elif action == "generate_diff":
                 if "old_content" not in kwargs or "new_content" not in kwargs:
                     return {"success": False, "error": "old_content and new_content are required"}
@@ -312,11 +318,11 @@ class GitFileManager:
                     kwargs.get("context_lines", 3)
                 )
                 return {"success": True, "diff": diff}
-            
+
             elif action == "apply_diff":
                 if "file_path" not in kwargs or "diff_content" not in kwargs:
                     return {
-                        "success": False, 
+                        "success": False,
                         "error": "file_path and diff_content are required"
                     }
                 return self.apply_diff(
@@ -324,39 +330,39 @@ class GitFileManager:
                     kwargs["diff_content"],
                     kwargs.get("commit_message")
                 )
-            
+
             elif action == "commit":
                 if "message" not in kwargs:
                     return {"success": False, "error": "commit message is required"}
                 return self.commit_changes(kwargs["message"])
-            
+
             elif action == "get_history":
                 history = self.get_commit_history(
                     kwargs.get("file_path"),
                     kwargs.get("max_count", 10)
                 )
                 return {"success": True, "history": history}
-            
+
             elif action == "create_branch":
                 if "branch_name" not in kwargs:
                     return {"success": False, "error": "branch_name is required"}
                 return self.create_branch(kwargs["branch_name"])
-            
+
             elif action == "switch_branch":
                 if "branch_name" not in kwargs:
                     return {"success": False, "error": "branch_name is required"}
                 return self.switch_branch(kwargs["branch_name"])
-            
+
             elif action == "get_branch":
                 branch = self.get_current_branch()
                 return {"success": True, "branch": branch}
-            
+
             elif action == "get_status":
                 status = self.get_file_status(kwargs.get("file_path"))
                 return status
-            
+
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
-                
+
         except Exception as e:
             return {"success": False, "error": str(e)}

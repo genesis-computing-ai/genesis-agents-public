@@ -1,8 +1,9 @@
 import os
 import shutil
 import subprocess
-from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION
+from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION, PUBLIC_API_FILES
 from multiprocessing import freeze_support
+import platform
 
 # Check environment variable for Cython compilation
 COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
@@ -58,36 +59,62 @@ def build_package(build_dir):
     """Run the build process in the specified directory."""
     original_dir = os.getcwd()
     try:
-        # Change to build directory
         os.chdir(build_dir)
         
         if COMPILE_CYTHON:
             print("\nCompiling extensions...")
-            # Set environment variable to disable multiprocessing in Cython
             os.environ['CYTHON_PARALLEL'] = '0'
+            
+            # Build for current platform first
+            print(f"\nBuilding wheel for {platform.system()}...")
             subprocess.run(['python', 'compile_setup.py', 'build_ext', '--inplace'], check=True)
             
-            # Add debug output to check files before cleanup
-            print("\nFiles before cleanup:")
-            subprocess.run(['ls', '-R', 'genesis_bots/connectors'], check=True)
+            # Run cleanup and ensure we see the output
+            print("\nRunning cleanup...")
+            subprocess.run(['python', 'cleanup.py'], check=True)
             
-            # Run cleanup BEFORE building wheel
-            print("\nCleaning up compiled files...")
-            print(f"Current working directory: {os.getcwd()}")
-            cleanup_result = subprocess.run(['python', 'cleanup.py'], capture_output=True, text=True)
-            print("Cleanup stdout:", cleanup_result.stdout)
-            print("Cleanup stderr:", cleanup_result.stderr)
+            print("\nVerifying cleanup results...")
+            issues_found = False
+            for root, _, files in os.walk('.'):
+                # Get all compiled files in current directory
+                compiled_files = set(
+                    os.path.splitext(f)[0] for f in files 
+                    if f.endswith(('.pyd', '.so', '.dylib'))
+                )
+                
+                # Check all .py files in this directory
+                for file in files:
+                    if file.endswith('.py'):
+                        filepath = os.path.join(root, file)
+                        basename = os.path.splitext(file)[0]
+                        relative_path = os.path.join(root, file)[2:].replace('\\', '/')  # Remove ./ and normalize slashes
+                        
+                        # If there's a compiled version and it's not an exempted file
+                        if (basename in compiled_files and 
+                            file != '__init__.py' and 
+                            relative_path not in PUBLIC_API_FILES):
+                            print(f"WARNING: Found .py file with compiled version: {filepath}")
+                            try:
+                                os.remove(filepath)
+                                print(f"         Removed {filepath}")
+                            except Exception as e:
+                                print(f"         Failed to remove {filepath}: {e}")
+                            issues_found = True
             
-            # Add debug output to check files after cleanup
-            print("\nFiles after cleanup:")
-            subprocess.run(['ls', '-R', 'genesis_bots/connectors'], check=True)
+            if issues_found:
+                print("\nWARNING: Some .py files were found and removed.")
+            else:
+                print("\nCleanup verification passed: All expected .py files were removed correctly.")
+            
+            print("\nBuilding wheel...")
+            subprocess.run(['python', 'setup.py', 'bdist_wheel'], check=True)
+            
         else:
             print("\nSkipping Cython compilation...")
+            print("\nBuilding platform-independent wheel...")
+            subprocess.run(['python', 'setup.py', 'bdist_wheel'], check=True)
         
-        print("\nBuilding wheel...")
-        subprocess.run(['python', 'setup.py', 'bdist_wheel'], check=True)
-        
-        # Move the wheel file to build/dist directory
+        # Move the wheel files to build/dist directory
         wheel_dir = os.path.join('dist')
         if os.path.exists(wheel_dir):
             for file in os.listdir(wheel_dir):

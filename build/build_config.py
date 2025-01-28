@@ -29,4 +29,4 @@ IGNORE_FILES = {
     'genesis_bots/teams/app.py',
 }
 
-VERSION = "1.0.9" 
+VERSION = "1.0.11" 

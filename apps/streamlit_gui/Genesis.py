@@ -401,8 +401,9 @@ if st.session_state.data:
         if is_running_from_package():
             from importlib import resources
             try:
-                with resources.files('apps.streamlit_gui').joinpath('Genesis-Computing-Logo-White.png') as image_path:
-                    st.sidebar.image(str(image_path), width=250)
+                # Don't use context manager with Path object
+                image_path = resources.files('apps.streamlit_gui').joinpath('Genesis-Computing-Logo-White.png')
+                st.sidebar.image(str(image_path), width=250)
             except Exception:
                 # Fallback for older Python versions
                 with resources.path('apps.streamlit_gui', 'Genesis-Computing-Logo-White.png') as image_path:

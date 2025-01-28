@@ -75,6 +75,9 @@ st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 if 'NativeMode' not in st.session_state:
     st.session_state.NativeMode = True
 
+if 'data_source' not in st.session_state:
+    st.session_state.data_source = "other"
+
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
 
@@ -374,9 +377,15 @@ elif st.session_state.show_modal:
 if st.session_state.data:
     pages = Pages()
 
+    # Check if Snowflake metadata or not
+    metadata_response = get_metadata('check_db_source')
+    st.session_state.data_source = "other"
+    if metadata_response == True:
+        st.session_state.data_source = "snowflake"
+
     pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
     pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')
-    if st.session_state.NativeMode: pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
+    if st.session_state.data_source == "snowflake": pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
     pages.add_page('setup_slack', 'Setup Slack Connection', 'setup_slack', 'setup_slack')
     if st.session_state.NativeMode: pages.add_page('config_wh', 'Setup Custom Warehouse', 'config_wh', 'config_wh')
     pages.add_page('grant_data', 'Grant Data Access', 'grant_data', 'grant_data')

@@ -16,7 +16,21 @@ from   genesis_bots.demo.routes import (auth_routes, main_routes,
 main_server = None
 
 def main():
-
+    # Check if we're running from an installed package (site-packages)
+    current_path = Path(__file__).resolve()
+    is_installed = 'site-packages' in str(current_path)
+    
+    if is_installed:
+        genesis_bots_dir = Path(__file__).parent.parent / "genesis_bots"
+        if not genesis_bots_dir.exists():
+            install_script = Path(__file__).parent.parent / "install_resources.py"
+            if install_script.exists():
+                try:
+                    subprocess.run([sys.executable, str(install_script)], check=True)
+                except subprocess.CalledProcessError as e:
+                    sys.exit(1)
+            else:
+                sys.exit(1)
     
     runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
     genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")

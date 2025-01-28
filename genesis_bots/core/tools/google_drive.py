@@ -40,7 +40,7 @@ google_drive_tools = ToolFuncGroup(
             LOGIN - Used to login in to Google Workspace with OAuth2.0.  Not implemented
             LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
             SET_ROOT_FOLDER - Sets the root folder for the user on their drive
-            GET_FILE_VERSION_NUM - Gets the version numbergiven a g_file id
+            GET_FILE_VERSION_NUM - Gets the version number given a g_file id
             GET_COMMENTS - Gets the comments and replies for a file give a g_file_id.  Also includes the anchor tag which specifies the cell where the comment is located
             ADD_COMMENT - Adds a comment to a file given a g_file_id
             ADD_REPLY_TO_COMMENT - Adds a reply to a comment given a g_file_id and a comment_id.  Also includes the anchor tag which specifies the cell where the comment is located

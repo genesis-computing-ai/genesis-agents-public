@@ -1,13 +1,28 @@
 from setuptools import setup, find_namespace_packages
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 import os
+import platform
 from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION, PUBLIC_API_FILES
 import glob
+
+# Add this import
+COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
 
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
         super().finalize_options()
-        self.root_is_pure = False
+        if COMPILE_CYTHON:
+            # Platform-specific tag for Cython builds
+            self.root_is_pure = False
+            # Ensure proper platform tag
+            if platform.system() == 'Linux':
+                self.plat_name = f"manylinux1_{platform.machine()}"
+            elif platform.system() == 'Darwin':
+                self.plat_name = f"macosx_10_9_{platform.machine()}"
+            # Windows will use default platform tag
+        else:
+            # Platform-independent for pure Python builds
+            self.root_is_pure = True
 
 def find_packages_excluding(exclude_dirs, exclude_files):
     """Custom package finder that excludes specified directories and files"""
@@ -35,7 +50,7 @@ def find_packages_excluding(exclude_dirs, exclude_files):
 def get_package_data():
     """Get package data, excluding .py files that have corresponding .so files"""
     def should_include_py(filepath):
-        # Always include __init__.py files
+        # Always include __init__.py files and PUBLIC_API_FILES
         if os.path.basename(filepath) == '__init__.py':
             return True
             
@@ -44,10 +59,18 @@ def get_package_data():
         if relative_path in PUBLIC_API_FILES:
             return True
             
-        # Check if there's a corresponding .so file
-        so_path = os.path.splitext(filepath)[0] + '.cpython-*-darwin.so'
-        so_files = glob.glob(so_path)
-        return len(so_files) == 0
+        # Check for corresponding binary files across different platforms
+        base_path = os.path.splitext(filepath)[0]
+        binary_patterns = [
+            base_path + '.*.so',  # Linux/Mac
+            base_path + '.*.pyd',  # Windows
+            base_path + '.*.dylib'  # MacOS
+        ]
+        
+        for pattern in binary_patterns:
+            if glob.glob(pattern):
+                return False
+        return True
 
     # Initialize package data with non-Python files
     package_data = {
@@ -100,4 +123,7 @@ setup(
     include_package_data=True,
     cmdclass={'bdist_wheel': bdist_wheel},
     install_requires=required,
+    extras_require={
+        'pkg': ['ngrok']  # Optional dependency
+    },
 ) 

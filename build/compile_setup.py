@@ -3,6 +3,7 @@ import os
 import shutil
 from build_config import PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES, VERSION
 from multiprocessing import freeze_support
+import platform
 
 # Check environment variable for Cython compilation
 COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
@@ -18,6 +19,13 @@ def main():
         # Disable multiprocessing completely for Cython
         os.environ['CYTHON_PARALLEL'] = '0'
         
+        # Platform-specific compiler arguments
+        extra_compile_args = []
+        if platform.system() == 'Windows':
+            extra_compile_args = ['/O2']
+        else:
+            extra_compile_args = ['-O2']
+        
         extensions = []
         for root, dirs, files in os.walk('genesis_bots'):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
@@ -32,12 +40,11 @@ def main():
                         extension = Extension(
                             module_path, 
                             [path],
-                            extra_compile_args=['-O2'],
+                            extra_compile_args=extra_compile_args,
                             define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
                         )
                         extensions.append(extension)
         
-        # Simplified cythonize configuration matching the original file
         extensions = cythonize(
             extensions,
             compiler_directives={"language_level": "3"},

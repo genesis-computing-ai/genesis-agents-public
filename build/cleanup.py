@@ -21,14 +21,20 @@ def cleanup_compiled_files():
     print(f"Protected API files: {public_api_files}")
     print("================================\n")
 
+    # Define binary extensions for different platforms
+    BINARY_EXTENSIONS = ('.so', '.pyd', '.dylib')
+    
     for root, dirs, files in os.walk('.'):
         print(f"\nProcessing directory: {root}")
         
         # Skip ignored directories
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
         
-        # Get list of .so files in this directory
-        so_files = {os.path.splitext(f)[0] for f in files if f.endswith('.so')}
+        # Get list of compiled binary files in this directory
+        compiled_files = {
+            os.path.splitext(f)[0] for f in files 
+            if any(f.endswith(ext) for ext in BINARY_EXTENSIONS)
+        }
         
         for file in files:
             filepath = os.path.join(root, file)
@@ -46,18 +52,17 @@ def cleanup_compiled_files():
                 os.remove(filepath)
                 continue
             
-            # Only remove .py files if COMPILE_CYTHON is True AND
-            # there's a corresponding .so file
+            # Handle Python source files
             if COMPILE_CYTHON and file.endswith('.py'):
                 basename = os.path.splitext(file)[0]
-                if (basename in so_files and  # Has corresponding .so file
+                if (basename in compiled_files and
                     relative_path not in public_api_files and 
                     file != '__init__.py'):
                     print(f"Removing Python file: {filepath}")
                     os.remove(filepath)
                 else:
                     if file != '__init__.py':
-                        print(f"Keeping Python file: {filepath} (no .so file found)")
+                        print(f"Keeping Python file: {filepath} (no binary file found)")
                     else:
                         print(f"Keeping protected Python file: {filepath}")
 

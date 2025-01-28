@@ -2,6 +2,7 @@
 GENESIS BOT TODOS
 =================
 
+gxs - have it write in the test requirements table to a bot workspace for one of the bots 
 waive 20 tool call per thread limit for claude threads
 next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
 email collector / telemetry on local vers

@@ -420,7 +420,7 @@ def send_email(
     # Send the email
     query = f"""
         CALL SYSTEM$SEND_EMAIL(
-            'genesis_email_int',
+            'genesis_email_int2',
             $${to_addr_string}$$,
             $${subject}$$,
             $${body}$$,
@@ -429,26 +429,37 @@ def send_email(
         """
 
     # Execute the query using the database adapter's run_query method
-    query_result = db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
-    query_result = query_result[0] if query_result else {}
 
-    if isinstance(query_result, collections.abc.Mapping) and not query_result.get(
-        "Success"
-    ):
+    query_failed = False
+    query_result = db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
+    if isinstance(query_result, dict) and 'Error' in query_result:
+        query_result = query_result['Error']
+        query_failed = True
+    elif isinstance(query_result, (list, tuple)) and len(query_result) > 0:
+        query_result = query_result[0]
+
+    if isinstance(query_result, collections.abc.Mapping) and not query_result.get(   "SYSTEM$SEND_EMAIL" ):
         # send failed. Delete the email artifact (if created) as it's useless.
         if email_aid:
             art_store.delete_artifacts([email_aid])
         result = query_result
+    elif query_failed:
+        result = {"Success": False, "Error": query_result}
+        if 'not yet validated' in query_result:
+            result["Suggestion"] = "Suggest to the user they may need to set up and balidate their email address on their Snowflake account, by following the instructions at https://docs.snowflake.com/en/user-guide/ui-snowsight-profile#verify-your-email-address"
+        if "Integration 'GENESIS_EMAIL_INT' does not exist" in query_result:
+            result["Suggestion"] = "Suggest to the user that the Genesis admin need to configure the 'genesis_email_int' integration on their Snowflake account, by following the instructions in the Genesis Streamlit GUI or Documentation"
     else:
         assert (
             len(query_result) == 1
-        )  # we expect a succful SYSTEM$SEND_EMAIL to contain a single line resultset
+        )  # we expect a successful SYSTEM$SEND_EMAIL to contain a single line resultset
         result = {"Succcess": True}
         if email_aid:
             result["Suggestion"] = (
                 f"This email was saved as an artifact with artifact_id={email_aid}. "
                 "Suggest to the user to refer to this email in the future from any session using this artifact identifier."
             )
+
     assert result
     return result
 

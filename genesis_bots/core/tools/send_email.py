@@ -420,7 +420,7 @@ def send_email(
     # Send the email
     query = f"""
         CALL SYSTEM$SEND_EMAIL(
-            'genesis_email_int2',
+            'genesis_email_int',
             $${to_addr_string}$$,
             $${subject}$$,
             $${body}$$,

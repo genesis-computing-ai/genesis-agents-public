@@ -27,11 +27,11 @@ from genesis_bots.core.bot_os_tools2 import (
 from genesis_bots.connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 
-from genesis_bots.core.bot_os_artifacts import get_sys_email
+from .tool_helpers import get_sys_email
 
 send_email_tools = ToolFuncGroup(
     name="send_email_tools",
-    description="",
+    description="Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.",
     lifetime="PERSISTENT",
 )
 
@@ -40,8 +40,22 @@ send_email_tools = ToolFuncGroup(
 GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/2024/05/Genesis-Computing-Logo-White.png"
 
 
+@gc_tool(
+    action="",
+    to_addr_list="A list of recipient email addresses.",
+    subject="The subject of the email.",
+    body="The body content of the email. When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
+    purpose="A short description of the purpose of this email. This is stored as metadata for this email.",
+    mime_type="The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
+    include_genesis_logo="Include Genesis logo in email body - boolean",
+    save_as_artifact="Save output email as an artifact - boolean",
+    bot_id="The bot_id that invoked this tool",
+    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    _group_tags_=[send_email_tools],
+)
 def send_email(
-    to_addr_list: list,
+    action: str,
+    to_addr_list: str,
     subject: str,
     body: str,
     bot_id: str,
@@ -49,12 +63,13 @@ def send_email(
     purpose: str = None,
     mime_type: str = "text/html",
     include_genesis_logo: bool = True,
-    save_as_artifact=True,
+    save_as_artifact: bool = True,
 ):
     """
     Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.
 
     Parameters:
+        action (str): A description of the action being performed.
         to_addr_list (list): List of recipient email addresses.
         subject (str): Subject of the email.
         body (str): Content of the email body.

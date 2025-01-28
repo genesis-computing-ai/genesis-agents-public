@@ -100,6 +100,7 @@ def main():
         install_requires=[
             "snowflake_connector_python==3.12.3",
             "urllib3==1.26.19",
+            "ngrok",
         ],
         classifiers=[
             "Programming Language :: Python :: 3",

@@ -82,10 +82,17 @@ if "wh_name" not in st.session_state:
 def is_running_from_package():
     """Check if we're running from an installed package"""
     try:
-        import pkg_resources
-        pkg_resources.get_distribution('genesis_bots')
+        from importlib.metadata import version
+        version('genesis_bots')
         return True
-    except pkg_resources.DistributionNotFound:
+    except ImportError:  # For Python < 3.8
+        try:
+            import pkg_resources
+            pkg_resources.get_distribution('genesis_bots')
+            return True
+        except pkg_resources.DistributionNotFound:
+            return False
+    except Exception:  # catches PackageNotFoundError from importlib.metadata
         return False
         
 def render_image(filepath: str, width = None):
@@ -107,12 +114,6 @@ def render_image(filepath: str, width = None):
         ]
         
         # Try package resources if we're running from package
-        try:
-            import pkg_resources
-            paths_to_try.append(pkg_resources.resource_filename('apps.streamlit_gui', filepath))
-        except Exception:
-            pass
-            
         try:
             from importlib import resources
             with resources.path('apps.streamlit_gui', filepath) as path:

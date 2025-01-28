@@ -340,7 +340,7 @@ class RESTGenesisServerProxy(GenesisServerProxyBase):
         op_func = getattr(requests, op_name)
         response = op_func(url, headers=headers_dict, data=payload)
         if response.status_code != 200:
-            raise Exception(f"Failed to submit message to UDF proxy: {response.text}")
+            raise Exception(f"Failed to submit message to endpoint {endpoint_name}: {response.text}")
         return response
 
 
@@ -451,7 +451,7 @@ class SPCSServerProxy(GenesisServerProxyBase):
 
 class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
     """
-    EmbeddedGenesisServerProxy is a specialization of RESTGenesisServerProxy that starts the Genesis server within the corrent process.
+    EmbeddedGenesisServerProxy is a specialization of RESTGenesisServerProxy that starts the Genesis server within the current process.
     """
 
     _instance = None

@@ -1,4 +1,3 @@
-
 import uuid
 import json
 import yaml
@@ -9,6 +8,7 @@ import os
 
 eve_bot_id = 'Eve'
 genesis_api_client = None
+message_prefix = ''
 
 def print_file_contents(title, file_path, contents):
     """
@@ -69,12 +69,11 @@ def check_git_file(client, paths, file_name, bot_id):
     """
     # Get git base path from environment variable, default to ./bot_git
 
-    res = client.run_genesis_tool(tool_name="git_action", params={"action": "read_file", "file_path": f"{paths['base_git_path']}{file_name}" }, bot_id=bot_id)
+  #  res = client.run_genesis_tool(tool_name="git_action", params={"action": "read_file", "file_path": f"{paths['base_git_path']}{file_name}" }, bot_id=bot_id)
 
-    if res and res.get("success", False):
-        return res.get("content", False)
-    else:
-        return False
+    res = client.gitfiles.read(f"{paths['base_git_path']}{file_name}", bot_id=bot_id)
+
+    return res or False
  
 def put_git_file(client, local_file, git_file_path, file_name, bot_id):
     """
@@ -95,18 +94,8 @@ def put_git_file(client, local_file, git_file_path, file_name, bot_id):
         with open(local_file, 'r') as f:
             content = f.read()
             
-        # Write to git using git_action
-        res = client.run_genesis_tool(
-            tool_name="git_action",
-            params={
-                "action": "write_file",
-                "file_path": f"{git_file_path}{file_name}",
-                "content": content,
-                "bot_id": bot_id
-            }, bot_id=bot_id
-        )
-        
-        return res.get("success", False)
+        res = client.gitfiles.write(f"{git_file_path}{file_name}", content, bot_id=bot_id)
+        return res
         
     except Exception as e:
         print(f"Error putting file to git: {str(e)}")
@@ -118,7 +107,7 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
-    pm_prompt = f'''!o1!Here are requirements for a target field I want you to work on: {requirement}\n
+    pm_prompt = f'''{message_prefix}Here are requirements for a target field I want you to work on: {requirement}\n
     The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n'''
 
     if not skip_confidence:
@@ -255,18 +244,18 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
         message = {
             "requirement": filtered_requirement,
             "correct_answers": answers_content,
-            "instruction": """!o1!
+            "instruction": f"""{message_prefix}
                 You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
 
-                To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
+                To help in that evaluation, please extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
 
                 The field name to look for is in the requirement.  Return both the correct database, schema, table and column for any source columns,
                 and also any required transformation logic.
 
                 Format your response as a simple JSON with one field:
-                {
+                {{
                     "correct_answer": "the correct answer text for this specific field, including DATABASE.SCHEMA.TABLE and Column information and any required mappings or transformations"
-                }
+                }}
 
                 We will then use your extracted correct answer to judge the output of the other bot.
             """
@@ -284,7 +273,7 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
        #     "confidence_report": confidence_output_content,
       #      "pm_summary": summary,
             "correct_answer": correct_answer,
-            "instruction": """!o1!
+            "instruction": f"""{message_prefix}
                 Please evaluate the mapping proposal results against the correct answer for this field.
 
                 Compare the following aspects:
@@ -302,12 +291,12 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
                 ### JSON Response
 
                 ```json
-                {
+                {{
                     "WHICH_MAPPING_CORRECT": "primary, secondary, or neither",
                     "CORRECT_ANSWER": "what is the correct answer text",
                     "PRIMARY_ISSUES": "'NONE' if primary is correct, or detailed text with the problems with primary if not correct",
                     "SECONDARY_ISSUES": "'NONE' if secondary is correct, detailed text with the problems with secondary if not correct",
-                }
+                }}
                 ```
                 This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
             """
@@ -457,7 +446,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 
 
 
-        research_prompt = f'''!o1!Here are requirements for a target field I want you to work on: {requirement}\n
+        research_prompt = f'''{message_prefix}Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
 
         First explore the available data for fields that may be useful using data_explorer function.
@@ -522,7 +511,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 #  HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
 
 def perform_mapping_proposal_new(client, requirement, paths, bot_id):
-    """!o1!Execute mapping proposal step and validate results."""
+    f"""{message_prefix}Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
 
     mapping_prompt = f'''Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
@@ -654,6 +643,85 @@ def push_knowledge_files_to_git(client, bot_id):
             bot_id=bot_id
         )
 
+
+def initialize_requirements_table(client, bot_id=None, genesis_db = 'GENESIS_BOTS'):
+    """
+    Initialize the requirements table in Snowflake if it doesn't exist.
+    Loads data from test_requirements.json if table needs to be created.
+    
+    Args:
+        client: Genesis API client instance
+        bot_id: Bot ID to use for database operations (defaults to eve_bot_id)
+    """
+    # Try to query table to check if exists
+    check_query = f"SELECT COUNT(*) FROM {genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements"
+    res = run_snowflake_query(client, check_query, bot_id)
+   
+    if isinstance(res, list) and len(res) > 0:
+        return
+    # Create table if query failed
+    print(f"Creating table {genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements...")
+    create_query = f"""
+        create or replace TABLE {genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements (
+        LOGICAL_TABLE_NAME VARCHAR(16777216),
+        TABLE_DESCRIPTION VARCHAR(16777216),
+        PHYSICAL_TABLE_NAME VARCHAR(16777216),
+        PHYSICAL_COLUMN_NAME VARCHAR(16777216),
+        LOGICAL_COLUMN_NAME VARCHAR(16777216),
+        COLUMN_DESCRIPTION VARCHAR(16777216),
+        DATA_TYPE VARCHAR(16777216),
+        LENGTH VARCHAR(16777216),
+        DECIMAL VARCHAR(16777216),
+        LIST_OF_VALUES VARCHAR(16777216),
+        UPSTREAM_TABLE VARCHAR(16777216),
+        UPSTREAM_COLUMN VARCHAR(16777216),
+        SOURCE_RESEARCH VARCHAR(16777216),
+        GIT_SOURCE_RESEARCH_STAGE_LINK VARCHAR(16777216),
+        MAPPING_PROPOSAL VARCHAR(16777216),
+        GIT_MAPPING_PROPOSAL_STAGE_LINK VARCHAR(16777216),
+        CONFIDENCE_OUTPUT VARCHAR(16777216),
+        GIT_CONFIDENCE_OUTPUT_STAGE_LINK VARCHAR(16777216),
+        CONFIDENCE_SCORE VARCHAR(16777216),
+        CONFIDENCE_SUMMARY VARCHAR(16777216),
+        PM_BOT_COMMENTS VARCHAR(16777216),
+        TRANSFORMATION_LOGIC VARCHAR(16777216),
+        STATUS VARCHAR(16777216),
+        EVALUATION_RESULTS VARCHAR(16777216),
+        WHICH_MAPPING_CORRECT VARCHAR(10),
+        CORRECT_ANSWER VARCHAR(16777216),
+        PRIMARY_ISSUES VARCHAR(16777216),
+        SECONDARY_ISSUES VARCHAR(16777216)
+        );   """
+    run_snowflake_query(client, create_query, bot_id)
+    
+    # Load data from JSON file
+    json_path = os.path.join(os.path.dirname(__file__), 'test_requirements.json')
+    with open(json_path, 'r') as f:
+        requirements = json.load(f)
+        
+    # Insert data - using the actual fields from the requirements
+    print(f"Populating initial data into {genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements...")
+    for req in requirements:
+        insert_query = f"""
+        INSERT INTO {genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements
+        (LOGICAL_TABLE_NAME, TABLE_DESCRIPTION, PHYSICAL_TABLE_NAME,
+         PHYSICAL_COLUMN_NAME, LOGICAL_COLUMN_NAME, COLUMN_DESCRIPTION, 
+         DATA_TYPE, LENGTH, LIST_OF_VALUES, STATUS)
+        VALUES (
+            '{req['LOGICAL_TABLE_NAME'].replace("'", "''")}',
+            '{req['TABLE_DESCRIPTION'].replace("'", "''")}',
+            '{req['PHYSICAL_TABLE_NAME'].replace("'", "''")}',
+            '{req['PHYSICAL_COLUMN_NAME'].replace("'", "''")}',
+            '{req['LOGICAL_COLUMN_NAME'].replace("'", "''")}',
+            '{req['COLUMN_DESCRIPTION'].replace("'", "''")}',
+            '{req['DATA_TYPE'].replace("'", "''")}',
+            '{str(req['LENGTH']).replace("'", "''")}',
+            '{str(req['LIST_OF_VALUES']).replace("'", "''")}',
+            'NEW'
+        )
+        """
+        run_snowflake_query(client, insert_query, bot_id)
+
 def main():
     """Main execution flow.
     """
@@ -663,42 +731,49 @@ def main():
 
     global genesis_api_client
     genesis_api_client = GenesisAPI(server_proxy=server_proxy)
+    client = genesis_api_client
 
-    with genesis_api_client as client:
+    global message_prefix
+    #message_prefix = '!o1!'  # to force use of o1 model (requires OpenAI API Tier 5 currently)
+    message_prefix = '' # otherwise use the default model 
 
-        global eve_bot_id
-        if args.genesis_db == 'GENESIS_BOTS_ALPHA':
-            eve_bot_id = 'Eve-nEwEve1'
-        else:
-            eve_bot_id = 'Eve'
+    global eve_bot_id
+    if args.genesis_db == 'GENESIS_BOTS_ALPHA':
+        eve_bot_id = 'Eve-nEwEve1'
+    else:
+        eve_bot_id = 'Eve'
 
-        # Push project files to git
-        push_knowledge_files_to_git(client, eve_bot_id)
+    # LOAD AND ACTIVATE BOTS FROM YAML FILES
+    pm_bot_id = 'requirementsPM-GXS'
+    source_research_bot_id = 'sourceResearchBot-GXS'
+    mapping_proposer_bot_id = 'mappingProposerBot-GXS'
+    confidence_analyst_bot_id = 'confidenceAnalystBot-GXS'
 
-        # LOAD AND ACTIVATE BOTS FROM YAML FILES
-        pm_bot_id = 'requirementsPM-GXS'
-        source_research_bot_id = 'sourceResearchBot-GXS'
-        mapping_proposer_bot_id = 'mappingProposerBot-GXS'
-        confidence_analyst_bot_id = 'confidenceAnalystBot-GXS'
+    bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
 
-        bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
+    load_bots = True
+    if load_bots:
+        load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+    else:
+        print("Skipping bot loading, using existing bots")
 
-        load_bots = True
-        if load_bots:
-            load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
-        else:
-            print("Skipping bot loading, using existing bots")
+    # Initialize requirements table if not exists 
+    initialize_requirements_table(client, pm_bot_id, genesis_db = args.genesis_db)
+    # Push project files to git
+    push_knowledge_files_to_git(client, eve_bot_id)
 
-        # MAIN WORKFLOW
-        try:
+    # MAIN WORKFLOW
+    try:
+        run_number = 1;
+        table_name = f"{args.genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements"  
+        #focus_field = 'ACTION_INITIATED_IND';
+        focus_field = None
+        skip_confidence = True
+   
+        
+        #Allows you to re-run a specific mapping when testing
+        if focus_field:
 
-            run_number = 31;
-            table_name = "genesis_gxs.requirements.flexicard_pm_jl"  
-            focus_field = 'CUSTOMER_ID';
-            #focus_field = None
-            skip_confidence = True
-
-            # Reset the requirements table before starting
             reset_sql = f"""
                 update {table_name}
                 set upstream_table = null,
@@ -722,130 +797,133 @@ def main():
                 where physical_column_name = '{focus_field}'
                 ;
             """
+            run_snowflake_query(client, reset_sql, eve_bot_id)
+            requirements_query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
+        else:
+            requirements_query = f"SELECT * FROM {table_name} WHERE status = 'NEW'"
 
-            if focus_field:
-                run_snowflake_query(client, reset_sql, eve_bot_id)
+        requirements = run_snowflake_query(client, requirements_query, eve_bot_id)
 
-            if focus_field:
-                query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
-                results = run_snowflake_query(client, query, eve_bot_id)
-            else:
-                query = f"SELECT * FROM {table_name} WHERE status = 'NEW'"
-                results = run_snowflake_query(client, query, eve_bot_id)
+        print("Found", len(requirements), "requirements with NEW status:")
 
-            requirements = results
+        if not requirements:
+            requirements = [{
+                'PHYSICAL_COLUMN_NAME': 'CUSTOMER_ID',
+                'LOGICAL_COLUMN_NAME': 'Customer ID',
+                'COLUMN_DESCRIPTION': 'Unique identifier for the customer',
+                'DATA_TYPE': 'VARCHAR',
+                'LENGTH': 20,
+                'LIST_OF_VALUES': None,
+                'STATUS': 'NEW'
+            }]
+        # loop over the work to do
 
-            print("Found", len(requirements), "requirements with NEW status:")
+        for requirement in requirements:
 
-            if not requirements:
-                requirements = [{
-                    'PHYSICAL_COLUMN_NAME': 'CUSTOMER_ID',
-                    'LOGICAL_COLUMN_NAME': 'Customer ID',
-                    'COLUMN_DESCRIPTION': 'Unique identifier for the customer',
-                    'DATA_TYPE': 'VARCHAR',
-                    'LENGTH': 20,
-                    'LIST_OF_VALUES': None,
-                    'STATUS': 'NEW'
-                }]
-            # loop over the work to do
+            try:
+                filtered_requirement = {
+                    'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
+                    'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
+                    'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
+                    'DATA_TYPE': requirement['DATA_TYPE'],
+                    'LENGTH': requirement['LENGTH'],
+                    'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
+                }
+                print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
-            for requirement in requirements:
+                paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db)
 
-                try:
-                    filtered_requirement = {
-                        'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
-                        'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
-                        'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
-                        'DATA_TYPE': requirement['DATA_TYPE'],
-                        'LENGTH': requirement['LENGTH'],
-                        'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
-                    }
-                    print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
-
-                    paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db)
-
-                    source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
-                    
-                    mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
-                    
-                    if not skip_confidence:
-                        confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
-
-                    summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
-
+                source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
                 
-                    # Get the full content of each file from git
-                    source_research_content = source_research
-                    mapping_proposal_content = mapping_proposal
-                    confidence_output_content = 'bypassed by jl comment'
-                    # Evaluate results
-                    evaluation, eval_json  = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
+                mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
+                
+                # Load source research from local file
+                #with open('./tmp/source_research.txt', 'r') as f:
+                #    source_research = f.read()
 
-                    # Prepare fields for database update
-                    db_fields = {
-                        'upstream_table': summary['UPSTREAM_TABLE'],
-                        'upstream_column': summary['UPSTREAM_COLUMN'],
-                        'source_research': source_research_content,
-                        'git_source_research_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['source_research_file']}",
-                        'mapping_proposal': mapping_proposal_content,
-                        'git_mapping_proposal_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['mapping_proposal_file']}",
-                        'confidence_output': confidence_output_content,
-                        'git_confidence_output_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['confidence_report_file']}",
-                        'confidence_score': summary['CONFIDENCE_SCORE'],
-                        'confidence_summary': summary['CONFIDENCE_SUMMARY'],
-                        'pm_bot_comments': summary['PM_BOT_COMMENTS'],
-                        'transformation_logic': summary['TRANSFORMATION_LOGIC'],
-                        'evaluation_results': evaluation,
-                        'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'],
-                        'correct_answer': eval_json['CORRECT_ANSWER'],
-                        'primary_issues': eval_json['PRIMARY_ISSUES'],
-                        'secondary_issues': eval_json['SECONDARY_ISSUES'],
-                    }
+                # Load mapping proposal from local file  
+                #with open('./tmp/mapping_proposal.txt', 'r') as f:
+                #    mapping_proposal = f.read()
 
-                    # Save results of work to database
-                    save_pm_summary_to_requirements(
-                        requirement['PHYSICAL_COLUMN_NAME'],
-                        db_fields,
-                        table_name
-                    )
-                    print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
+                if not skip_confidence:
+                    confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
 
-                    # prevent unintentional runaway runs while developing/testing
-                    #i = input('next? ')
+                summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
 
-                except Exception as e:
-                    print(f"\033[31mError occurred: {e}\033[0m")
+            
+                # Get the full content of each file from git
+                source_research_content = source_research
+                mapping_proposal_content = mapping_proposal
+                
+                confidence_output_content = 'bypassed currently while we improve this bot'
+                # Evaluate results
+                evaluation, eval_json  = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
 
-                    # Save error state to database for this field
-                    error_fields = {
-                        'upstream_table': None,
-                        'upstream_column': None,
-                        'source_research': str(e),
-                        'git_source_research_stage_link': None,
-                        'mapping_proposal': None,
-                        'git_mapping_proposal_stage_link': None,
-                        'confidence_output': None,
-                        'git_confidence_output_stage_link': None,
-                        'confidence_score': 0,
-                        'confidence_summary': None,
-                        'pm_bot_comments': f'Error: {str(e)}',
-                        'transformation_logic': None,
-                        'evaluation_results': None,
-                        'which_mapping_correct': 'error',
-                        'correct_answer': None,
-                        'primary_issues': f'Error: {str(e)}',
-                        'secondary_issues': None
-                    }
+                # Prepare fields for database update
+                db_fields = {
+                    'upstream_table': summary['UPSTREAM_TABLE'],
+                    'upstream_column': summary['UPSTREAM_COLUMN'],
+                    'source_research': source_research_content,
+                    'git_source_research_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['source_research_file']}",
+                    'mapping_proposal': mapping_proposal_content,
+                    'git_mapping_proposal_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['mapping_proposal_file']}",
+                    'confidence_output': confidence_output_content,
+                    'git_confidence_output_stage_link': f"{paths['stage_base']}{paths['base_git_path']}{paths['confidence_report_file']}",
+                    'confidence_score': summary['CONFIDENCE_SCORE'],
+                    'confidence_summary': summary['CONFIDENCE_SUMMARY'],
+                    'pm_bot_comments': summary['PM_BOT_COMMENTS'],
+                    'transformation_logic': summary['TRANSFORMATION_LOGIC'],
+                    'evaluation_results': evaluation,
+                    'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'],
+                    'correct_answer': eval_json['CORRECT_ANSWER'],
+                    'primary_issues': eval_json['PRIMARY_ISSUES'],
+                    'secondary_issues': eval_json['SECONDARY_ISSUES'],
+                }
 
-                    save_pm_summary_to_requirements(
-                        requirement['PHYSICAL_COLUMN_NAME'],
-                        error_fields,
-                        table_name
-                    )
-                    print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+                # Save results of work to database
+                save_pm_summary_to_requirements(
+                    requirement['PHYSICAL_COLUMN_NAME'],
+                    db_fields,
+                    table_name
+                )
+                print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
 
-        except Exception as e:
-                raise e
+                # prevent unintentional runaway runs while developing/testing
+                i = input('press return to continue (this is for runaway prevention when testing...) ')
+
+            except Exception as e:
+                print(f"\033[31mError occurred: {e}\033[0m")
+
+                # Save error state to database for this field
+                error_fields = {
+                    'upstream_table': None,
+                    'upstream_column': None,
+                    'source_research': str(e),
+                    'git_source_research_stage_link': None,
+                    'mapping_proposal': None,
+                    'git_mapping_proposal_stage_link': None,
+                    'confidence_output': None,
+                    'git_confidence_output_stage_link': None,
+                    'confidence_score': 0,
+                    'confidence_summary': None,
+                    'pm_bot_comments': f'Error: {str(e)}',
+                    'transformation_logic': None,
+                    'evaluation_results': None,
+                    'which_mapping_correct': 'error',
+                    'correct_answer': None,
+                    'primary_issues': f'Error: {str(e)}',
+                    'secondary_issues': None
+                }
+
+                save_pm_summary_to_requirements(
+                    requirement['PHYSICAL_COLUMN_NAME'],
+                    error_fields,
+                    table_name
+                )
+                print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+
+    except Exception as e:
+            raise e
 
 if __name__ == "__main__":
     main()

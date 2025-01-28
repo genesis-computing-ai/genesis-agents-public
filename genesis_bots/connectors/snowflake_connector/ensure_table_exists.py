@@ -1168,7 +1168,7 @@ def ensure_table_exists(self):
             """
             for tool_name, tool_description in tools_data:
                 cursor.execute(insert_tools_query, (tool_name, tool_description))
-                print(f"Inserting {tool_name} ({tool_description}) to available tools ")
+                logger.info(f"Inserting {tool_name} ({tool_description}) to available tools ")
             self.client.commit()
             logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
         else:

@@ -1,0 +1,275 @@
+Below is the lineage for each field produced by the final SELECT * FROM fc_joined.
+For each field, we list:
+target field: <field name>
+sources: fully qualified source tables in database.schema.table notation and columns from each table if multiple columns are used
+transformation: show the exact transformations applied to source columns to generate the target field.
+
+target field: billing_cycle_date sources: database.bronze.lending_loan_core.billing_cycle_detail.end_timestamp transformation: This is derived by taking the end_timestamp column of the relevant billing cycle record from billing_cycle_detail and applying dateadd(day,1,end_timestamp) to it, resulting in billing_cycle_date.
+
+target field: last_statement_date sources: database.bronze.lending_loan_core.billing_cycle_detail.end_timestamp transformation: This is determined from the end_timestamp of the last closed billing cycle for the given account. The transformation is dateadd(day,1,end_timestamp) of that final historical billing cycle detail record.
+
+target field: no_of_principal_credit_cards sources: database.bronze.cards.digicard_core.card.card_id database.bronze.cards.digicard_core.card.product_variant database.bronze.cards.digicard_core.card.status database.bronze.cards.digicard_core.card.user_id database.bronze.cards.digicard_core.card.account_id transformation: Count the number of card records from the card table where product_variant = 'DEFAULT_FLEXI_CREDIT_CARD' and status in ('ACTIVE', 'LOCKED') associated with the account_id from the asset_account table. The result is the count of such principal credit cards. If none, coalesce to zero.
+
+target field: no_of_principal_charge_cards sources: No direct source columns transformation: Hard-coded as 0. No source data.
+
+target field: no_of_unsecured_credit_fac_linked_debit_cards sources: No direct source columns transformation: Hard-coded as 0. No source data.
+
+target field: no_of_supplementary_credit_cards sources: No direct source columns transformation: Hard-coded as 0. No source data.
+
+target field: no_of_supplementary_charge_cards sources: No direct source columns transformation: Hard-coded as 0. No source data.
+
+target field: no_of_supplementary_unsecured_credit_fac_linked_debit_cards sources: No direct source columns transformation: Hard-coded as 0. No source data.
+
+target field: instalment_balance_not_due_amt sources: No direct source columns transformation: Set to null. No source data.
+
+target field: fees sources: database.bronze.lending_loan_core.billing_cycle_detail.late_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.late_fee_due database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_due database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_due database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_due database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_due_paid transformation: Compute total fees by summing all fee components (late, annual, extension, card_replacement) charged and due from billing_cycle_detail, then subtracting all corresponding paid amounts from billing_cycle_payment_info. The final fees = (late_fee_cycle + annual_fee_cycle + extension_fee_cycle + card_replacement_fee_cycle) - (late_fee_paid + annual_fee_paid + extension_fee_paid + card_replacement_fee_paid).
+
+target field: delinquent_ind sources: database.bronze.lending_loan_core.card_summary.days_past_due transformation: If days_past_due > 0 then 'Y' else 'N'. Pulled directly from card_summary days_past_due field.
+
+target field: minimum_payment_ind sources: database.bronze.lending_loan_core.card_summary.minimum_payment_amount transformation: If coalesce(minimum_payment_amount,0) > 0 then 'N' else 'Y'. Uses minimum_payment_amount from card_summary.
+
+target field: exempt_credit_limit_ind sources: No direct source columns transformation: Hard-coded as 'Y'.
+
+target field: rollover_balance_amt sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_overdue database.bronze.lending_loan_core.billing_cycle_detail.late_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.late_fee_due database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_due database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_due database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_due database.bronze.lending_loan_core.billing_cycle_payment_info.principal_overdue_paid database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_due_paid transformation: Rollover_balance_amt is computed by taking all overdue principal and fees from billing_cycle_detail, summing them, and then subtracting all paid amounts from billing_cycle_payment_info. The net result after these calculations gives the outstanding rollover balance.
+
+target field: billed_amt_qtd sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_billed transformation: This is the sum of principal_billed amounts over all billing cycles that fall into the quarter-to-date range. We filter billing_cycle_detail by the date range of this quarter and sum principal_billed to find billed_amt_qtd.
+
+target field: exempt_micro_card_ind sources: No direct source columns transformation: Set to null. No source data.
+
+target field: rollover_balance_amt_qtd sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_overdue database.bronze.lending_loan_core.billing_cycle_detail.principal_written_off database.bronze.lending_loan_core.billing_cycle_payment_info.principal_overdue_paid transformation: Compute the quarter-to-date rollover balance by taking the principal_overdue amounts from all relevant billing cycles within the quarter-to-date range and subtracting principal_overdue_paid within the same range, and factoring in any principal_written_off for the same period. The result is the net outstanding rollover amount for the quarter.
+
+target field: exposure_id sources: database.bronze.lending_loan_core.asset_account.account_id transformation: The exposure_id is taken directly as account_id from the asset_account table.
+
+target field: customer_id sources: database.bronze.core_accounts_service.customer_account.cif_number transformation: The customer_id is taken directly from the customer_account table's cif_number column for the corresponding account_id.
+
+target field: facility_id sources: database.bronze.lending_loan_core.asset_account.account_id transformation: facility_id is the same as the account_id from asset_account.
+
+target field: repricing_date sources: No direct source columns transformation: Set to null.
+
+target field: exposure_start_date sources: database.bronze.lending_loan_core.asset_account.opening_timestamp transformation: exposure_start_date is the opening_timestamp of the asset_account cast to a date.
+
+target field: next_payment_date sources: database.bronze.lending_loan_core.card_summary.grace_period_in_days database.bronze.lending_loan_core.billing_cycle_detail.repayment_due_date transformation: next_payment_date = dateadd(day, grace_period_in_days, repayment_due_date) using grace_period_in_days from card_summary and repayment_due_date from billing_cycle_detail.
+
+target field: bank_product_code sources: database.bronze.lending_loan_core.asset_account.product_code transformation: If product_code = 'FLEXI_CREDIT_CARD' then 'CREDITCARD' else product_code from asset_account.
+
+target field: txn_ccy_code sources: database.bronze.lending_loan_core.card_summary.currency database.bronze.core_accounts_service.customer_account.currency transformation: If card_summary currency is null, use customer_account currency. Otherwise, use card_summary currency.
+
+target field: country_code sources: database.bronze.core_accounts_service.customer_account.country_code transformation: country_code is taken directly from the customer_account.country_code column.
+
+target field: entity_code sources: No direct source columns transformation: Hard-coded as 'SG01'.
+
+target field: acct_customer_role sources: No direct source columns transformation: Hard-coded as 'PRIMARY'.
+
+target field: exposure_end_date sources: database.bronze.lending_loan_core.billing_cycle_detail.repayment_due_date transformation: exposure_end_date = repayment_due_date of the current billing cycle detail record cast to a date.
+
+target field: past_due_date sources: database.bronze.lending_loan_core.card_summary.days_past_due transformation: If days_past_due > 0, then past_due_date = dateadd(day, -days_past_due, target_date). If days_past_due <= 0, then null.
+
+target field: past_due_ind sources: database.bronze.lending_loan_core.card_summary.days_past_due transformation: If days_past_due > 0 then 'Y' else 'N'.
+
+target field: sanctioned_limit sources: database.bronze.lending_loan_core.asset_account_parameter.offered_limit transformation: sanctioned_limit comes from the parameter_value where parameter_key='offered_limit' for the given account_id in asset_account_parameter.
+
+target field: prin_outstanding_amt sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_charged database.bronze.lending_loan_core.billing_cycle_detail.principal_billed database.bronze.lending_loan_core.billing_cycle_detail.principal_due database.bronze.lending_loan_core.billing_cycle_detail.principal_overdue database.bronze.lending_loan_core.billing_cycle_payment_info.principal_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.principal_billed_paid database.bronze.lending_loan_core.billing_cycle_payment_info.principal_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.principal_overdue_paid database.bronze.lending_loan_core.card_summary.overpaid_amount transformation: prin_outstanding_amt = (principal_charged + principal_billed + principal_due + principal_overdue) - (principal_charged_paid + principal_billed_paid + principal_due_paid + principal_overdue_paid) - overpaid_amount. We take all principal components from billing_cycle_detail and subtract all principal paid amounts from billing_cycle_payment_info and also subtract any overpaid_amount from card_summary.
+
+target field: interest_outstanding_amt sources: No direct source columns transformation: Set to 0, no interest fields used.
+
+target field: gross_outstanding_amt sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_charged database.bronze.lending_loan_core.billing_cycle_detail.principal_billed database.bronze.lending_loan_core.billing_cycle_detail.principal_due database.bronze.lending_loan_core.billing_cycle_detail.principal_overdue database.bronze.lending_loan_core.billing_cycle_detail.late_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.late_fee_due database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_due database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_due database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_due database.bronze.lending_loan_core.billing_cycle_payment_info.principal_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.principal_billed_paid database.bronze.lending_loan_core.billing_cycle_payment_info.principal_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.principal_overdue_paid database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_due_paid database.bronze.lending_loan_core.card_summary.overpaid_amount transformation: gross_outstanding_amt = (sum of all principal and fee components: charged, billed, due, overdue) - (all corresponding paid amounts) - overpaid_amount. Essentially sum all outstanding principal and fees from billing_cycle_detail and subtract all paid amounts from billing_cycle_payment_info and any overpaid_amount from card_summary.
+
+target field: undrawn_amount sources: database.bronze.lending_loan_core.asset_account_parameter.offered_limit database.bronze.lending_loan_core.billing_cycle_detail principal and fee columns database.bronze.lending_loan_core.billing_cycle_payment_info principal and fee paid columns transformation: undrawn_amount = offered_limit - (net utilized amount). The utilized amount is derived from gross_outstanding balances. If the computed undrawn_amount is negative, we take the greatest(0, computed_value).
+
+target field: unconditional_cancel_ind sources: No direct source columns transformation: Hard-coded as 'Y'.
+
+target field: unsecured_ind sources: No direct source columns transformation: Hard-coded as 'Y'.
+
+target field: interest_rate sources: No direct source columns transformation: Set to 0.
+
+target field: orig_ltv sources: No direct source columns transformation: null.
+
+target field: curr_ltv sources: No direct source columns transformation: null.
+
+target field: interest_rate_type sources: No direct source columns transformation: Hard-coded 'FIX_TYPE'.
+
+target field: branch_id sources: No direct source columns transformation: null.
+
+target field: data_source sources: No direct source columns transformation: Hard-coded 'LOAN-CORE'.
+
+target field: acct_block_code sources: database.bronze.lending_loan_core.asset_account_parameter.reason_code database.bronze.lending_loan_core.asset_account_restriction.reason_code transformation: Determine acct_block_code by checking if the reason_code or restriction reason codes match predefined categories. If matches A category conditions, acct_block_code='A'. If matches B category conditions, 'B', etc. This involves pattern matching reason codes related to bankrupt, fraud, dpd levels, and other criteria.
+
+target field: mas612_qualitative_criteria sources: database.bronze.lending_loan_core.card_summary.days_past_due database.bronze.lending_loan_core.asset_account_parameter.reason_code database.bronze.lending_loan_core.asset_account_restriction.reason_code transformation: Determine the mas612_qualitative_criteria based on account block code conditions and dpd levels. If severe reason codes or dpd >=120, 'LS'. If intermediate, 'SS'. If moderate, 'SM'. Otherwise 'PS'. The logic checks the presence of specific reason codes and the value of days_past_due to assign the correct classification.
+
+target field: defaulted_ind sources: database.bronze.lending_loan_core.card_summary.days_past_due database.bronze.lending_loan_core.asset_account_parameter.reason_code database.bronze.lending_loan_core.asset_account_restriction.reason_code transformation: If the mas612_qualitative_criteria determined above is 'SS' or 'LS', then defaulted_ind='Y', else 'N'. This depends on the classification derived from dpd and reason codes.
+
+target field: impairment_status_ind sources: No direct source columns transformation: 'N'.
+
+target field: restructured_ind sources: No direct source columns transformation: 'N'.
+
+target field: restructured_date sources: No direct source columns transformation: null.
+
+target field: extended_credit_fac_ind sources: database.bronze.lending_loan_core.asset_account_parameter.offered_limit (current and historical) transformation: Compare today's offered_limit to yesterday's offered_limit. If today's > yesterday's, then 'Y', else 'N'. If not incremental scenario, hard-coded 'N'.
+
+target field: days_past_due sources: database.bronze.lending_loan_core.card_summary.days_past_due transformation: Taken directly from card_summary.days_past_due, coalesced to 0 if null.
+
+target field: loan_purpose_type sources: database.bronze.lending_loan_core.asset_account.product_code transformation: If product_code='FLEXI_CREDIT_CARD' then 'CC' else 'NULL'.
+
+target field: ifrs9_class_type sources: No direct source columns transformation: Hard-coded 'AC'.
+
+target field: ultimate_risk_cprt sources: database.bronze.lending_loan_core.asset_account.product_code transformation: If product_code='FLEXI_CREDIT_CARD' then 'NAT_PERSON' else 'NULL'.
+
+target field: ultimate_risk_country sources: database.bronze.core_accounts_service.customer_account.country_code transformation: Taken directly from customer_account.country_code.
+
+target field: fairvalue_hier sources: No direct source columns transformation: null.
+
+target field: book_type sources: No direct source columns transformation: 'B'.
+
+target field: original_interest_rate sources: No direct source columns transformation: 0.
+
+target field: int_rate_sensitive_ind sources: No direct source columns transformation: 'N'.
+
+target field: pledged_amt sources: No direct source columns transformation: 0.
+
+target field: foreclosed_ind sources: No direct source columns transformation: null.
+
+target field: free_credit_balance_amt sources: database.bronze.lending_loan_core.asset_account_parameter.offered_limit database.bronze.lending_loan_core.billing_cycle_detail principal and fee fields database.bronze.lending_loan_core.billing_cycle_payment_info principal and fee paid fields transformation: This is essentially the undrawn_amount computed above. free_credit_balance_amt = offered_limit - utilized amounts. If negative, take 0. Coalesce result to 0.
+
+target field: interest_bearing_balance_amt sources: No direct source columns transformation: 0.
+
+target field: age_in_days sources: database.bronze.lending_loan_core.card_summary.days_past_due transformation: Same as days_past_due. Taken directly from card_summary.
+
+target field: interest_charges sources: No direct source columns transformation: 0.
+
+target field: bank_charges sources: database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_due database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_due database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_due database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.annual_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.extension_fee_due_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.card_replacement_fee_due_paid transformation: bank_charges = (annual_fee_cycle + extension_fee_cycle + card_replacement_fee_cycle) - (annual_fee_paid + extension_fee_paid + card_replacement_fee_paid).
+
+target field: late_payment_charges sources: database.bronze.lending_loan_core.billing_cycle_detail.late_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.late_fee_due database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_charged_paid database.bronze.lending_loan_core.billing_cycle_payment_info.late_fee_due_paid transformation: late_payment_charges = (late_fee_charged + late_fee_due) - (late_fee_charged_paid + late_fee_due_paid).
+
+target field: action_initiated_ind sources: database.bronze.lending_loan_core.asset_account_parameter.reason_code database.bronze.lending_loan_core.asset_account_restriction.reason_code transformation: If acct_block_code is derived as not null (due to reason_code conditions), then 'Y', else 'N'.
+
+target field: action_initiated_type sources: database.bronze.lending_loan_core.asset_account_parameter.reason_code database.bronze.lending_loan_core.asset_account_restriction.reason_code transformation: If action_initiated_ind='Y', set to 'Collection', else null.
+
+target field: transitional_arrangement_ind sources: No direct source columns transformation: 'N'.
+
+target field: writeoff_date sources: No direct source columns transformation: null.
+
+target field: writeoff_amt sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_written_off database.bronze.lending_loan_core.billing_cycle_detail.late_fee_written_off database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_written_off database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_written_off database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_written_off transformation: writeoff_amt = sum of all written_off principal and fee components from billing_cycle_detail.
+
+target field: tot_writeoff_qtd sources: database.bronze.lending_loan_core.billing_cycle_detail.principal_written_off database.bronze.lending_loan_core.billing_cycle_detail.late_fee_written_off database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_written_off database.bronze.lending_loan_core.billing_cycle_detail.card_replacement_fee_written_off database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_written_off transformation: Aggregate all written_off amounts for principal and fees from billing_cycle_detail over the quarter-to-date range and sum them up to get tot_writeoff_qtd.
+
+target field: account_writeoff_ind sources: database.bronze.lending_loan_core.asset_account.current_status database.bronze.lending_loan_core.billing_cycle_detail writeoff fields transformation: If current_status in ('WRITTEN_OFF','CLOSED','PENDING_CLOSURE') and writeoff_amt > 0 then 'Y', else 'N'.
+
+target field: suspension_ind sources: database.bronze.lending_loan_core.asset_account_restriction.reason_code transformation: If reason_codes include '60_DPD' then 'Y' else 'N'.
+
+target field: last_payment_date sources: database.bronze.core_transaction_history.transactions_data.batch_insertion_timestamp database.bronze.core_transaction_history.transactions_data.debit_or_credit transformation: Find transactions_data records for the account that represent payments (credit offsets), and take the maximum batch_insertion_timestamp of such records to determine last_payment_date.
+
+target field: acct_status_code sources: database.bronze.lending_loan_core.asset_account.current_status transformation: acct_status_code = current_status directly from asset_account.
+
+target field: acct_status_date sources: database.bronze.lending_loan_core.asset_account.opening_timestamp transformation: acct_status_date = opening_timestamp cast to a date.
+
+target field: bank_asset_class_code sources: database.bronze.lending_loan_core.asset_account.product_code transformation: If product_code='FLEXI_CREDIT_CARD' then 'RR' else null.
+
+target field: gen_allowance_amt sources: No direct source columns transformation: 0.
+
+target field: gl_id sources: Computed from gross_outstanding_amt which in turn is from multiple principal and fee columns in billing_cycle_detail and billing_cycle_payment_info. transformation: If gross_outstanding_amt < 0 then gl_id='203116' else '105112'.
+
+target field: materiality_threshold sources: No direct source columns transformation: 0.
+
+target field: nominal_threshold sources: No direct source columns transformation: 0.
+
+target field: encumbrance_status_ind sources: No direct source columns transformation: null.
+
+target field: market_value sources: No direct source columns transformation: 0.
+
+target field: drawn_amount sources: Derived from prin_outstanding_amt, which comes from billing_cycle_detail and billing_cycle_payment_info principal fields, and card_summary.overpaid_amount. transformation: If prin_outstanding_amt < 0 then drawn_amount=0 else drawn_amount=prin_outstanding_amt.
+
+target field: poci_ind sources: No direct source columns transformation: null.
+
+target field: card_category sources: No direct source columns transformation: 'CREDIT'.
+
+target field: gl_department sources: No direct source columns transformation: '311110'.
+
+target field: high_dpd_cbs_ind sources: database.bronze.lending_loan_core.card_summary.days_past_due transformation: If days_past_due > 60 then 'Y' else 'N'.
+
+target field: membership_fees sources: database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_charged database.bronze.lending_loan_core.billing_cycle_detail.annual_fee_due transformation: membership_fees = coalesce sum of annual_fee_cycle components. If multiple cycles considered, take the relevant current cycle fees. Computed as annual_fee_charged+annual_fee_due, usually aggregated at cycle level.
+
+target field: merchant_fees sources: No direct source columns transformation: 0.
+
+target field: net_interchange_income sources: database.bronze.cards.euronet_adapter.clearing_record.metadata['IcFeeAmount'] database.bronze.cards.euronet_adapter.clearing_record.metadata['FeeProcessingCode'] database.bronze.cards.euronet_adapter.clearing_record.metadata['ReversalIndicator'] database.bronze.cards.euronet_adapter.clearing_record.metadata['IsDuplicated'] transformation: Extract ic_fee_amount from clearing_record. Based on fee_processing_code and reversal_ind determine if it should be added or subtracted. Sum all relevant records for the account's proxy_number mapped to vendor_card_id. net_interchange_income = sum((credits to gxs + debit reversals) - (debits to gxs + credit reversals)).
+
+target field: gl_lob sources: No direct source columns transformation: '110'.
+
+target field: gl_location sources: No direct source columns transformation: '1100'.
+
+target field: gl_intercompany sources: No direct source columns transformation: '9999'.
+
+target field: gl_product sources: No direct source columns transformation: '120110'.
+
+target field: gl_customer_segment sources: database.silver.onboarding.customer_master.employee_ind transformation: If employee_ind='Y' then gl_customer_segment=102 else 101. This checks the employee indicator from customer_master.
+
+target field: gl_future1 sources: No direct source columns transformation: '999'.
+
+target field: gl_future2 sources: No direct source columns transformation: '999999'.
+
+target field: transactor_ind sources: database.bronze.lending_loan_core.billing_cycle_detail.end_timestamp database.bronze.lending_loan_core.card_summary.days_past_due database.bronze.lending_loan_core.billing_cycle_detail.extension_fee_charged transformation: transactor_ind is set by checking if earliest_due_date > a certain date and if days_past_due and fees are zero. If those conditions hold true, 'Y', else 'N'. If conditions not met (for example non-incremental scenario), 'N'.
+
+target field: _indefinite_block_dpd_count_exceeded sources: database.bronze.lending_loan_core.asset_account_restriction.reason_code database.bronze.lending_loan_core.card_summary.days_past_due transformation: If reason_codes or days_past_due indicate conditions meeting indefinite block criteria (like dpd >=60 or reason_code 'DPD_60'), then true, else false.
+
+target field: account_mas635_ind sources: database.silver.onboarding.customer_master.annual_income transformation: If annual_income >=120000 then 'Y' else 'N'.
+
+target field: exp_revolving_ind sources: No direct source columns transformation: 'Y'.
+
+target field: channel_type sources: database.bronze.lending_loan_app.application.application_id database.bronze.lending_loan_app.application.channel database.bronze.lending_loan_app.applicant.application_id transformation: Map the customer to their application_id via applicant, then fetch channel from the application table. If no application found, channel_type might remain null.
+
+target field: customer_days_past_due sources: database.bronze.lending_loan_core.card_summary.days_past_due database.bronze.core_accounts_service.customer_account.cif_number database.silver.onboarding.customer_master.customer_id transformation: Compute the maximum days_past_due over a defined lookback period for all accounts related to the same customer_id (derived from cif_number in customer_account), extracting days_past_due from card_summary and taking the max.
+
+target field: _valid_date sources: No direct source columns transformation: Set to target_date as provided. No column references.
+
+target field: customer_month_on_book sources: database.bronze.lending_loan_core.asset_account.opening_timestamp transformation: customer_month_on_book = months_between(_valid_date, opening_timestamp date). Compute how many months the customer has been on book by comparing the _valid_date to the opening_timestamp.
+
+target field: effective_interest_rate sources: No direct source columns transformation: 0.
+
+target field: _dpd_count_exceeded sources: database.bronze.lending_loan_core.card_summary.days_past_due database.bronze.lending_loan_core.asset_account_parameter.reason_code transformation: Boolean determined if certain dpd thresholds are exceeded based on reason_code presence and days_past_due value. If conditions met, true; else false.
+
+target field: _has_accelerated_loans sources: database.bronze.lending_loan_core.asset_account_parameter.accelerated_reason_code database.bronze.lending_loan_core.asset_account_parameter.accelerated_timestamp transformation: Check if there's an accelerated_reason_code present for the account. If found, set true; else false. If no acceleration parameter, then false.
+
+target field: suspended_bti_flag sources: No direct source columns transformation: null.
+
+target field: cbs_cuo sources: No direct source columns transformation: null.
+
+target field: application_id sources: database.bronze.lending_loan_app.applicant.applicant_id database.bronze.core_accounts_service.customer_account.cif_number database.bronze.lending_loan_app.application.application_id transformation: If the customer (cif_number) can be linked to an application via applicant and application, use that application_id. Otherwise default to '00'.
+
+target field: a_score sources: database.bronze.lending_loan_app.applicant_scoring_model_details.score database.silver.onboarding.customer_master.customer_id transformation: Link applicant_scoring_model_details via applicant_id=customer_id and fetch score. If no score found, coalesce to 0.
+
+target field: a_score_segment sources: database.bronze.lending_loan_app.applicant_scoring_model_details.segment database.silver.onboarding.customer_master.customer_id transformation: Link via applicant_id=customer_id. Take segment. If no segment found, 'NULL'.
+
+target field: bureau_grade sources: database.bronze.lending_cr_decision_eng.application_credit_decision.response_data transformation: Parse response_data JSON to find 'RiskGrade' or 'Risk Grade' variable. If found, extract the associated value. If not found, 'NA'.
+
+target field: rollover_prin_outstanding_amt sources: database.bronze.lending_loan_core.billing_cycle_detail principal fields database.bronze.lending_loan_core.billing_cycle_payment_info principal paid fields transformation: Rollover principal outstanding amount is computed by taking principal components from billing_cycle_detail that roll over (not fully paid) into the next cycle and subtracting any principal paid from billing_cycle_payment_info. Summation yields rollover_prin_outstanding_amt.
+
+target field: rollover_interest_outstanding_amt sources: No direct source columns transformation: 0.
+
+target field: rollover_fee_outstanding_amt sources: database.bronze.lending_loan_core.billing_cycle_detail fee fields database.bronze.lending_loan_core.billing_cycle_payment_info fee paid fields transformation: Calculate fees that remain outstanding after payments across billing cycles, resulting in rollover fees. This is (fee_cycle amounts) - (fee_paid amounts).
+
+target field: rollover_gross_outstanding_amt sources: database.bronze.lending_loan_core.billing_cycle_detail principal and fee fields database.bronze.lending_loan_core.billing_cycle_payment_info principal and fee paid fields transformation: Rollover gross outstanding amount = sum of principal and fees carried over to the next cycle after subtracting paid amounts. Essentially (prin + fees) not settled in previous cycle and carried forward.
+
+target field: expiry_date sources: database.bronze.cards.digicard_core.card.expiry_date transformation: Convert expiry_date string (in 'MM/YY') format to a date using try_to_date and then take last_day of that month. If null, default to '1900-01-01'.
+
+target field: days_to_expiry sources: database.bronze.cards.digicard_core.card.expiry_date transformation: days_to_expiry = datediff(day, target_date, computed expiry_date_card). If expiry_date is null, days_to_expiry=0.
+
+target field: bank_sub_product_code (sources only if environment dev/stg) sources: database.bronze.lending_loan_core.asset_account.product_variant_code transformation: Directly taken as product_variant_code from asset_account.
+
+target field: updated_at sources: database.bronze.lending_loan_core.asset_account._source_updated_at database.bronze.core_accounts_service.customer_account._source_updated_at database.silver.onboarding.customer_master.updated_at database.bronze.lending_loan_core.asset_account_parameter._source_updated_at database.bronze.lending_loan_core.asset_account_restriction._source_updated_at transformation: updated_at = greatest of all relevant _source_updated_at timestamps from these source tables.
+
+target field: _bronze_updated_at sources: database.bronze.lending_loan_core.asset_account._bronze_updated_at database.bronze.core_accounts_service.customer_account._bronze_updated_at database.silver.onboarding.customer_master._silver_loaded_at database.bronze.lending_loan_core.asset_account_parameter._bronze_updated_at database.bronze.lending_loan_core.asset_account_restriction._bronze_updated_at transformation: _bronze_updated_at = greatest of these _bronze_updated_at related timestamps from various source tables.
+
+target field: _silver_loaded_at sources: No direct source columns transformation: Set to current_timestamp.
+
+target field: _minimum_payment_amount sources: database.bronze.lending_loan_core.card_summary.minimum_payment_amount transformation: coalesce(minimum_payment_amount,0).
+
+target field: _gross_outstanding_amt_cycle sources: database.bronze.lending_loan_core.billing_cycle_detail principal and fee fields transformation: _gross_outstanding_amt_cycle = sum of all principal and fee fields (charged,billed,due,overdue) from the billing_cycle_detail for the current cycle before subtracting paid or overpaid amounts.
+
+target field: _gross_outstanding_amt_paid sources: database.bronze.lending_loan_core.billing_cycle_payment_info principal and fee paid fields transformation: _gross_outstanding_amt_paid = total of all principal and fee amounts paid during the current cycle.
+
+target field: _overpaid_amount sources: database.bronze.lending_loan_core.card_summary.overpaid_amount transformation: Directly from card_summary.overpaid_amount.
+
+target field: _gross_outstanding_amt_wo_charged sources: database.bronze.lending_loan_core.billing_cycle_detail principal and fee fields (excluding charged components) database.bronze.lending_loan_core.billing_cycle_payment_info paid fields database.bronze.lending_loan_core.card_summary.overpaid_amount transformation: Compute gross outstanding amount without charged components (only billed,due,overdue), then subtract paid amounts and overpaid_amount. This yields _gross_outstanding_amt_wo_charged.
+
+target field: overpayment_ind sources: derived from gross_outstanding_amt transformation: If gross_outstanding_amt >=0 then 'N' else 'Y'.
+
+target field: _tot_rollover_balance_amt sources: database.bronze.lending_loan_core.billing_cycle_detail principal and fee overdue/written_off fields over the quarter database.bronze.lending_loan_core.billing_cycle_payment_info principal and fee paid fields over the quarter transformation: Sum the rollover balances quarter-to-date by aggregating overdue amounts minus paid amounts and factoring in any writeoffs to arrive at the net rollover amount QTD.

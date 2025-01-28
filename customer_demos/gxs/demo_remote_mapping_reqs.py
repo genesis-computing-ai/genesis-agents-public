@@ -1,12 +1,7 @@
 
 import uuid
-
 import json
-import snowflake.connector
-
 import yaml
-
-
 import argparse
 from   genesis_bots.api         import GenesisAPI, build_server_proxy
 from   genesis_bots.api.utils   import add_default_argparse_options
@@ -41,18 +36,22 @@ launch.json config example:
 },
 """
 
+eve_bot_id = 'Eve'
+genesis_api_client = None
 
-def get_snowflake_connection(args=None):
-    """Get Snowflake connection using either environment variables or provided args"""
-
-    return snowflake.connector.connect(
-        account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
-        user=os.environ['SNOWFLAKE_USER_OVERRIDE'], 
-        password=os.environ['SNOWFLAKE_PASSWORD_OVERRIDE'],
-        database=os.environ['SNOWFLAKE_DATABASE_OVERRIDE'],
-        warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
-        role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
-    )
+#def get_snowflake_connection(args=None):
+#    """Get Snowflake connection using either environment variables or provided args"""
+#
+#    return snowflake.connector.connect(
+#        account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
+#        user=os.environ['SNOWFLAKE_USER_OVERRIDE'], 
+#        password=os.environ['SNOWFLAKE_PASSWORD_OVERRIDE'],
+#        database=os.environ['SNOWFLAKE_DATABASE_OVERRIDE'],
+#        warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
+#        role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
+#    )
+#
+#conn = get_snowflake_connection()
 
 def print_file_contents(title, file_path, contents):
     """
@@ -101,7 +100,7 @@ def setup_paths(physical_column_name, run_number = 1, genesis_db = 'GENESIS_BOTS
         'confidence_report_file': f"{physical_column_name}__confidence_report.txt"
     }
 
-def check_git_file(client, paths, file_name):
+def check_git_file(client, paths, file_name, bot_id):
     """
     Check if file exists in local git or stage, copy to stage if needed.
 
@@ -111,59 +110,21 @@ def check_git_file(client, paths, file_name):
     Returns:
         str: Contents of the file if found, False if not found
     """
-    stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
     # Get git base path from environment variable, default to ./bot_git
 
-    if False:  # remote only for now
-        git_base = os.getenv("GIT_PATH", "/opt/bot_git")
-        local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
+    res = client.run_genesis_tool(tool_name="git_action", params={"action": "read_file", "file_path": f"{paths['base_git_path']}{file_name}" }, bot_id=bot_id)
 
-        # First check local git
-        try:
-            if os.path.exists(local_git_path):
-                print(f"\033[93mFile found in local git: {local_git_path}\033[0m")
-
-                # Read local file
-                with open(local_git_path, 'r') as f:
-                    contents = f.read()
-
-                return contents
-            
-            return False
-            
-        except Exception as e:
-            print(f"Error accessing local git file: {str(e)}")
-
-    # If not in local git, check stage
-    try:
-
-        git_get_query = f"GET {paths['stage_base']}{paths['base_git_path']}{file_name} file://./"
-        cursor = conn.cursor()
-        cursor.execute(git_get_query)
-        stage_contents = cursor.fetchone()[0]
-       # stage_contents = client.get_file(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
-        # stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
-       # stage_contents = client.get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
-
-        if stage_contents.split('/')[-1] == file_name:
-            # Read the local file that was just retrieved from stage
-            with open(file_name, 'r') as f:
-                stage_contents = f.read()
-
-        if stage_contents and not stage_contents.startswith('Placeholder') and stage_contents.split('/')[-1] != file_name and len(stage_contents) > 50:
-            print(f"\033[92mFile found in stage: {stage_path}\033[0m")
-            return stage_contents
-    except Exception as e:
-        print(f"\033[93mFile not found in stage: {stage_path}\033[0m")
-
-    return False
-
-
+    if res and res.get("success", False):
+        return res.get("content", False)
+    else:
+        return False
+ 
+     
 def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = False):
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
-    pm_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
+    pm_prompt = f'''!o1!Here are requirements for a target field I want you to work on: {requirement}\n
     The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n'''
 
     if not skip_confidence:
@@ -258,13 +219,19 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
             'physical_column_name': physical_column_name
         }
 
-        cursor = conn.cursor()
-        cursor.execute(update_query, params)
-        conn.commit()
-        cursor.close()
+        # Flatten params into query string
+        query_with_params = update_query
+        for key, value in params.items():
+            if value is None:
+                query_with_params = query_with_params.replace(f'%({key})s', 'NULL')
+            else:
+                # Escape single quotes in values
+                escaped_value = str(value).replace("'", "''")
+                query_with_params = query_with_params.replace(f'%({key})s', f"'{escaped_value}'")
 
+        run_snowflake_query(genesis_api_client, query_with_params, eve_bot_id)
+    
     except Exception as e:
-        conn.rollback()
         raise Exception(f"Failed to update requirement for column {physical_column_name}: {str(e)}")
 
 
@@ -287,29 +254,29 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
     """
     try:
         # Get the correct answers file
-        git_base = os.getenv("GIT_PATH", "/opt/bot_git")
-        with open(f"{git_base}/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
 
-            # First get just the correct answer for this field
-            message = {
-                "requirement": filtered_requirement,
-                "correct_answers": answers_content,
-                "instruction": """
-                    You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
+        answers_content = check_git_file(client, 'knowledge/flexicard_eval_answers', file_name="flexicard_answers_clean2.txt", bot_id=eve_bot_id)
 
-                    To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
+        # First get just the correct answer for this field
+        message = {
+            "requirement": filtered_requirement,
+            "correct_answers": answers_content,
+            "instruction": """!o1!
+                You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
 
-                    The field name to look for is in the requirement.  Return both the correct database, schema, table and column for any source columns,
-                    and also any required transformation logic.
+                To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
 
-                    Format your response as a simple JSON with one field:
-                    {
-                        "correct_answer": "the correct answer text for this specific field, including DATABASE.SCHEMA.TABLE and Column information and any required mappings or transformations"
-                    }
+                The field name to look for is in the requirement.  Return both the correct database, schema, table and column for any source columns,
+                and also any required transformation logic.
 
-                    We will then use your extracted correct answer to judge the output of the other bot.
-                """
-            }
+                Format your response as a simple JSON with one field:
+                {
+                    "correct_answer": "the correct answer text for this specific field, including DATABASE.SCHEMA.TABLE and Column information and any required mappings or transformations"
+                }
+
+                We will then use your extracted correct answer to judge the output of the other bot.
+            """
+        }
 
         # Get the correct answer first
         message_str = json.dumps(message)
@@ -323,7 +290,7 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
        #     "confidence_report": confidence_output_content,
       #      "pm_summary": summary,
             "correct_answer": correct_answer,
-            "instruction": """
+            "instruction": """!o1!
                 Please evaluate the mapping proposal results against the correct answer for this field.
 
                 Compare the following aspects:
@@ -496,7 +463,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 
 
 
-        research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
+        research_prompt = f'''!o1!Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
 
         First explore the available data for fields that may be useful using data_explorer function.
@@ -541,12 +508,12 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         thread = str(uuid.uuid4())
         response = call_genesis_bot(client, bot_id, research_prompt, thread = thread)
 
-        contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
+        contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
 
         if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
             retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git, please try the save again using the _git_action function.'''
             response = call_genesis_bot(client, bot_id, retry_prompt, thread = thread)
-            contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
+            contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
             if not contents or contents.startswith('Placeholder '):
                 raise Exception('Source research file not found or contains only placeholder')
 
@@ -561,7 +528,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 #  HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
 
 def perform_mapping_proposal_new(client, requirement, paths, bot_id):
-    """Execute mapping proposal step and validate results."""
+    """!o1!Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
 
     mapping_prompt = f'''Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
@@ -587,12 +554,12 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     thread = str(uuid.uuid4())
     response = call_genesis_bot(client, bot_id, mapping_prompt, thread=thread)
 
-    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
 
     if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
         retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please try the save again using the _git_action function.'''
         response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
-        contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+        contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
         if not contents or contents.startswith('Placeholder '):
             raise Exception('Mapping proposal file not found or contains only placeholder')
 
@@ -621,7 +588,7 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
 
     response = call_genesis_bot(client, bot_id, confidence_prompt)
 
-    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
+    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"], bot_id=eve_bot_id)
 
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Confidence report file not found or contains only placeholder')
@@ -633,66 +600,39 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
 
 
 
-def reanalyze_with_o1():
-    # Execute query
-    cursor = conn.cursor()
-    cursor.execute("""
-        select message_type, message_metadata, message_payload
-        from genesis_test.genesis_jl.message_log
-        where thread_id = 'thread_tglskW7NIqZbGyRrOvLQlOK7'
-        order by timestamp
-    """)
-
-    # Fetch all rows into an array
-    results = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    # Initialize OpenAI client
-    from openai import OpenAI
-
-    # Initialize OpenAI client with API key
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    # Process results through OpenAI for refined understanding
-    try:
-        # Format the prompt for OpenAI
-        prompt = "Please analyze this source research data and produce a new, detailed, and refined understanding:\n"
-        for result in results:
-            message_type, metadata, payload = result
-            prompt += f"""
-            Message Type: {message_type}
-            Metadata: {metadata}
-            Payload: {payload}
-            """
-        prompt += "Output a source research report with a new, detailed, and refined understanding:"
-
-        # Call OpenAI API with the new interface
-        response = client.chat.completions.create(
-            model="o1-preview",  # or another model that supports chat completions
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        refined_output = response.choices[0].message.content.strip()
-        refined_results = [refined_output]
-    except Exception as e:
-        print(f"Error processing through OpenAI: {str(e)}")
-        refined_results = []
-
-    # Print refined results
-    print("\nRefined Source Research Understanding:")
-    for result in refined_results:
-        print(f"\n{result}")
-
-
-
 def parse_arguments():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="A simple CLI chat interface to Genesis bots")
     add_default_argparse_options(parser)
     return parser.parse_args()
+
+
+def run_snowflake_query(client, query, bot_id=None):
+    """
+    Run a Snowflake query using the Genesis tool API.
+    
+    Args:
+        client: Genesis API client instance
+        query: SQL query string to execute
+        bot_id: Bot ID to use for the query (defaults to eve_bot_id if not specified)
+    
+    Returns:
+        Query results from Snowflake
+    """
+    if bot_id is None:
+        bot_id = eve_bot_id
+        
+    res = client.run_genesis_tool(
+        tool_name="query_database", 
+        params={
+            "query": query,
+            "connection_id": "Snowflake",
+            "bot_id": bot_id
+        }, 
+        bot_id=bot_id
+    )
+    
+    return res
 
 
 def main():
@@ -716,30 +656,18 @@ def main():
 
     server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args, args.genesis_db)
 
-    conn = get_snowflake_connection()
+    global genesis_api_client
+    genesis_api_client = GenesisAPI(server_proxy=server_proxy)
 
-    local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below)
-   # local_bots = [
-   #     "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
-   #     "mappingProposerBot-jllocal", # Changed from MappingProposal-jllocal
-   #     "confidenceanalyst-jllocal",  # Changed from ConfidenceReport-jllocal
-   #     "RequirementsPM-jllocal"      # This one matches existing usage
-   # ]
-    # Get scope and sub_scope from environment variable
-    internal_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
-    if not internal_schema:
-        raise Exception("GENESIS_INTERNAL_DB_SCHEMA environment variable not set")
+    with genesis_api_client as client:
 
-    scope, sub_scope = internal_schema.split(".")
-
-    with GenesisAPI(server_proxy=server_proxy) as client:
-
-        # if you want to see what bots are already on the server
-        #bots = client.get_all_bots()
-        #print("Existing local bots: ",bots)
+        global eve_bot_id
+        if args.genesis_db == 'GENESIS_BOTS_ALPHA':
+            eve_bot_id = 'Eve-nEwEve1'
+        else:
+            eve_bot_id = 'Eve'
 
         # LOAD AND ACTIVATE BOTS FROM YAML FILES
-        # adds or updates bots defined in YAML to metadata and activates the listed bots
 
         pm_bot_id = 'requirementsPM-GXS'
         source_research_bot_id = 'sourceResearchBot-GXS'
@@ -747,19 +675,23 @@ def main():
         confidence_analyst_bot_id = 'confidenceAnalystBot-GXS'
 
         bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
-        load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+
+        load_bots = False
+        if load_bots:
+            load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+        else:
+            print("Skipping bot loading, using existing bots")
 
         # MAIN WORKFLOW
         try:
 
             run_number = 30;
-            table_name = "genesis_gxs.requirements.flexicard_pm_jl_set2"  # Changed from genesis_gxs.requirements.flexicard_pm
-            focus_field = 'EXPOSURE_END_DATE';
-        # focus_field = None
+            table_name = "genesis_gxs.requirements.flexicard_pm_jl"  
+            focus_field = 'CUSTOMER_ID';
+            #focus_field = None
             skip_confidence = True
 
             # Reset the requirements table before starting
-            cursor = conn.cursor()
             reset_sql = f"""
                 update {table_name}
                 set upstream_table = null,
@@ -786,25 +718,18 @@ def main():
 
         #focus_field = None
             if focus_field:
-                cursor.execute(reset_sql)
+                run_snowflake_query(client, reset_sql, eve_bot_id)
 
             # get the work to do
-            cursor = conn.cursor()
+           #cursor = conn.cursor()
             if focus_field:
                 query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
-                cursor.execute(query)
+                results = run_snowflake_query(client, query, eve_bot_id)
             else:
-                cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
-            results = cursor.fetchall()
-            columns = [col[0] for col in cursor.description]
+                query = f"SELECT * FROM {table_name} WHERE status = 'NEW'"
+                results = run_snowflake_query(client, query, eve_bot_id)
 
-            # Convert results to array of JSON objects
-            requirements = []
-            for row in results:
-                requirement = {}
-                for i, value in enumerate(row):
-                    requirement[columns[i]] = value
-                requirements.append(requirement)
+            requirements = results
 
             print("Found", len(requirements), "requirements with NEW status:")
 
@@ -833,16 +758,6 @@ def main():
                     print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
                     paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db)
-
-
-                    # test source
-
-            #      # Test source research first
-            #      source_research_result = test_source_research(client, filtered_requirement, paths, 'sourceResearchBot-jllocal')
-            #      if not source_research_result:
-            #          print("\033[91mSource research test failed\033[0m")
-            #          continue
-
 
                     source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
 

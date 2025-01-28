@@ -41,7 +41,7 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
 
 
 @gc_tool(
-    action="",
+    action="Send email",
     to_addr_list="A list of recipient email addresses.",
     subject="The subject of the email.",
     body="The body content of the email. When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
@@ -62,8 +62,8 @@ def send_email(
     thread_id: str = None,
     purpose: str = None,
     mime_type: str = "text/html",
-    include_genesis_logo: bool = True,
-    save_as_artifact: bool = True,
+    include_genesis_logo: bool = False,
+    save_as_artifact: bool = False,
 ):
     """
     Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.
@@ -83,6 +83,7 @@ def send_email(
     Returns:
         dict: Result of the email sending operation.
     """
+    print(f"Entering send_email with bot_id={bot_id}\nthread_id={thread_id}\naction = {action}\nto_addr_list={to_addr_list}\nsubject={subject}\nbody={body}\npurpose={purpose}\nmime_type={mime_type}\ninclude_genesis_logo={include_genesis_logo}\nsave_as_artifact={save_as_artifact}")
     art_store = get_artifacts_store(db_adapter)  # used by helper functions below
 
     def _sanity_check_body(txt):
@@ -276,7 +277,7 @@ def send_email(
                     to_addr_list = parsed_list
                 else:
                     raise ValueError(
-                        "Failed to extract valid email addesses from the provided address list string ."
+                        "Failed to extract valid email addresses from the provided address list string ."
                     )
             else:
                 # If it's not in list format, split by comma
@@ -432,6 +433,7 @@ def send_email(
 
     # Execute the query using the database adapter's run_query method
     query_result = db_adapter.run_query(query, thread_id=thread_id, bot_id=bot_id)
+    query_result = query_result[0] if query_result else {}
 
     if isinstance(query_result, collections.abc.Mapping) and not query_result.get(
         "Success"

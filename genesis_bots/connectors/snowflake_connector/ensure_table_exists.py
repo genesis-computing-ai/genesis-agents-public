@@ -1105,7 +1105,6 @@ def ensure_table_exists(self):
             logger.info(f"Inserted initial Janice row into {self.bot_servicing_table_name} with runner_id: {runner_id}"
             )
 
-
     # NGROK_TOKENS
     # -------------------
     try:
@@ -1169,6 +1168,7 @@ def ensure_table_exists(self):
             """
             for tool_name, tool_description in tools_data:
                 cursor.execute(insert_tools_query, (tool_name, tool_description))
+                print(f"Inserting {tool_name} ({tool_description}) to available tools ")
             self.client.commit()
             logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
         else:
@@ -1630,8 +1630,6 @@ def ensure_table_exists(self):
     af = get_artifacts_store(self)
     af.setup_db_objects(replace_if_exists=False)
 
-
-
     # run python code stored procedure
     proc_name = 'execute_snowpark_code'
     stored_proc_ddl =   f"""CREATE OR REPLACE PROCEDURE {self.schema}.{proc_name}( code STRING )
@@ -1687,7 +1685,6 @@ $$
         logger.info(f"Stored procedure {self.schema}.execute_snowpark_code created.")
     except Exception as e:
         logger.error(f"An error occurred while creating stored procedure {self.schema}.execute_snowpark_code: {e}")
-
 
 
 def get_processes_list(self, bot_id="all"):

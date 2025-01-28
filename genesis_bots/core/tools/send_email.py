@@ -13,7 +13,6 @@ from bs4 import BeautifulSoup
 import collections.abc
 
 from textwrap import dedent
-import re
 import os
 
 from genesis_bots.core.bot_os_tools2 import (
@@ -262,50 +261,48 @@ def send_email(
         )
 
     # Check if to_addr_list is a string representation of a list
+    addresses = []  # Create a new list to store addresses
     if isinstance(to_addr_list, str):
         try:
             # Attempt to parse the string as a Python list
             if to_addr_list.startswith("[") and to_addr_list.endswith("]"):
                 # Remove brackets and split by comma
                 content = to_addr_list[1:-1]
-                parsed_list = [
+                addresses = [
                     addr.strip().strip("'\"")
                     for addr in content.split(",")
                     if addr.strip()
                 ]
-                if parsed_list:
-                    to_addr_list = parsed_list
-                else:
+                if not addresses:
                     raise ValueError(
                         "Failed to extract valid email addresses from the provided address list string ."
                     )
             else:
                 # If it's not in list format, split by comma
-                to_addr_list = [
+                addresses = [
                     addr.strip() for addr in to_addr_list.split(",") if addr.strip()
                 ]
         except Exception:
             # If parsing fails, split by comma
-            to_addr_list = [addr.strip() for addr in to_addr_list.split(",")]
-
-    # Ensure to_addr_list is a list
-    if not isinstance(to_addr_list, list):
-        to_addr_list = [to_addr_list]
+            addresses = [addr.strip() for addr in to_addr_list.split(",")]
+    else:
+        # If it's already a list-like object, convert to list
+        addresses = list(to_addr_list)
 
     # Remove any empty strings and strip quotes from each address
-    to_addr_list = [addr.strip("'\"") for addr in to_addr_list if addr]
+    addresses = [addr.strip("'\"") for addr in addresses if addr]
 
-    if not to_addr_list:
+    if not addresses:
         return {"Success": False, "Error": "No valid email addresses provided."}
 
     # Replace SYS$DEFAULT_EMAIL with the actual system default email
-    to_addr_list = [
+    addresses = [
         get_sys_email() if addr == "SYS$DEFAULT_EMAIL" else addr
-        for addr in to_addr_list
+        for addr in addresses
     ]
 
     # Join the email addresses with commas
-    to_addr_string = ", ".join(to_addr_list)
+    to_addr_string = ", ".join(addresses)
 
     # Build an 'origin line' to make it clear where this message is coming from. Prepend to body below
     # NOTE: conisder making this a footer?

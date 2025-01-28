@@ -192,7 +192,7 @@ class ToolFuncParamDescriptor:
             # Add handling for 'Any' type
             if python_type.lower() == 'any':
                 return {'type': 'object'}
-            
+
             # Handle generic types in string form like 'list[str]'
             if '[' in python_type and ']' in python_type:
                 base_type = python_type.split('[')[0].strip().lower()
@@ -337,14 +337,14 @@ class ToolFuncDescriptor:
         # validate the group list
         if groups is None or not groups: # we never allow an empty group list
             groups = [ORPHAN_TOOL_FUNCS_GROUP]
-        groups = list(groups)
+        groups = tupleize(groups)
         if not all(isinstance(gr, ToolFuncGroup) for gr in groups):
             raise ValueError("All group_tags must be instances of ToolFuncGroupTag")
 
         lifetimes = {group.lifetime for group in groups}
         if len(lifetimes) > 1:
             raise ValueError(f"All groups for function {name} must have the same lifetime type. Found lifetimes: {lifetimes}")
-        self._groups = list(groups)
+        self._groups = groups
 
     @property
     def name(self) -> str:

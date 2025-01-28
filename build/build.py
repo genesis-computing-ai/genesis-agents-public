@@ -66,17 +66,26 @@ def build_package(build_dir):
             # Set environment variable to disable multiprocessing in Cython
             os.environ['CYTHON_PARALLEL'] = '0'
             subprocess.run(['python', 'compile_setup.py', 'build_ext', '--inplace'], check=True)
+            
+            # Add debug output to check files before cleanup
+            print("\nFiles before cleanup:")
+            subprocess.run(['ls', '-R', 'genesis_bots/connectors'], check=True)
+            
+            # Run cleanup BEFORE building wheel
+            print("\nCleaning up compiled files...")
+            print(f"Current working directory: {os.getcwd()}")
+            cleanup_result = subprocess.run(['python', 'cleanup.py'], capture_output=True, text=True)
+            print("Cleanup stdout:", cleanup_result.stdout)
+            print("Cleanup stderr:", cleanup_result.stderr)
+            
+            # Add debug output to check files after cleanup
+            print("\nFiles after cleanup:")
+            subprocess.run(['ls', '-R', 'genesis_bots/connectors'], check=True)
         else:
             print("\nSkipping Cython compilation...")
         
         print("\nBuilding wheel...")
         subprocess.run(['python', 'setup.py', 'bdist_wheel'], check=True)
-        
-        if COMPILE_CYTHON:
-            print("\nCleaning up compiled files...")
-            subprocess.run(['python', 'cleanup.py'], check=True)
-        else:
-            print("\nSkipping cleanup of Python source files...")
         
         # Move the wheel file to build/dist directory
         wheel_dir = os.path.join('dist')

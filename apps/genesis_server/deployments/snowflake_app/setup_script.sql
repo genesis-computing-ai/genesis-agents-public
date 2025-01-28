@@ -369,7 +369,7 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
           RETURN '{
             "type": "CONFIGURATION",
             "payload":{
-              "host_ports":["accounts.google.com","oauth2.googleapis.com","www.googleapis.com","googleapis.com"],
+              "host_ports":["accounts.google.com","oauth2.googleapis.com","www.googleapis.com","googleapis.com","sheets.googleapis.com"],
               "allowed_secrets": "NONE"}}';
         WHEN 'JIRA_EXTERNAL_ACCESS' THEN
           SELECT VALUE || '.atlassian.net' INTO jira_ep

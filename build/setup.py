@@ -122,8 +122,5 @@ setup(
     zip_safe=False,
     include_package_data=True,
     cmdclass={'bdist_wheel': bdist_wheel},
-    install_requires=required,
-    extras_require={
-        'pkg': ['ngrok']  # Optional dependency
-    },
+    install_requires=required + ['ngrok'],
 ) 

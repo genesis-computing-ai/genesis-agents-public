@@ -1,7 +1,7 @@
 import json
 import sys
 sys.path.append(".")
-from genesis_bots.core.logging_config import logger
+# from genesis_bots.core.logging_config import logger
 
 import streamlit as st
 from utils import (
@@ -122,7 +122,7 @@ def config_g_sheets():
                     key_pairs["shared_folder_id"] = shared_folder_id
             try:
                 key_pairs_str = json.dumps(key_pairs)
-                logger.info(f"Google API params: {key_pairs_str}")
+                # logger.info(f"Google API params: {key_pairs_str}")
                 google_api_config_result = set_metadata(f"api_config_params g-sheets {key_pairs_str}")
                 if isinstance(google_api_config_result, list) and len(google_api_config_result) > 0:
                     if 'Success' in google_api_config_result[0] and google_api_config_result[0]['Success']==True:

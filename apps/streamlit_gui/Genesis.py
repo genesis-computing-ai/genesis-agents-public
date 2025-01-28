@@ -87,10 +87,10 @@ def is_running_from_package():
         return True
     except ImportError:  # For Python < 3.8
         try:
-            import pkg_resources
-            pkg_resources.get_distribution('genesis_bots')
+            from importlib.metadata import distribution
+            distribution('genesis_bots')
             return True
-        except pkg_resources.DistributionNotFound:
+        except Exception:
             return False
     except Exception:  # catches PackageNotFoundError from importlib.metadata
         return False
@@ -399,10 +399,14 @@ if st.session_state.data:
         render_image("Genesis-Computing-Logo-White.png", width=250)
     else:
         if is_running_from_package():
-            # When running from package, use pkg_resources to get the correct path
-            import pkg_resources
-            image_path = pkg_resources.resource_filename('apps.streamlit_gui', 'Genesis-Computing-Logo-White.png')
-            st.sidebar.image(image_path, width=250)
+            from importlib import resources
+            try:
+                with resources.files('apps.streamlit_gui').joinpath('Genesis-Computing-Logo-White.png') as image_path:
+                    st.sidebar.image(str(image_path), width=250)
+            except Exception:
+                # Fallback for older Python versions
+                with resources.path('apps.streamlit_gui', 'Genesis-Computing-Logo-White.png') as image_path:
+                    st.sidebar.image(str(image_path), width=250)
         else:
             # Direct development path
             st.sidebar.image("./apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)

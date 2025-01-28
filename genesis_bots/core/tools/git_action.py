@@ -170,7 +170,7 @@ def git_action(
     params = {k: v for k, v in params.items() if v is not None}
     return git_manager.git_action(action, **params)
 
-git_action_functions = (git_action,)
+git_action_functions = [git_action]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_git_action_functions():

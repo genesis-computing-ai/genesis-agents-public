@@ -220,10 +220,10 @@ def get_dagster_asset_lineage_graph():
 
 # holds the list of all dagster tool functions
 # NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module?)
-_all_dagster_tool_functions = (get_dagster_run_status,
+_all_dagster_tool_functions = [get_dagster_run_status,
                                get_dagster_run_debug_dump,
                                get_dagster_asset_definition_and_overview,
-                               get_dagster_asset_lineage_graph)
+                               get_dagster_asset_lineage_graph]
 
 
 # Called from bot_os_tools.py to update the global list of dagster tool functions

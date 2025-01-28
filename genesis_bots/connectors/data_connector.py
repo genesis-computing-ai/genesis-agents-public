@@ -1260,7 +1260,7 @@ def _get_full_table_details(
 
 # holds the list of all data connection tool functions
 # NOTE: Update this list when adding new data connection tools (TODO: automate this by scanning the module?)
-_all_data_connections_functions = (
+_all_data_connections_functions = [
     _query_database,
     _add_database_connection,
     _delete_database_connection,
@@ -1268,7 +1268,7 @@ _all_data_connections_functions = (
     _search_metadata,
     _data_explorer,
     _get_full_table_details,
-)
+]
 
 
 # Called from bot_os_tools.py to update the global list of data connection tool functions

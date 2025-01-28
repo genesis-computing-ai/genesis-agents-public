@@ -335,9 +335,7 @@ def _delegate_work(
         }
 
 
-delegate_work_functions = (
-    _delegate_work,
-)
+delegate_work_functions = [_delegate_work]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_delegate_work_functions():

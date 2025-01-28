@@ -189,6 +189,10 @@ class ToolFuncParamDescriptor:
 
         # Handle case where type might be passed as string
         if isinstance(python_type, str):
+            # Add handling for 'Any' type
+            if python_type.lower() == 'any':
+                return {'type': 'object'}
+            
             # Handle generic types in string form like 'list[str]'
             if '[' in python_type and ']' in python_type:
                 base_type = python_type.split('[')[0].strip().lower()
@@ -323,7 +327,7 @@ class ToolFuncDescriptor:
                  name: str,
                  description: str,
                  parameters_desc: Iterable[ToolFuncParamDescriptor],
-                 groups: Iterable[ToolFuncGroup] = (ORPHAN_TOOL_FUNCS_GROUP,)):
+                 groups: Iterable[ToolFuncGroup] = [ORPHAN_TOOL_FUNCS_GROUP]):
         self._name = str(name)
         self._description = str(description)
         # validate the parameters_desc list
@@ -332,15 +336,15 @@ class ToolFuncDescriptor:
         self._parameters_desc = tuple(parameters_desc)
         # validate the group list
         if groups is None or not groups: # we never allow an empty group list
-            groups = ORPHAN_TOOL_FUNCS_GROUP
-        groups = tupleize(groups)
+            groups = [ORPHAN_TOOL_FUNCS_GROUP]
+        groups = list(groups)
         if not all(isinstance(gr, ToolFuncGroup) for gr in groups):
             raise ValueError("All group_tags must be instances of ToolFuncGroupTag")
 
         lifetimes = {group.lifetime for group in groups}
         if len(lifetimes) > 1:
             raise ValueError(f"All groups for function {name} must have the same lifetime type. Found lifetimes: {lifetimes}")
-        self._groups = groups
+        self._groups = list(groups)
 
     @property
     def name(self) -> str:
@@ -356,7 +360,7 @@ class ToolFuncDescriptor:
 
     @property
     def groups(self) -> List[ToolFuncGroup]:
-        return self._groups
+        return list(self._groups)
 
     def to_llm_description_dict(self) -> Dict[str, Any]:
         """Generate the object used to describe this function to an LLM."""
@@ -825,7 +829,8 @@ def get_global_tools_registry():
                 try:
                     module_name, func_name = import_location.rsplit('.', 1)
                     module = importlib.import_module(module_name, package="genesis_bots")
-                    func_list = getattr(module, func_name)()
+                    func = getattr(module, func_name)
+                    func_list = list(func())  # Explicitly convert to list
 
                     descs = [get_tool_func_descriptor(func) for func in func_list]
                     added_groups = {group.name for desc in descs for group in desc.groups}

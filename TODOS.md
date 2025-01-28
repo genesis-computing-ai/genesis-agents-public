@@ -2,12 +2,13 @@
 GENESIS BOT TODOS
 =================
 
+waive 20 tool call per thread limit for claude threads
 next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
 email collector / telemetry on local vers
 better way to collect NGROK_TOKEN and reporting when its not set 
 make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
-(aviv) test gxs with completion mode (w/git etc)
+x (aviv) test gxs with completion mode (w/git etc)
 (aviv) make connection, harvest, search metadata, and query database work directly via api 
 (test) harvester on standalone snowflake connection
 (test) harvester on oracle

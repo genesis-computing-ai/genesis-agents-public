@@ -1,55 +1,14 @@
 
 import uuid
-
 import json
-import snowflake.connector
-
 import yaml
-
-
 import argparse
 from   genesis_bots.api         import GenesisAPI, build_server_proxy
 from   genesis_bots.api.utils   import add_default_argparse_options
 import os
 
-#requires these environment variables:
-    #"PYTHONPATH": "${workspaceFolder}",
-    #"OPENAI_API_KEY": "...",
-    #"GENESIS_INTERNAL_DB_SCHEMA": "IGNORED.genesis",
-    #"BOT_OS_DEFAULT_LLM_ENGINE": "openai"
-
-
-"""
-launch.json config example:
-
-        {
-            "name": "Python: MappingBot",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}",
-                "SNOWFLAKE_ACCOUNT_OVERRIDE": "eqb52188",
-                "SNOWFLAKE_USER_OVERRIDE": "your user",
-                "SNOWFLAKE_PASSWORD_OVERRIDE": "your pw",
-                "SNOWFLAKE_DATABASE_OVERRIDE": "GENESIS_TEST",
-                "SNOWFLAKE_WAREHOUSE_OVERRIDE": "XSMALL",
-                "SNOWFLAKE_ROLE_OVERRIDE": "ACCOUNTADMIN",
-            },
-            "justMyCode": true
-},
-"""
-
-
-conn = snowflake.connector.connect(
-    account=os.environ['SNOWFLAKE_ACCOUNT_OVERRIDE'],
-    user=os.environ['SNOWFLAKE_USER_OVERRIDE'],
-    password=os.environ['SNOWFLAKE_PASSWORD_OVERRIDE'],
-    database=os.environ['SNOWFLAKE_DATABASE_OVERRIDE'],
-    warehouse=os.environ['SNOWFLAKE_WAREHOUSE_OVERRIDE'],
-    role=os.environ['SNOWFLAKE_ROLE_OVERRIDE']
-)
+eve_bot_id = 'Eve'
+genesis_api_client = None
 
 def print_file_contents(title, file_path, contents):
     """
@@ -85,9 +44,9 @@ def call_genesis_bot(client, bot_id, request, thread = None):
     except Exception as e:
         raise e
 
-def setup_paths(physical_column_name, run_number = 1):
+def setup_paths(physical_column_name, run_number = 1, genesis_db = 'GENESIS_BOTS'):
     """Setup file paths and names for a given requirement."""
-    stage_base = f"@{os.getenv('GENESIS_INTERNAL_DB_SCHEMA', 'GENESIS_TEST.GENESIS_INTERNAL')}.bot_git/"
+    stage_base = f"@{genesis_db}.APP1.bot_git/"
     base_git_path = f'requirements/run{run_number}/'
 
     return {
@@ -98,7 +57,7 @@ def setup_paths(physical_column_name, run_number = 1):
         'confidence_report_file': f"{physical_column_name}__confidence_report.txt"
     }
 
-def check_git_file(client, paths, file_name):
+def check_git_file(client, paths, file_name, bot_id):
     """
     Check if file exists in local git or stage, copy to stage if needed.
 
@@ -108,47 +67,58 @@ def check_git_file(client, paths, file_name):
     Returns:
         str: Contents of the file if found, False if not found
     """
-    stage_path = f"{paths['stage_base']}{paths['base_git_path']}{file_name}"
     # Get git base path from environment variable, default to ./bot_git
-    git_base = os.getenv("GIT_PATH", "/opt/bot_git")
-    local_git_path = f"{git_base}/{paths['base_git_path']}{file_name}"
 
-    # First check local git
-    try:
-        if os.path.exists(local_git_path):
-            print(f"\033[93mFile found in local git: {local_git_path}\033[0m")
+    res = client.run_genesis_tool(tool_name="git_action", params={"action": "read_file", "file_path": f"{paths['base_git_path']}{file_name}" }, bot_id=bot_id)
 
-            # Read local file
-            with open(local_git_path, 'r') as f:
-                contents = f.read()
-
-            return contents
-        
+    if res and res.get("success", False):
+        return res.get("content", False)
+    else:
         return False
-         
-    except Exception as e:
-        print(f"Error accessing local git file: {str(e)}")
-
-    # If not in local git, check stage
+ 
+def put_git_file(client, local_file, git_file_path, file_name, bot_id):
+    """
+    Read a local file and write its contents to git.
+    
+    Args:
+        client: Genesis API client instance
+        local_file (str): Path to local file to read
+        git_file_path (str): Git directory path to write to
+        file_name (str): Name of file to create in git
+        bot_id (str): Bot ID to use for git operations
+        
+    Returns:
+        bool: True if successful, False if failed
+    """
     try:
-        stage_contents = client.get_file(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
-        # stage_contents = get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
-       # stage_contents = client.get_file_from_stage(f"{paths['stage_base']}{paths['base_git_path']}", file_name)
-
-        if stage_contents and not stage_contents.startswith('Placeholder'):
-            print(f"\033[92mFile found in stage: {stage_path}\033[0m")
-            return stage_contents
+        # Read local file
+        with open(local_file, 'r') as f:
+            content = f.read()
+            
+        # Write to git using git_action
+        res = client.run_genesis_tool(
+            tool_name="git_action",
+            params={
+                "action": "write_file",
+                "file_path": f"{git_file_path}{file_name}",
+                "content": content,
+                "bot_id": bot_id
+            }, bot_id=bot_id
+        )
+        
+        return res.get("success", False)
+        
     except Exception as e:
-        print(f"\033[93mFile not found in stage: {stage_path}\033[0m")
+        print(f"Error putting file to git: {str(e)}")
+        return False
 
-    return False
 
 
 def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = False):
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
-    pm_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
+    pm_prompt = f'''!o1!Here are requirements for a target field I want you to work on: {requirement}\n
     The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n'''
 
     if not skip_confidence:
@@ -243,13 +213,19 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
             'physical_column_name': physical_column_name
         }
 
-        cursor = conn.cursor()
-        cursor.execute(update_query, params)
-        conn.commit()
-        cursor.close()
+        # Flatten params into query string
+        query_with_params = update_query
+        for key, value in params.items():
+            if value is None:
+                query_with_params = query_with_params.replace(f'%({key})s', 'NULL')
+            else:
+                # Escape single quotes in values
+                escaped_value = str(value).replace("'", "''")
+                query_with_params = query_with_params.replace(f'%({key})s', f"'{escaped_value}'")
 
+        run_snowflake_query(genesis_api_client, query_with_params, eve_bot_id)
+    
     except Exception as e:
-        conn.rollback()
         raise Exception(f"Failed to update requirement for column {physical_column_name}: {str(e)}")
 
 
@@ -272,15 +248,14 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
     """
     try:
         # Get the correct answers file
-        git_base = os.getenv("GIT_PATH", "/opt/bot_git")
-        with open(f"{git_base}/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt", "r") as f:
 
+        answers_content = check_git_file(client, {"base_git_path": "knowledge/flexicard_eval_answers/"}, file_name="flexicard_answers_clean2.txt", bot_id=eve_bot_id)
 
         # First get just the correct answer for this field
         message = {
             "requirement": filtered_requirement,
             "correct_answers": answers_content,
-            "instruction": """
+            "instruction": """!o1!
                 You are helping to evaluate a ETL mapping that has been proposed by another AI Bot.
 
                 To help in that evaluation, olease extract ONLY the correct answer for this specific field from the correct_answers field I provdier above (NOT from your uploaded documents.)
@@ -309,7 +284,7 @@ def evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_rese
        #     "confidence_report": confidence_output_content,
       #      "pm_summary": summary,
             "correct_answer": correct_answer,
-            "instruction": """
+            "instruction": """!o1!
                 Please evaluate the mapping proposal results against the correct answer for this field.
 
                 Compare the following aspects:
@@ -482,7 +457,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 
 
 
-        research_prompt = f'''Here are requirements for a target field I want you to work on: {requirement}\n
+        research_prompt = f'''!o1!Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
 
         First explore the available data for fields that may be useful using data_explorer function.
@@ -527,12 +502,12 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         thread = str(uuid.uuid4())
         response = call_genesis_bot(client, bot_id, research_prompt, thread = thread)
 
-        contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
+        contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
 
         if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
             retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git, please try the save again using the _git_action function.'''
             response = call_genesis_bot(client, bot_id, retry_prompt, thread = thread)
-            contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"])
+            contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
             if not contents or contents.startswith('Placeholder '):
                 raise Exception('Source research file not found or contains only placeholder')
 
@@ -547,7 +522,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 #  HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
 
 def perform_mapping_proposal_new(client, requirement, paths, bot_id):
-    """Execute mapping proposal step and validate results."""
+    """!o1!Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
 
     mapping_prompt = f'''Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
@@ -573,12 +548,12 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     thread = str(uuid.uuid4())
     response = call_genesis_bot(client, bot_id, mapping_prompt, thread=thread)
 
-    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
 
     if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
         retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please try the save again using the _git_action function.'''
         response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
-        contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"])
+        contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
         if not contents or contents.startswith('Placeholder '):
             raise Exception('Mapping proposal file not found or contains only placeholder')
 
@@ -607,7 +582,7 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
 
     response = call_genesis_bot(client, bot_id, confidence_prompt)
 
-    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"])
+    contents = check_git_file(client,paths=paths, file_name=paths["confidence_report_file"], bot_id=eve_bot_id)
 
     if not contents or contents.startswith('Placeholder '):
         raise Exception('Confidence report file not found or contains only placeholder')
@@ -619,61 +594,6 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
 
 
 
-def reanalyze_with_o1():
-    # Execute query
-    cursor = conn.cursor()
-    cursor.execute("""
-        select message_type, message_metadata, message_payload
-        from genesis_test.genesis_jl.message_log
-        where thread_id = 'thread_tglskW7NIqZbGyRrOvLQlOK7'
-        order by timestamp
-    """)
-
-    # Fetch all rows into an array
-    results = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    # Initialize OpenAI client
-    from openai import OpenAI
-
-    # Initialize OpenAI client with API key
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    # Process results through OpenAI for refined understanding
-    try:
-        # Format the prompt for OpenAI
-        prompt = "Please analyze this source research data and produce a new, detailed, and refined understanding:\n"
-        for result in results:
-            message_type, metadata, payload = result
-            prompt += f"""
-            Message Type: {message_type}
-            Metadata: {metadata}
-            Payload: {payload}
-            """
-        prompt += "Output a source research report with a new, detailed, and refined understanding:"
-
-        # Call OpenAI API with the new interface
-        response = client.chat.completions.create(
-            model="o1-preview",  # or another model that supports chat completions
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        )
-        refined_output = response.choices[0].message.content.strip()
-        refined_results = [refined_output]
-    except Exception as e:
-        print(f"Error processing through OpenAI: {str(e)}")
-        refined_results = []
-
-    # Print refined results
-    print("\nRefined Source Research Understanding:")
-    for result in refined_results:
-        print(f"\n{result}")
-
-
-
 def parse_arguments():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="A simple CLI chat interface to Genesis bots")
@@ -681,69 +601,104 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def run_snowflake_query(client, query, bot_id=None):
+    """
+    Run a Snowflake query using the Genesis tool API.
+    
+    Args:
+        client: Genesis API client instance
+        query: SQL query string to execute
+        bot_id: Bot ID to use for the query (defaults to eve_bot_id if not specified)
+    
+    Returns:
+        Query results from Snowflake
+    """
+    if bot_id is None:
+        bot_id = eve_bot_id
+        
+    res = client.run_genesis_tool(
+        tool_name="query_database", 
+        params={
+            "query": query,
+            "connection_id": "Snowflake",
+            "bot_id": bot_id
+        }, 
+        bot_id=bot_id
+    )
+    
+    return res
+
+def push_knowledge_files_to_git(client, bot_id):
+    """
+    Push knowledge base files to git repository.
+    
+    Args:
+        client: Genesis API client instance
+        bot_id: Bot ID to use for git operations
+    """
+    files_to_push = {
+        "./customer_demos/gxs/knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt": 
+            "knowledge/flexicard_eval_answers/flexicard_answers_clean2.txt",
+        "./customer_demos/gxs/knowledge/past_projects/loan_data_project_clean2.txt":
+            "knowledge/past_projects/loan_data_project_clean2.txt",
+        "./customer_demos/gxs/knowledge/past_projects/loan_lending_project_clean2.txt":
+            "knowledge/past_projects/loan_lending_project_clean2.txt"
+    }
+
+    for local_path, git_path in files_to_push.items():
+        put_git_file(
+            client=client,
+            local_file=local_path,
+            git_file_path=os.path.dirname(git_path) + "/",
+            file_name=os.path.basename(git_path),
+            bot_id=bot_id
+        )
+
 def main():
     """Main execution flow.
-        # todo - startup speed with local bot definitions
-        # todo - test startup with fresh bots not in metadata yet
-        x # todo - turn the o1 loop into a post review - second guesser - have it form its own mapping proposals based on review of the lower bot's chats
-
-        # deploy new fast load to dev to check it
-
-        # regroup ideas
-            # have it auto-save to g-sheet with Jeff's thing
-
-    TODO: make it work on remote snow, put answers etc on remote snow and document how to do that 
-    TODO: have it set up the git structure and load in the files from demo directory to that git 
-
-    [connections.GENESIS_DEV_CONSUMER_API]
-    [connections.GENESIS_ALPHA_CONSUMER_API]
     """
     args = parse_arguments()
-    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args)
 
+    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args, args.genesis_db)
 
-    local_bots = []   # start these already-present-on-serber bots if they exist (if you're not loading/refreshing from YAMLS below)
-   # local_bots = [
-   #     "sourceResearchBot-jllocal",  # Changed from SourceResearch-jllocal
-   #     "mappingProposerBot-jllocal", # Changed from MappingProposal-jllocal
-   #     "confidenceanalyst-jllocal",  # Changed from ConfidenceReport-jllocal
-   #     "RequirementsPM-jllocal"      # This one matches existing usage
-   # ]
-    # Get scope and sub_scope from environment variable
-    internal_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
-    if not internal_schema:
-        raise Exception("GENESIS_INTERNAL_DB_SCHEMA environment variable not set")
+    global genesis_api_client
+    genesis_api_client = GenesisAPI(server_proxy=server_proxy)
 
-    scope, sub_scope = internal_schema.split(".")
+    with genesis_api_client as client:
 
-    with GenesisAPI(server_proxy=server_proxy) as client:
+        global eve_bot_id
+        if args.genesis_db == 'GENESIS_BOTS_ALPHA':
+            eve_bot_id = 'Eve-nEwEve1'
+        else:
+            eve_bot_id = 'Eve'
 
-        # if you want to see what bots are already on the server
-        #bots = client.get_all_bots()
-        #print("Existing local bots: ",bots)
+        # Push project files to git
+        push_knowledge_files_to_git(client, eve_bot_id)
 
         # LOAD AND ACTIVATE BOTS FROM YAML FILES
-        # adds or updates bots defined in YAML to metadata and activates the listed bots
-
-        pm_bot_id = 'RequirementsPM-jllocal'
-        source_research_bot_id = 'sourceResearchBot-jllocal'
-        mapping_proposer_bot_id = 'mappingProposerBot-jllocal'
-        confidence_analyst_bot_id = 'confidenceanalyst-jllocal'
+        pm_bot_id = 'requirementsPM-GXS'
+        source_research_bot_id = 'sourceResearchBot-GXS'
+        mapping_proposer_bot_id = 'mappingProposerBot-GXS'
+        confidence_analyst_bot_id = 'confidenceAnalystBot-GXS'
 
         bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
-        load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+
+        load_bots = True
+        if load_bots:
+            load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
+        else:
+            print("Skipping bot loading, using existing bots")
 
         # MAIN WORKFLOW
         try:
 
-            run_number = 22;
-            table_name = "genesis_gxs.requirements.flexicard_pm_jl_set2"  # Changed from genesis_gxs.requirements.flexicard_pm
-            focus_field = 'EXPOSURE_END_DATE';
-        # focus_field = None
+            run_number = 31;
+            table_name = "genesis_gxs.requirements.flexicard_pm_jl"  
+            focus_field = 'CUSTOMER_ID';
+            #focus_field = None
             skip_confidence = True
 
             # Reset the requirements table before starting
-            cursor = conn.cursor()
             reset_sql = f"""
                 update {table_name}
                 set upstream_table = null,
@@ -768,27 +723,17 @@ def main():
                 ;
             """
 
-        #focus_field = None
             if focus_field:
-                cursor.execute(reset_sql)
+                run_snowflake_query(client, reset_sql, eve_bot_id)
 
-            # get the work to do
-            cursor = conn.cursor()
             if focus_field:
                 query = f'''SELECT * FROM {table_name} WHERE physical_column_name = '{focus_field}' '''
-                cursor.execute(query)
+                results = run_snowflake_query(client, query, eve_bot_id)
             else:
-                cursor.execute(f"SELECT * FROM {table_name} WHERE status = 'NEW'")
-            results = cursor.fetchall()
-            columns = [col[0] for col in cursor.description]
+                query = f"SELECT * FROM {table_name} WHERE status = 'NEW'"
+                results = run_snowflake_query(client, query, eve_bot_id)
 
-            # Convert results to array of JSON objects
-            requirements = []
-            for row in results:
-                requirement = {}
-                for i, value in enumerate(row):
-                    requirement[columns[i]] = value
-                requirements.append(requirement)
+            requirements = results
 
             print("Found", len(requirements), "requirements with NEW status:")
 
@@ -803,6 +748,7 @@ def main():
                     'STATUS': 'NEW'
                 }]
             # loop over the work to do
+
             for requirement in requirements:
 
                 try:
@@ -816,44 +762,24 @@ def main():
                     }
                     print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
-                    paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number)
-
-
-                    # test source
-
-            #      # Test source research first
-            #      source_research_result = test_source_research(client, filtered_requirement, paths, 'sourceResearchBot-jllocal')
-            #      if not source_research_result:
-            #          print("\033[91mSource research test failed\033[0m")
-            #          continue
-
+                    paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db)
 
                     source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
-
+                    
                     mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
-
+                    
                     if not skip_confidence:
                         confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
 
                     summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
 
+                
                     # Get the full content of each file from git
-                    source_research_content = client.get_file_contents(
-                        f"{paths['stage_base']}{paths['base_git_path']}",
-                        paths["source_research_file"]
-                    )
-                    mapping_proposal_content = client.get_file_contents(
-                        f"{paths['stage_base']}{paths['base_git_path']}",
-                        paths["mapping_proposal_file"]
-                    )
-                #    confidence_output_content = client.get_file_contents(
-                #        f"{paths['stage_base']}{paths['base_git_path']}",
-                #        paths["confidence_report_file"]
-                #    )
+                    source_research_content = source_research
+                    mapping_proposal_content = mapping_proposal
                     confidence_output_content = 'bypassed by jl comment'
                     # Evaluate results
                     evaluation, eval_json  = evaluate_results(client, paths, filtered_requirement, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output_content, summary)
-                #  print("\033[34mEvaluation results:", evaluation, "\033[0m")
 
                     # Prepare fields for database update
                     db_fields = {
@@ -918,10 +844,8 @@ def main():
                     )
                     print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
 
-                #raise e
         except Exception as e:
                 raise e
-
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,8 @@
 from   flask                    import Flask
 from   genesis_bots.api.genesis_base \
-                                import (RequestHandle, _ALL_BOTS_,
-                                        get_tool_func_descriptor,
-                                        is_bot_client_tool, GenesisBotConfig)
+                                import (GenesisBotConfig, RequestHandle,
+                                        _ALL_BOTS_, get_tool_func_descriptor,
+                                        is_bot_client_tool)
 from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 from   genesis_bots.demo.app.genesis_app \
@@ -13,12 +13,15 @@ import requests
 from   requests                 import Response
 
 from   abc                      import ABC, abstractmethod
+import collections
 import socket
 import sqlalchemy as sqla
 import threading
 import time
 from   typing                   import Any, Dict
 import uuid
+
+DEFAULT_GENESIS_DB = "GENESIS_BOTS"
 
 class GenesisServerProxyBase(ABC):
     """
@@ -161,6 +164,18 @@ class GenesisServerProxyBase(ABC):
                 raise ValueError(f"Internal error:Unrecognized action message: {action_msg}")
 
         return msg
+
+
+    def run_genesis_tool(self, tool_name, params, bot_id) -> dict:
+        if not isinstance(params, (dict, collections.abc.Mapping)):
+            raise ValueError("params must be a dictionary/mapping")
+        data = json.dumps(dict(bot_id=bot_id, tool_name=tool_name, params=params))
+        response = self._send_REST_request("post", "/realtime/genesis_tool", data)
+        raw_response = response.json()
+        if raw_response.get("success", False):
+            return raw_response.get("results", {})
+        else:
+            raise RuntimeError(f"Failed to run Genesis tool {tool_name} for bot {bot_id}: {raw_response.get('message', 'Unknown error')}")
 
 
     def _invoke_client_tool(self, tool_name:str, kwargs):
@@ -376,9 +391,11 @@ class SPCSServerProxy(GenesisServerProxyBase):
     SPCSServerProxy is a concrete subclass of GenesisServerProxyBase that connects to the Genesis server
     running as a Snowflake native app (SPCS).
     """
+
     def __init__(self,
                  connection_url: str, # a SQLAlchemy connection string
-                 connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine
+                 connect_args: Dict[str, str] = None, # optional connection arguments passed to SQLAlchemy create_engine,
+                 genesis_db: str = DEFAULT_GENESIS_DB,
                  ):
 
         super().__init__()
@@ -389,7 +406,7 @@ class SPCSServerProxy(GenesisServerProxyBase):
             raise ValueError(f"Invalid SQLAlchemy connection string: {str(e)}")
 
         self._engine = None
-        self._genesis_db = "GENESIS_BOTS"
+        self._genesis_db = genesis_db
         self._genesis_schema = "APP1"
         self._connect_args = connect_args or {}
 
@@ -536,7 +553,7 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
     return pkb
 
 
-def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None) -> GenesisServerProxyBase:
+def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None, genesis_db: str = DEFAULT_GENESIS_DB) -> GenesisServerProxyBase:
     """
     Build a server proxy based on the provided server URL and optional Snowflake connection arguments.
 
@@ -574,6 +591,6 @@ def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None) ->
             if private_key_file:
                 pkb = _load_snowflake_private_key(private_key_file)
                 snowflake_conn_args["private_key"] = pkb
-        return SPCSServerProxy(connection_url=server_url, connect_args=snowflake_conn_args)
+        return SPCSServerProxy(connection_url=server_url, connect_args=snowflake_conn_args, genesis_db=genesis_db)
     else:
         return RESTGenesisServerProxy(server_url=server_url)

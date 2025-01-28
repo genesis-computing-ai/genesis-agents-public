@@ -250,7 +250,7 @@ def google_drive(
     return {"Success": False, "Error": "Invalid action specified."}
 
 
-google_drive_functions = (google_drive,)
+google_drive_functions = [google_drive]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_google_drive_tool_functions():

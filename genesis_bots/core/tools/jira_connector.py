@@ -647,7 +647,7 @@ def jira_connector(
         thread_id=thread_id
     )
 
-jira_connector_functions = (jira_connector,)
+jira_connector_functions = [jira_connector]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_jira_connector_functions():

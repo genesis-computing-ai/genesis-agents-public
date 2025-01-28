@@ -453,7 +453,7 @@ def send_email(
     assert result
     return result
 
-_send_email_functions = (send_email,)
+_send_email_functions = [send_email]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_send_email_functions():

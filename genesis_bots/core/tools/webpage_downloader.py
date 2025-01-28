@@ -140,7 +140,7 @@ def _parse_and_chunk_content(content, base_url, chunk_size=256 * 1024):
 
     return chunks, len(chunks)  # Return chunks and total number of chunks
 
-webpage_downloader_functions = (download_webpage,)
+webpage_downloader_functions = [download_webpage]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_webpage_downloader_functions():

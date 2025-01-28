@@ -5248,14 +5248,14 @@ def _run_snowpark_python(
         thread_id=thread_id
     )
 
-_all_snowflake_connector_functions = (
+_all_snowflake_connector_functions = [
     _list_stage_contents,
     _add_file_to_stage,
     _delete_file_from_stage,
     _read_file_from_stage,
     _cortex_search,
-    _run_snowpark_python,
-)
+    _run_snowpark_python,]
+
 
 
 # Called from bot_os_tools.py to update the global list of data connection tool functions

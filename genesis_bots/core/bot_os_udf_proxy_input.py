@@ -393,7 +393,9 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         #     ...
         #   ]}
 
-        output_rows = [[row[0], self.submit(*row[1:])] for row in input_rows]
+        output_rows = [[row[0], self.submit(row[1], row[2], row[3], 
+                       {} if isinstance(row[4], str) else row[4] if len(row) > 4 else None)] 
+                       for row in input_rows]
 
         response = make_response({"data": output_rows})
         response.headers['Content-type'] = 'application/json'

@@ -1,21 +1,33 @@
 import os
 import shutil
 import subprocess
-from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION, PUBLIC_API_FILES
+from build_config import IGNORE_DIRS, IGNORE_FILES, PUBLIC_API_FILES
 from multiprocessing import freeze_support
 import platform
+import argparse
 
 # Check environment variable for Cython compilation
 COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
 
-def create_build_directory():
+def setup_build_environment():
+    """Ensure build environment has all necessary dependencies."""
+    print("Setting up build environment...")
+    subprocess.run(['pip', 'install', '--upgrade', 'pip'], check=True)
+    subprocess.run(['pip', 'install', 'setuptools>=40.8.0'], check=True)
+    subprocess.run(['pip', 'install', 'wheel>=0.37.0'], check=True)
+    subprocess.run(['pip', 'install', 'Cython'], check=True)
+    subprocess.run(['pip', 'install', 'numpy>=1.7.0'], check=True)
+    subprocess.run(['pip', 'install', 'cmake>=3.1.0'], check=True)
+    subprocess.run(['pip', 'install', 'annoy'], check=True)
+
+def create_build_directory(version):
     """Create a clean build directory with copied source files."""
     # Create dist directory if it doesn't exist
     dist_dir = os.path.join('build', 'dist')
     os.makedirs(dist_dir, exist_ok=True)
     
     # Create a new build directory name with version
-    build_dir = os.path.join(dist_dir, f"genesis_bots_build_{VERSION}")
+    build_dir = os.path.join(dist_dir, f"genesis_bots_build_{version}")
     
     # Remove the build directory if it exists
     if os.path.exists(build_dir):
@@ -51,7 +63,19 @@ def create_build_directory():
     # Copy build files
     build_files = ['build_config.py', 'compile_setup.py', 'setup.py', 'cleanup.py']
     for file in build_files:
-        shutil.copy2(os.path.join('build', file), os.path.join(build_dir, file))
+        if file == 'build_config.py':
+            # Read the original file
+            with open(os.path.join('build', file), 'r') as f:
+                content = f.read()
+            # Add VERSION to the file
+            with open(os.path.join(build_dir, file), 'w') as f:
+                f.write(f'VERSION = "{version}"\n')
+                f.write(content)
+        else:
+            shutil.copy2(os.path.join('build', file), os.path.join(build_dir, file))
+    
+    # Copy pyproject.toml
+    shutil.copy2('pyproject.toml', os.path.join(build_dir, 'pyproject.toml'))
     
     return build_dir
 
@@ -59,6 +83,9 @@ def build_package(build_dir):
     """Run the build process in the specified directory."""
     original_dir = os.getcwd()
     try:
+        # Setup build environment first
+        setup_build_environment()
+        
         os.chdir(build_dir)
         
         if COMPILE_CYTHON:
@@ -131,9 +158,13 @@ def build_package(build_dir):
         os.chdir(original_dir)
 
 def main():
+    parser = argparse.ArgumentParser(description='Build the Genesis Bots package')
+    parser.add_argument('--version', required=True, help='Version number for the build')
+    args = parser.parse_args()
+
     print("Starting build process...")
     print(f"Cython compilation {'enabled' if COMPILE_CYTHON else 'disabled'}")
-    build_dir = create_build_directory()
+    build_dir = create_build_directory(args.version)
     build_package(build_dir)
     
     print("\nBuild process complete!")

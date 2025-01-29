@@ -28,5 +28,3 @@ IGNORE_DIRS = {
 IGNORE_FILES = {
     'genesis_bots/teams/app.py',
 }
-
-VERSION = "1.0.11" 

@@ -1,0 +1,109 @@
+[build-system]
+requires = [
+    # Basic build tools
+    "pip>=22.0", 
+    "setuptools>=40.8.0",
+    "wheel>=0.37.0",
+    
+    # Core dependencies
+    "numpy>=1.7.0,<3.0.0",  # Keep this for other C extensions
+    "Cython"                # Keep this for other C extensions
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genesis_bots"
+dynamic = ["version"]
+description = "Genesis Bots Package"
+requires-python = ">=3.8,<3.12"
+dependencies = [
+    # From requirements.txt
+    "annoy",
+    "APscheduler",
+    "bs4",
+    "db-dtypes",
+    "dill",
+    "google-api-python-client",
+    "google-auth-httplib2",
+    "google-auth-oauthlib",
+    "werkzeug>=3.0.6",
+    "flask==3.0.3",
+    "google-cloud-bigquery",
+    "mistralai",
+    "openai",
+    "pandas==2.2.2",
+    "pyarrow==17.0.0",
+    "pytest",
+    "pyyaml==6.0.1",
+    "simplejson==3.19.2",
+    "slack_bolt",
+    "streamlit==1.35.0",
+    "streamlit_autorefresh",
+    "urllib3==1.26.19",
+    "snowflake_connector_python==3.12.3",
+    "reka-api",
+    "google-generativeai",
+    "pdb_attach",
+    "sseclient",
+    "botbuilder-integration-aiohttp>=4.15.0",
+    "selenium==4.24.0",
+    "jira==3.8.0",
+    "gitpython==3.1.43",
+    "anthropic==0.40.0",
+    "boto3==1.35.72",
+    "markdown",
+    "cython",
+    "tenacity",
+    "dagster==1.9.5",
+    "dagster-graphql",
+    "dagster-spark",
+    "dagster-dbt",
+    "wrapt",
+    "dagster-sdf",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "pymysql",
+    "snowflake-sqlalchemy",
+    "spider-client",
+    "openpyxl",
+    # Additional dependencies not in requirements.txt
+    "numpy>=1.7.0",
+    "wheel>=0.37.0",
+    "ngrok"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+install-genesis-resources = "genesis_bots.install_resources:install_resources"
+
+[tool.setuptools]
+packages = ["genesis_bots", "apps"]
+package-dir = {"" = "."}
+
+[tool.setuptools.package-data]
+"genesis_bots" = [
+    "**/*.yaml",
+    "**/*.so",
+    "**/*.py",
+    "**/*.conf",
+    "**/*.json",
+    "default_config/*",
+    "requirements.txt"
+]
+"apps" = [
+    "**/*.yaml",
+    "**/*.so",
+    "**/*.py",
+    "**/*.conf",
+    "**/*.json",
+    "demos/**/*",
+    "streamlit_gui/**/*",
+    "sdk_examples/**/*"
+]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]} 

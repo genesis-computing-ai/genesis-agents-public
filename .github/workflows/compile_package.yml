@@ -1,0 +1,96 @@
+name: Build Cython Package
+
+env:
+  COMPILE_CYTHON: true
+
+on:
+    workflow_dispatch:
+
+jobs:
+  version:
+    name: Create version and tag
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      new_version: ${{ steps.bump_version.outputs.new_version }}
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Get latest tag
+      id: get_latest_tag
+      run: |
+        git fetch --tags
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
+        echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+      
+    - name: Bump version
+      id: bump_version
+      run: |
+        latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
+        major=$(echo $latest_tag | cut -d. -f1 | tr -d 'v')
+        minor=$(echo $latest_tag | cut -d. -f2)
+        patch=$(echo $latest_tag | cut -d. -f3)
+        new_patch=$((patch + 1))
+        new_version="v$major.$minor.$new_patch"
+        echo "new_version=${new_version}" >> $GITHUB_OUTPUT
+        
+    - name: Create tag
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a ${{ steps.bump_version.outputs.new_version }} -m "Release ${{ steps.bump_version.outputs.new_version }}"
+        git push origin ${{ steps.bump_version.outputs.new_version }}
+
+  build:
+    name: Build on ${{ matrix.os }}
+    needs: [version]
+    if: always() && (needs.version.result == 'success' || needs.version.result == 'skipped')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: ${{ needs.version.outputs.new_version }}
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel cython numpy
+        pip install -r requirements.txt
+      shell: bash
+
+    - name: Build Cython package
+      run: |
+        python buld/build.py
+      shell: bash
+
+    - name: Test installation
+      run: |
+        pip install .
+      shell: bash
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: dist/
+
+    - name: List compiled files
+      run: |
+        ls -R dist/
+      shell: bash

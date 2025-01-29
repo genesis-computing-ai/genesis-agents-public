@@ -1,7 +1,6 @@
-from setuptools import setup, find_namespace_packages
+from setuptools import setup
 import os
-import shutil
-from build_config import PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES, VERSION
+from build_config import VERSION, PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES
 from multiprocessing import freeze_support
 import platform
 
@@ -12,7 +11,6 @@ def main():
     # Only import Cython and set up extensions if we're compiling
     extensions = None
     if COMPILE_CYTHON:
-        from setuptools.command.build_ext import build_ext
         from setuptools.extension import Extension
         from Cython.Build import cythonize
         
@@ -20,11 +18,7 @@ def main():
         os.environ['CYTHON_PARALLEL'] = '0'
         
         # Platform-specific compiler arguments
-        extra_compile_args = []
-        if platform.system() == 'Windows':
-            extra_compile_args = ['/O2']
-        else:
-            extra_compile_args = ['-O2']
+        extra_compile_args = ['/O2'] if platform.system() == 'Windows' else ['-O2']
         
         extensions = []
         compiled_files = []  # Keep track of files we've compiled
@@ -45,7 +39,7 @@ def main():
                             define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
                         )
                         extensions.append(extension)
-                        compiled_files.append(path)  # Add to list of files to remove
+                        compiled_files.append(path)
         
         # Cythonize all extensions
         extensions = cythonize(
@@ -63,59 +57,11 @@ def main():
             except OSError as e:
                 print(f"Error removing {py_file}: {e}")
 
+    # Minimal setup call since most config is in pyproject.toml
     setup(
         name="genesis_bots",
         version=VERSION,
-        description="Genesis Bots Package",
         ext_modules=extensions,
-        packages=find_namespace_packages(include=[
-            'genesis_bots*',
-            'apps*'
-        ]),
-        package_dir={
-            "": ".",
-        },
-        package_data={
-            'genesis_bots': [
-                '**/*.yaml',
-                '**/*.so',
-                '**/*.py',
-                '**/*.conf',
-                '**/*.json',
-                'default_config/*',
-                'requirements.txt'
-            ],
-            'apps': [
-                '**/*.yaml', 
-                '**/*.so', 
-                '**/*.py', 
-                '**/*.conf',
-                '**/*.json',
-                'demos/**/*',
-                'streamlit_gui/**/*',
-                'sdk_examples/**/*'
-            ],
-        },
-        include_package_data=True,
-        install_requires=[
-            "snowflake_connector_python==3.12.3",
-            "urllib3==1.26.19",
-            "ngrok",
-            "setuptools>=61.0.0",
-            "wheel>=0.37.0"
-        ],
-        setup_requires=['setuptools>=61.0.0', 'wheel>=0.37.0'],
-        classifiers=[
-            "Programming Language :: Python :: 3",
-            "License :: Other/Proprietary License",
-            "Operating System :: OS Independent",
-        ],
-        python_requires=">=3.8",
-        entry_points={
-            'console_scripts': [
-                'install-genesis-resources=genesis_bots.install_resources:install_resources',
-            ],
-        },
     )
 
 if __name__ == '__main__':

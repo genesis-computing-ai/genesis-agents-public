@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 name = "genesis_bots"
 dynamic = ["version"]
 description = "Genesis Bots Package"
-requires-python = ">=3.8,<3.12"
+requires-python = ">=3.8,<3.12.8"
 dependencies = [
     # From requirements.txt
     "annoy",

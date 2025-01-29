@@ -79,6 +79,8 @@ def get_package_data():
             '**/*.so',
             '**/*.conf',
             '**/*.json',
+            '**/*.md',     # Add markdown files
+            '**/LICENSE',  # Add LICENSE file
             'requirements.txt',
             'default_config/*'
         ],

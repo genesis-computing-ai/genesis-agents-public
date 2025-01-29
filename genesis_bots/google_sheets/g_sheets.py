@@ -794,68 +794,68 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     #     return None
 
 
-def create_google_sheet_no_v4(self, shared_folder_id, title, data):
-    """
-    Creates a Google Sheet with the given title and table data and moves it
-    from the service account to the shared folder.
-    Loads pre-authorized user credentials from the environment.
-    """
-    # if not self.user:
-    #     raise Exception("User not specified for google drive conventions.")
+# def create_google_sheet_no_v4(self, shared_folder_id, title, data):
+#     """
+#     Creates a Google Sheet with the given title and table data and moves it
+#     from the service account to the shared folder.
+#     Loads pre-authorized user credentials from the environment.
+#     """
+#     # if not self.user:
+#     #     raise Exception("User not specified for google drive conventions.")
 
-    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
-    try:
-        # Authenticate using the service account JSON file
-        creds = Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
-    except Exception as e:
-        print(f"Error loading credentials: {e}")
-        return None
+#     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+#     try:
+#         # Authenticate using the service account JSON file
+#         creds = Credentials.from_service_account_file(
+#             SERVICE_ACCOUNT_FILE, scopes=SCOPES
+#         )
+#     except Exception as e:
+#         print(f"Error loading credentials: {e}")
+#         return None
 
-    try:
-        # service = build("sheets", "v4", credentials=creds)
-        service = build("drive", "v3", credentials=creds)
+#     try:
+#         # service = build("sheets", "v4", credentials=creds)
+#         service = build("drive", "v3", credentials=creds)
 
-        new_workbook = openpyxl.Workbook()
-        new_worksheet = new_workbook.active
+#         new_workbook = openpyxl.Workbook()
+#         new_worksheet = new_workbook.active
 
-        temp_file_path = "temp_google_sheet.xlsx"
-        new_workbook.save(temp_file_path)
+#         temp_file_path = "temp_google_sheet.xlsx"
+#         new_workbook.save(temp_file_path)
 
-        i = 0
-        for id, obj in enumerate(data):
-            j = 0
-            for key, value in enumerate(obj):
-                new_worksheet.cell(row=i, column=j, value=value)
-                j += 1
-            i += 1
+#         i = 0
+#         for id, obj in enumerate(data):
+#             j = 0
+#             for key, value in enumerate(obj):
+#                 new_worksheet.cell(row=i, column=j, value=value)
+#                 j += 1
+#             i += 1
 
-        # Save the workbook to a temporary file
-        temp_file_path = "temp_google_sheet.xlsx"
-        new_workbook.save(temp_file_path)
+#         # Save the workbook to a temporary file
+#         temp_file_path = "temp_google_sheet.xlsx"
+#         new_workbook.save(temp_file_path)
 
-        # Upload the file back to Google Drive
-        # service = result['service'] #build("drive", "v3", credentials=creds)
-        media = MediaFileUpload(
-            temp_file_path,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        file = service.files().update(fileId=spreadsheet_id, media_body=media).execute()
+#         # Upload the file back to Google Drive
+#         # service = result['service'] #build("drive", "v3", credentials=creds)
+#         media = MediaFileUpload(
+#             temp_file_path,
+#             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+#         )
+#         file = service.files().update(fileId=spreadsheet_id, media_body=media).execute()
 
-        print(f"File ID: {file.get('id')}")
-        return {
-            "Success": True,
-            "updatedCells": result.get("updatedCells"),
-            "file_id": file.get("id"),
-        }
+#         print(f"File ID: {file.get('id')}")
+#         return {
+#             "Success": True,
+#             "updatedCells": result.get("updatedCells"),
+#             "file_id": file.get("id"),
+#         }
 
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-        return {
-            "Success": False,
-            "Error": str(e),
-        }
+#     except Exception as e:
+#         print(f"An error occurred: {str(e)}")
+#         return {
+#             "Success": False,
+#             "Error": str(e),
+#         }
 
 def create_google_sheet(self, shared_folder_id, title, data):
     """

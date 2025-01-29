@@ -66,6 +66,18 @@ def copy_resources():
                 if src_file.exists():
                     shutil.copy2(src_file, dst_file)
 
+    # Copy API documentation files
+    api_src = source_dir / "genesis_bots" / "api"
+    api_dest = base_dir / "genesis_bots" / "api"
+    api_dest.mkdir(parents=True, exist_ok=True)
+    
+    # Copy README.md and LICENSE
+    for file_name in ["README.md", "LICENSE"]:
+        src_file = api_src / file_name
+        dst_file = api_dest / file_name
+        if src_file.exists():
+            shutil.copy2(src_file, dst_file)
+
 if __name__ == '__main__':
     copy_resources() 
     print("Resources copied successfully.")

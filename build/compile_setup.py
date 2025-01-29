@@ -61,6 +61,10 @@ def main():
     setup(
         name="genesis_bots",
         version=VERSION,
+        license="SSPL",
+        classifiers=[
+            "License :: Other/Proprietary License",
+        ],
         ext_modules=extensions,
     )
 

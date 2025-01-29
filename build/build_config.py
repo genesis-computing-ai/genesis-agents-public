@@ -4,6 +4,8 @@ PUBLIC_API_FILES = [
     'genesis_bots/api/snowflake_remote_server.py',
     'genesis_bots/api/genesis_base.py',
     'genesis_bots/api/control.py',
+    'genesis_bots/api/README.md',
+    'genesis_bots/api/LICENSE',
 ]
 
 # Directories to ignore

@@ -158,7 +158,7 @@ def process_scheduler(
 
     if action == "TIME":
         return {
-            "current_system_time": db_adapter._get_current_time_with_timezone()
+            "current_system_time": _get_current_time_with_timezone()
         }
     action = action.upper()
 
@@ -167,7 +167,7 @@ def process_scheduler(
             "Success": False,
             "Confirmation_Needed": "Please reconfirm all the scheduled process details with the user, then call this function again with the action CREATE_CONFIRMED to actually create the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next",
             "Process Schedule Details": task_details,
-            "Info": f"By the way the current system time is {db_adapter._get_current_time_with_timezone()}",
+            "Info": f"By the way the current system time is {_get_current_time_with_timezone()}",
         }
     if action == "CREATE_CONFIRMED":
         action = "CREATE"
@@ -178,7 +178,7 @@ def process_scheduler(
             "Success": False,
             "Confirmation_Needed": "Please reconfirm all the updated process details with the user, then call this function again with the action UPDATE_CONFIRMED to actually update the schedule for the process.   Make sure to be clear in the action_trigger_details field whether the process schedule is to be triggered one time, or if it is ongoing and recurring. Also make the next Next Check Timestamp is in the future, and aligns with when the user wants the task to run next.",
             "Proposed Updated Process Schedule Details": task_details,
-            "Info": f"By the way the current system time is {db_adapter._get_current_time_with_timezone()}",
+            "Info": f"By the way the current system time is {_get_current_time_with_timezone()}",
         }
     if action == "UPDATE_CONFIRMED":
         action = "UPDATE"
@@ -290,13 +290,13 @@ def process_scheduler(
             return {
                 "Success": False,
                 "Error": f"Invalid timestamp format for 'next_check_ts'. Required format: 'YYYY-MM-DD HH:MM:SS' in system timezone. Error details: {ve}",
-                "Info": f"Current system time in system timezone is {db_adapter._get_current_time_with_timezone()}. Please note that the timezone should not be included in the submitted timestamp.",
+                "Info": f"Current system time in system timezone is {_get_current_time_with_timezone()}. Please note that the timezone should not be included in the submitted timestamp.",
             }
         if formatted_next_check_ts < datetime.now():
             return {
                 "Success": False,
                 "Error": "The 'next_check_ts' is in the past.",
-                "Info": f"Current system time is {db_adapter._get_current_time_with_timezone()}",
+                "Info": f"Current system time is {_get_current_time_with_timezone()}",
             }
 
     try:

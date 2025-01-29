@@ -623,6 +623,39 @@ def run_snowflake_query(client, query, bot_id=None):
     
     return res
 
+
+def export_table_to_gsheets(client, table_name, sheet_name, bot_id=None):
+    """
+    Run a Snowflake query using the Genesis tool API.
+    
+    Args:
+        client: Genesis API client instance
+        query: SQL query string to execute
+        bot_id: Bot ID to use for the query (defaults to eve_bot_id if not specified)
+    
+    Returns:
+        Query results from Snowflake
+    """
+    if bot_id is None:
+        bot_id = eve_bot_id
+
+    query = f"SELECT * FROM {table_name}"
+        
+    res = client.run_genesis_tool(
+        tool_name="query_database", 
+        params={
+            "query": query,
+            "connection_id": "Snowflake",
+            "bot_id": bot_id,
+            "export_to_google_sheet": True,
+            "export_title": sheet_name,
+            "max_rows": 100
+        }, 
+        bot_id=bot_id
+    )
+    
+    return res
+
 def push_knowledge_files_to_git(client, bot_id):
     """
     Push knowledge base files to git repository.
@@ -764,11 +797,11 @@ def main():
     # Push project files to git
     push_knowledge_files_to_git(client, eve_bot_id)
 
-    # MAIN WORKFLOW
+    # MAIN WORKFLOW 
     try:
         run_number = 1;
         table_name = f"{args.genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements"  
-        #focus_field = 'ACTION_INITIATED_IND';
+        focus_field = 'CUSTOMER_ID';
         focus_field = None
         skip_confidence = True
    
@@ -923,6 +956,13 @@ def main():
                     table_name
                 )
                 print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+
+            # Export results to Google Sheets
+            i = input('All requirements processed, press return to export results to Google Sheets')
+            try:
+                export_table_to_gsheets(client, table_name, f'Mapping Results, Run# {run_number}', eve_bot_id)
+            except Exception as e:
+                print(f"\033[31mError occurred exporting to Google Sheets, but results are in the table at: {table_name}. Error: {e}\033[0m")
 
     except Exception as e:
             raise e

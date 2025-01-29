@@ -74,6 +74,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         self.thread_fast_mode_map = {}
         self.first_message_map = {}
         self.thread_tool_call_counter = {}
+        self.thread_model_map = {}
         self.thread_tool_call_counter_failsafe = {}
 
         # Initialize shared thread history for this bot name if needed
@@ -89,110 +90,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
     def cortex_complete(self,thread_id, message_metadata = None, event_callback = None, temperature=None , fast_mode=False):
 
-        if os.getenv("CORTEX_VIA_COMPLETE", "false").lower() == "false":
-            return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature, fast_mode = fast_mode)
+        return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature, fast_mode = fast_mode)
 
-        newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
-        new_array_str = json.dumps(newarray)
-
-        # Check if process_flag is set to "TRUE" on the last message in thread history
-        process_flag = False
-        if self.thread_history[thread_id]:
-            last_message = self.thread_history[thread_id][-1]
-            if isinstance(last_message, dict) and 'process_flag' in last_message:
-                process_flag = last_message['process_flag'] == "TRUE"
-
-        if process_flag:
-            logger.info(f"Process flag is set to TRUE for thread {thread_id}, will use Smart model")
-
-        resp = ''
-        curr_resp = ''
-
-        last_user_message = next((message for message in reversed(newarray) if message["role"] == "user"), None)
-        if last_user_message is not None:
-
-            if ') says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
-                if thread_id in self.thread_fast_mode_map or fast_mode==True:
-                    model = os.getenv("CORTEX_FAST_MODEL_NAME", "llama3.1-70b")
-                else:
-                    model = self.llm_engine
-                resp= f"The model is set to: {model}. Currently running via Cortext via REST. You can say !model llama3.1-405b, !model llama3.1-70b, or !model llama3.1-8b to change model size."
-                curr_resp = resp
-            if ') says: !model llama3.1-405b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-405b':
-                self.llm_engine = 'llama3.1-405b'
-                resp= f"The model is changed to: {self.llm_engine}"
-                curr_resp = resp
-            if ') says: !model llama3.1-70b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-70b':
-                self.llm_engine = 'llama3.1-70b'
-                resp= f"The model is changed to: {self.llm_engine}"
-                curr_resp = resp
-            if ') says: !model llama3.1-8b' in last_user_message["content"] or last_user_message["content"]=='!model llama3.1-8b':
-                self.llm_engine = 'llama3.1-8b'
-                resp= f"The model is changed to: {self.llm_engine}"
-                curr_resp = resp
-            if ') says: !model claude-3-5-sonnet' in last_user_message["content"] or last_user_message["content"]=='!model claude-3-5-sonnet':
-                self.llm_engine = 'claude-3-5-sonnet'
-                resp= f"The model is changed to: {self.llm_engine}"
-                curr_resp = resp
-
-            if '!fast on' in last_user_message["content"] or last_user_message["content"] == '!fast on':
-                self.thread_fast_mode_map[thread_id] = True
-                resp = f"Fast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}"
-                curr_resp = resp
-            elif '!fast off' in last_user_message["content"] or last_user_message["content"] == '!fast off':
-                if thread_id in self.thread_fast_mode_map:
-                    del self.thread_fast_mode_map[thread_id]
-                resp = f"Fast mode activated for this thread. Model is now {self.llm_engine}"
-                curr_resp = resp
-
-        if resp != '':
-            self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message == last_user_message)]
-            if BotOsAssistantSnowflakeCortex.stream_mode == True:
-                if self.event_callback:
-                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id,
-                                                                        status='in_progress',
-                                                                        output=resp,
-                                                                        messages=None,
-                                                                        input_metadata=json.loads(message_metadata)))
-            return None
-
-        logger.info(self.bot_name, f"bot_os_cortex calling cortex {self.llm_engine} via SQL, content est tok len=",len(new_array_str)/4)
-
-        context_limit = 128000 * 4 #32000 * 4
-        cortex_query = f"""
-                        select SNOWFLAKE.CORTEX.COMPLETE('{self.llm_engine}', %s) as completion;
-        """
-        try:
-            cursor = self.client.connection.cursor()
-            start_time = time.time()
-            start_exec_time = time.time()
-            cursor.execute(cortex_query, (new_array_str,))
-            end_exec_time = time.time()
-            etime = end_exec_time - start_exec_time
-            self.client.connection.commit()
-            elapsed_time = time.time() - start_time
-            result = cursor.fetchone()
-            completion = result[0] if result else None
-
-            logger.info(f"{completion} ({elapsed_time:.2f} seconds)")
-            resp = completion
-            curr_resp = completion
-
-            if resp != '' and BotOsAssistantSnowflakeCortex.stream_mode == True:
-                if self.event_callback:
-                    self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id,
-                                                                        status='in_progress',
-                                                                        output=resp,
-                                                                        messages=None,
-                                                                        input_metadata=json.loads(message_metadata)))
-
-            self.thread_full_response[thread_id] = resp + '\n'
-            return(curr_resp)
-
-        except Exception as e:
-            logger.info('query error: ',e)
-            self.client.connection.rollback()
-
+   
     def fix_tool_calls(self, resp):
 
         while True:
@@ -247,9 +147,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
 
-
-### FIX THIS
-        # Consolidate directly adjacent 'user' role messages without any intervening messages
         consolidated_array = []
         current_user_content = []
 
@@ -276,7 +173,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             })
 
         newarray = consolidated_array
-
 
         process_flag = False
         if self.thread_history[thread_id]:
@@ -359,6 +255,9 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             #self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message['content'] == last_user_message['content'])]
             if self.thread_history[thread_id]:
                 self.thread_history[thread_id].pop()
+            if self.thread_model_map[thread_id] is not None:
+                self.thread_model_map.pop(thread_id, None)
+
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
                 if self.event_callback:
                     self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id,
@@ -432,6 +331,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                     "frequency_penalty": 0,
                     "stop": '</function>',
                 }
+                self.thread_model_map[thread_id] = model
 
                 logger.info(self.bot_name, f" bot_os_cortex calling cortex {model} via REST API, content est tok len=",len(str(newarray))/4)
 
@@ -457,6 +357,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         for model in models_to_try:
                             
                             request_data["model"] = model
+                            self.thread_model_map[thread_id] = model
                             response = requests.post(url, json=request_data, stream=True, headers=headers)
                             
                             if response.status_code == 200 and not response.text.startswith('{"message":"unknown model '):
@@ -471,6 +372,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         else:
                             # No models worked
                             logger.info(f'No available Cortex models found after trying: {models_to_try}')
+                            self.thread_model_map[thread_id] = None
 
                 if response.status_code != 200:
                     msg = f"Cortex REST API Error. The Cortex REST API returned an error message. Status code: {response.status_code}."
@@ -603,16 +505,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         if match and resp.endswith('}'):
             postfix = " 💬"
 
-   #     pattern_function = re.compile(r'<function=.*?>\{.*?\}')
-   #     match_function = pattern_function.search(resp)
-   #     pattern_function2 = re.compile(r'<function>.*?</function>\{.*?\}')
-   #     match_function2 = pattern_function2.search(resp)
-
-    #    if (match_function or match_function2) and resp.endswith('}'):
-    #        if match_function2:
-    #            resp = resp.replace("</function>", "")
-    #        postfix = " 💬"
-
         pattern_function = re.compile(r'<function>(.*?)</function>(\{.*?\})$')
         match_function = pattern_function.search(resp)
 
@@ -672,6 +564,8 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 output = resp + postfix
             else:
                 output = curr_resp
+         #   if self.thread_model_map[thread_id] is not None:
+         #       self.thread_model_map.pop(thread_id, None)
             if self.event_callback:
                 self.event_callback(self.bot_id, BotOsOutputMessage(thread_id=thread_id,
                                                                     status=status,
@@ -685,20 +579,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         self.thread_full_response[thread_id] = resp if resp.endswith('\n') else resp + '\n'
         return(curr_resp)
-
-
-
-    #def stream_data(self,response, thread_id):
-
-#        client = sseclient.SSEClient(response)
-#        for event in client.events():
-#            d = json.loads(event.data)
-#            try:
-#                response = d['choices'][0]['delta']['content']
-#                self.thread_full_response[thread_id] += response
-#                yield response
-#            except Exception:
-#                pass
 
 
     @override
@@ -1009,15 +889,21 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         else:
             self.thread_tool_call_counter_failsafe[thread_id] += 1
 
-        # Check if the counter is > 8
-        if self.thread_tool_call_counter[thread_id] > 22:
-            logger.info("bot_os_cortex runaway_error_22")
-            return
+
         if self.thread_tool_call_counter_failsafe[thread_id] > 102:
             logger.info("bot_os_cortex runaway_error_102")
             return
 
-        if self.thread_tool_call_counter[thread_id] > 20:
+        model = self.thread_model_map.get(thread_id, None)
+        claude_model = False
+        if model is not None and model.startswith('claude'):
+            claude_model = True
+
+        if self.thread_tool_call_counter[thread_id] > 22 and not claude_model:
+            logger.info("bot_os_cortex runaway_error_22")
+            return
+
+        if self.thread_tool_call_counter[thread_id] > 20 and not claude_model:
             error_message = "Error: more than 20 successive tool calls have occurred on this thread. The user needs to send a new message before any more tool calls will be processed."
             cb_closure = self._generate_callback_closure(thread_id, timestamp, message_metadata)
             logger.info("bot_os_cortex runaway_error_20 ",error_message)

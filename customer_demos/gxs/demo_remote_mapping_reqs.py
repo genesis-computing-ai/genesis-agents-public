@@ -8,7 +8,13 @@ import os
 
 eve_bot_id = 'Eve'
 genesis_api_client = None
-message_prefix = ''
+
+if os.environ.get('GENESIS_API_USE_O1','FALSE').upper() == 'TRUE':
+    message_prefix = '!o1!'  # Force use of o1 model
+    print("-> Using O1 model")
+else:
+    message_prefix = ''  # Use default model
+    print("-> Using default model")
 
 def print_file_contents(title, file_path, contents):
     """
@@ -732,10 +738,6 @@ def main():
     global genesis_api_client
     genesis_api_client = GenesisAPI(server_proxy=server_proxy)
     client = genesis_api_client
-
-    global message_prefix
-    #message_prefix = '!o1!'  # to force use of o1 model (requires OpenAI API Tier 5 currently)
-    message_prefix = '' # otherwise use the default model 
 
     global eve_bot_id
     if args.genesis_db == 'GENESIS_BOTS_ALPHA':

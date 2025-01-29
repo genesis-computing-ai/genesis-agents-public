@@ -74,9 +74,18 @@ jobs:
         pip install -r requirements.txt
       shell: bash
 
+    - name: Get default version if needed
+      id: default_version
+      if: needs.version.outputs.new_version == ''
+      run: |
+        git fetch --tags
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
+        echo "version=${latest_tag}" >> $GITHUB_OUTPUT
+      shell: bash
+
     - name: Build Cython package
       run: |
-        python build/build.py --version ${{ needs.version.outputs.new_version }}
+        python build/build.py --version ${{ needs.version.outputs.new_version || steps.default_version.outputs.version }}
       env:
         COMPILE_CYTHON: true
       shell: bash

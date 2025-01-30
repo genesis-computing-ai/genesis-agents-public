@@ -15,4 +15,5 @@ def get_openai_client(use_external=False):# -> OpenAI | AzureOpenAI:
                              azure_endpoint=os.getenv("AZURE_OPENAI_API_ENDPOINT"))
     else:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
     return client

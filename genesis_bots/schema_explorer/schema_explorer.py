@@ -21,7 +21,7 @@ class SchemaExplorer:
 
     def initialize_model(self):
         if os.environ.get("CORTEX_MODE", 'False') == 'True':
-            self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'reka-flash')
+            self.cortex_model = os.getenv("CORTEX_HARVESTER_MODEL", 'llama3.1-405b')
             self.embedding_model = os.getenv("CORTEX_EMBEDDING_MODEL", 'e5-base-v2')
             if os.getenv("CORTEX_EMBEDDING_AVAILABLE",'False') == 'False':
                 if self.test_cortex():
@@ -156,13 +156,13 @@ class SchemaExplorer:
                 cursor.execute(cortex_query, (new_array_str,))
             except Exception as e:
                 if 'unknown model' in e.msg:
-                    logger.info(f'Model {self.cortex_model} not available in this region, trying mistral-7b')
-                    self.cortex_model = 'mistral-7b'
+                    logger.info(f'Model {self.cortex_model} not available in this region, trying llama3.1-70b')
+                    self.cortex_model = 'llama3.1-70b'
                     cortex_query = f"""
                         select SNOWFLAKE.CORTEX.COMPLETE('{self.cortex_model}', %s) as completion; """
                     cursor.execute(cortex_query, (new_array_str,))
                     logger.info('Ok that worked, changing CORTEX_HARVESTER_MODEL ENV VAR to mistral-7b')
-                    os.environ['CORTEX_HARVESTER_MODEL'] = 'mistral-7b'
+                    os.environ['CORTEX_HARVESTER_MODEL'] = 'llama3.1-70b'
                 else:
                     raise(e)
             self.db_connector.connection.commit()

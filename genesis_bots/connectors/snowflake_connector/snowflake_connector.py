@@ -428,7 +428,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             sp_session = None
         return sp_session
 
-    def _cortex_complete(self, model="reka-flash", prompt=None):
+    def _cortex_complete(self, model="llama3.1-405b", prompt=None):
         try:
             from snowflake.cortex import Complete
 

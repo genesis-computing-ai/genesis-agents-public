@@ -58,7 +58,7 @@ class LLMKeyHandler:
                 llm_api_key = 'cortex_no_key_needed'
                 llm_type = BotLlmEngineEnum.cortex
                 os.environ["CORTEX_MODE"] = "True"
-                os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
+                os.environ["CORTEX_HARVESTER_MODEL"] = "llama3.1-405b"
                 os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
             else:
                 logger.info("cortex not availabe and no llm key set - use streamlit to add a llm key")
@@ -136,7 +136,7 @@ class LLMKeyHandler:
         if "CORTEX_OVERRIDE" in os.environ:
             if os.environ["CORTEX_OVERRIDE"].lower() == "true" and cortex_avail:
                 os.environ["CORTEX_MODE"] = "True"
-                os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
+                os.environ["CORTEX_HARVESTER_MODEL"] = "llama3.1-405b"
                 os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
                 os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = 'cortex'
                 self.default_llm_engine = BotLlmEngineEnum.cortex
@@ -181,7 +181,7 @@ class LLMKeyHandler:
                     self.default_llm_engine = BotLlmEngineEnum(llm_key_struct.llm_type)
                     llm_key_struct.llm_key = 'cortex_no_key_needed'
                     os.environ["CORTEX_MODE"] = "True"
-                    os.environ["CORTEX_HARVESTER_MODEL"] = "reka-flash"
+                    os.environ["CORTEX_HARVESTER_MODEL"] = "llama3.1-405b"
                     os.environ["CORTEX_EMBEDDING_MODEL"] = 'e5-base-v2'
                 else:
                     os.environ["CORTEX_MODE"] = "False"

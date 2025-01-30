@@ -735,7 +735,7 @@ def configure_llm():
                 llm_endpoint=llm_endpoint,
             )
 
-            genesis_app.create_app_sessions()
+            genesis_app.create_app_sessions(llm_change=True)
             genesis_app.start_server()
 
             # Assuming 'babybot' is an instance of a class that has the 'set_llm_key' method

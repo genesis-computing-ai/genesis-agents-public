@@ -2598,7 +2598,9 @@ def get_status(site):
 
             return {
                 "Success": True,
-                "result": f'Data sent to Google Sheets - Link to folder: {result["folder_url"]} | Link to file: {result["file_url"]}'
+                "result": "Data successfully sent to Google Sheets",
+                "folder_url": result["folder_url"],
+                "file_url": result["file_url"]
             }
 
         return sample_data

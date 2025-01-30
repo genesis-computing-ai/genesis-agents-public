@@ -653,7 +653,8 @@ def export_table_to_gsheets(client, table_name, sheet_name, bot_id=None):
         }, 
         bot_id=bot_id
     )
-    
+    print("Sent to G-sheets results:")
+    print(res)
     return res
 
 def push_knowledge_files_to_git(client, bot_id):
@@ -792,6 +793,7 @@ def main():
     else:
         print("Skipping bot loading, using existing bots")
 
+
     # Initialize requirements table if not exists 
     initialize_requirements_table(client, pm_bot_id, genesis_db = args.genesis_db)
     # Push project files to git
@@ -801,10 +803,14 @@ def main():
     try:
         run_number = 1;
         table_name = f"{args.genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements"  
+        
+        # this will run it just for the CUSTOMER_ID field, for initial testing
         focus_field = 'CUSTOMER_ID';
-        focus_field = None
+        #focus_field = None
         skip_confidence = True
    
+        #to test g-sheets export without running the rest of the workflow
+        #export_table_to_gsheets(client, table_name, f'Mapping Results, Run# {run_number}', eve_bot_id)
         
         #Allows you to re-run a specific mapping when testing
         if focus_field:
@@ -871,14 +877,6 @@ def main():
                 source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
                 
                 mapping_proposal = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id)
-                
-                # Load source research from local file
-                #with open('./tmp/source_research.txt', 'r') as f:
-                #    source_research = f.read()
-
-                # Load mapping proposal from local file  
-                #with open('./tmp/mapping_proposal.txt', 'r') as f:
-                #    mapping_proposal = f.read()
 
                 if not skip_confidence:
                     confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)

@@ -135,7 +135,7 @@ def handle_openai_configuration():
 def handle_azure_openai_configuration():
     llm_api_key, llm_api_endpoint = '',''
     if not st.session_state.azureopenai_eai_available or st.session_state.get("NativeMode", False) == False:
-        endpoint = st.text_input("Enter Azure API endpoint for your organization (e.g., genesis-azureopenai-1):")
+        endpoint = st.text_input("Enter Azure API endpoint name for your organization (e.g., genesis-azureopenai-1):")
         azure_openai_model = st.text_input("Enter Azure OpenAI Model Deployment Name (e.g., gpt-4o):", value="gpt-4o")
         azure_openai_embed_model = st.text_input("Enter Azure OpenAI Embedding Model Deployment Name (e.g., text-embedding-3-large):", value="text-embedding-3-large")
 
@@ -167,12 +167,12 @@ def handle_azure_openai_configuration():
                             "azureopenai_eai_available": True,
                         })
             llm_api_key = st.text_input("Enter Azure OpenAI API Key:", key="aoaikey1")
-            llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint (e.g., https://genesis-azureopenai-1.openai.azure.com):")
+            llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint URL (e.g., https://genesis-azureopenai-1.openai.azure.com):")
 
 
     elif st.session_state.azureopenai_eai_available or st.session_state.get("NativeMode", False) == False:
         llm_api_key = st.text_input("Enter Azure OpenAI API Key:", value=llm_api_key, key="aoaikey")
-        llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint (e.g., https://genesis-azureopenai-1.openai.azure.com):")
+        llm_api_endpoint = st.text_input("Enter Azure OpenAI API Endpoint URL (e.g., https://genesis-azureopenai-1.openai.azure.com):")
     return llm_api_key, llm_api_endpoint
 
 def assign_eai_to_genesis():

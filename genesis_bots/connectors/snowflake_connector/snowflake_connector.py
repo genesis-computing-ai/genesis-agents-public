@@ -1130,7 +1130,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 """)
 
                 cursor = self.client.cursor()
-                cursor.execute(upsert_query, ('openai', model_name, embedding_model_name,))
+                cursor.execute(upsert_query, ('openai', model_name, embedding_model_name,runner_id))
 
                 # Commit the changes
                 self.client.commit()

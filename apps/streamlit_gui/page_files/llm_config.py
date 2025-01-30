@@ -161,6 +161,7 @@ def handle_azure_openai_configuration():
                 if set_endpoint and set_endpoint[0].get('Success'):
                     set_model_names = get_metadata(f"set_model_name {azure_openai_model} {azure_openai_embed_model}")
                     if set_model_names and set_model_names[0].get('Success'):
+                        st.success("Azure LLM parameters saved successfully!")
                         st.session_state.update({
                             "disable_submit": False,
                             "azureopenai_eai_available": True,

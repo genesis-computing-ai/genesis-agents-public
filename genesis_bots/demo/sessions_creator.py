@@ -231,7 +231,7 @@ def make_session(
 
     input_adapters = []
 
-    if teams_enabled:
+    if os.getenv("TEAMS_BOT") and bot_config["bot_name"] == os.getenv("TEAMS_BOT"):
         from genesis_bots.teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
         teams_adapter_local = TeamsBotOsInputAdapter(
             bot_name=bot_config["bot_name"],

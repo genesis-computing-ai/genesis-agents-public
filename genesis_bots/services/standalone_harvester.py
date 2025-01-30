@@ -211,30 +211,30 @@ while True:
     i = 0
     while not wake_up:
         time.sleep(refresh_seconds)
-    if harvester_db_connector.source_name == "SQLite":
-        wake_up = True
-    if os.getenv("SPCS_MODE", "FALSE").upper() == "FALSE":
-        wake_up = True
-
-        cursor = harvester_db_connector.client.cursor()
-        check_bot_active = f"DESCRIBE TABLE {harvester_db_connector.schema}.BOTS_ACTIVE"
-        cursor.execute(check_bot_active)
-        result = cursor.fetchone()
-
-        bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
-        current_time = datetime.now()
-        time_difference = current_time - bot_active_time_dt
-        i = i + 1
-        if i >= 30:
-            logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}")
-        if i > 30:
-            i = 0
-
-        if time_difference < timedelta(minutes=5):
+        if harvester_db_connector.source_name == "SQLite":
             wake_up = True
-        else:
-            if first_pass:
-                logger.info("Waiting for bots to be active as running in non-local (Snowflake SCPS) mode. Set SPCS_MODE=FALSE to prevent this sleeping.")
-                first_pass = False
+        if os.getenv("SPCS_MODE", "FALSE").upper() == "FALSE":
+            wake_up = True
+
+            cursor = harvester_db_connector.client.cursor()
+            check_bot_active = f"DESCRIBE TABLE {harvester_db_connector.schema}.BOTS_ACTIVE"
+            cursor.execute(check_bot_active)
+            result = cursor.fetchone()
+
+            bot_active_time_dt = datetime.strptime(result[0], '%Y-%m-%d %H:%M:%S %Z')
+            current_time = datetime.now()
+            time_difference = current_time - bot_active_time_dt
+            i = i + 1
+            if i >= 30:
+                logger.info(f"BOTS ACTIVE TIME: {result[0]} | CURRENT TIME: {current_time} | TIME DIFFERENCE: {time_difference}")
+            if i > 30:
+                i = 0
+
+            if time_difference < timedelta(minutes=5):
+                wake_up = True
+            else:
+                if first_pass:
+                    logger.info("Waiting for bots to be active as running in non-local (Snowflake SCPS) mode. Set SPCS_MODE=FALSE to prevent this sleeping.")
+                    first_pass = False
 
        #     logger.info("Bot is active")

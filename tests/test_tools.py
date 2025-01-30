@@ -12,6 +12,9 @@ from apps.demos.cli_chat import get_available_bots
 from datetime import datetime, timedelta
 # from genesis_bots.connectors.data_connector import _query_database
 from genesis_bots.core.tools.process_scheduler import process_scheduler
+from genesis_bots.connectors.data_connector import _query_database, _search_metadata, _list_database_connections
+from genesis_bots.core.tools.image_tools import image_generation
+from genesis_bots.core.tools.process_manager import manage_processes
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -56,6 +59,42 @@ class TestTools(unittest.TestCase):
 
         response = process_scheduler(action='HISTORY', bot_id=bot_id, task_id=task_id)
         print(response)
+        self.assertTrue(response['Success'])
+
+    def test_data_connections_functions(self):
+        bot_id = self.available_bots[0]
+        response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id, 
+                                   query='SELECT COUNT(DISTINCT team_id) from team')
+        self.assertTrue(response['success'])
+
+        response = _search_metadata(connection_id='baseball_sqlite', bot_id=bot_id, 
+                                    query='SELECT COUNT(DISTINCT team_id) from team')
+        self.assertTrue(len(response) > 0)
+
+        response = _list_database_connections( bot_id=bot_id)
+        self.assertTrue(response['success'])
+
+
+    def test_image_tools(self):
+        thread_id = str(uuid4())
+        response = image_generation(thread_id=thread_id, prompt='A picture of a dog')
+        self.assertTrue(response['success'])
+
+    
+    def test_process_manager(self):
+        bot_id = self.available_bots[0]
+        process_name = 'test_process'
+        process_instructions = 'Run test_process each day'
+
+        response = manage_processes(action='CREATE', bot_id=bot_id, process_name=process_name, 
+                                    process_instructions=process_instructions)
+        self.assertFalse(response['Success'])
+
+        response = manage_processes(action='CREATE_CONFIRMED', bot_id=bot_id, process_name=process_name, 
+                                    process_instructions=process_instructions)
+        self.assertTrue(response['Success'])
+
+        response = manage_processes(action='LIST', bot_id=bot_id)
         self.assertTrue(response['Success'])
 
     def test_list_of_bots(self):

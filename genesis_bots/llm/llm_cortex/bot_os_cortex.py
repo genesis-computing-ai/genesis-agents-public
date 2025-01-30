@@ -146,7 +146,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
     def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None, fast_mode=False):
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
-
+        #random_chars = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=10000))
         consolidated_array = []
         current_user_content = []
 

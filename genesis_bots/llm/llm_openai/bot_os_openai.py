@@ -1106,24 +1106,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                            "content": StreamingEventHandler.run_id_to_output_stream[run_id]
                      })
 
-            return True
-
          except Exception as e:
                # Replace your old error handling
                logger.info("Error during OpenAI streaming call: %s", e)
                return False
-
-
-         model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
-         completion = openai.ChatCompletion.create(
-                  model=model_name,
-                  messages=openai_messages
-               )
-               # You can store or process the single-shot completion here
-         content = completion["choices"][0]["message"]["content"]
-               # Possibly keep run_id_to_output_stream for consistency
-         StreamingEventHandler.run_id_to_output_stream[self.assistant.id] = content
-         #return True
 
       primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
                                  'user_name': input_message.metadata.get('user_name', 'unknown_name'),

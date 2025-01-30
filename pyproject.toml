@@ -15,7 +15,8 @@ build-backend = "setuptools.build_meta"
 name = "genesis_bots"
 dynamic = ["version"]
 description = "Genesis Bots Package"
-requires-python = ">=3.8,<3.12.8"
+requires-python = ">=3.8,<=3.12.8"
+license = {text = "SSPL"}
 dependencies = [
     # From requirements.txt
     "annoy",
@@ -91,6 +92,8 @@ package-dir = {"" = "."}
     "**/*.py",
     "**/*.conf",
     "**/*.json",
+    "**/*.md",
+    "**/LICENSE",
     "default_config/*",
     "requirements.txt"
 ]
@@ -100,6 +103,8 @@ package-dir = {"" = "."}
     "**/*.py",
     "**/*.conf",
     "**/*.json",
+    "**/*.md",
+    "**/LICENSE",
     "demos/**/*",
     "streamlit_gui/**/*",
     "sdk_examples/**/*"

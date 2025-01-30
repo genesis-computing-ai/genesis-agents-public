@@ -24,6 +24,7 @@ IGNORE_DIRS = {
     '__pycache__',
     'dist',
     'egg-info',
+    'genesis_bots/teams',
 }
 
 # Individual files to ignore

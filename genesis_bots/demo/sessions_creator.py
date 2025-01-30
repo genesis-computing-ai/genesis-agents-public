@@ -606,7 +606,8 @@ def create_sessions(
     skip_vectors=False,
     bot_list=None,
     skip_slack=False,
-    max_workers=1 # New parameter to control parallel execution
+    max_workers=5, # New parameter to control parallel execution
+    llm_change=False
 ):
     """
     Create (multiple) sessions for bots in parallel based on the provided configurations.
@@ -648,6 +649,10 @@ def create_sessions(
         try:
             bot_id = bot_config["bot_id"]
             assistant_id = None
+
+            # Add LLM change check here
+            if llm_change:
+                os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
 
             for bot in bot_list or []:
                 if bot["bot_id"] == bot_id:

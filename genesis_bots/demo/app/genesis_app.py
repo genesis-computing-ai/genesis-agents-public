@@ -225,7 +225,7 @@ class GenesisApp:
         logger.info(f"...Slack Connector Active Flag: {global_flags.slack_active}")
 
 
-    def create_app_sessions(self, bot_list=None):
+    def create_app_sessions(self, bot_list=None, llm_change=False):
         """
         Creates the sessions for the GenesisApp.
 
@@ -252,6 +252,7 @@ class GenesisApp:
                 self.bot_id_to_udf_adapter_map,
                 stream_mode=True,
                 bot_list=bot_list,
+                llm_change=llm_change
             )
             SystemVariables.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
             self.sessions = sessions

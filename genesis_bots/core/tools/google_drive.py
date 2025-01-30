@@ -19,7 +19,7 @@ from genesis_bots.google_sheets.g_sheets import (
     get_g_file_web_link,
     get_g_folder_directory,
     read_g_sheet,
-    write_g_sheet_cell,
+    write_g_sheet_cell_v4,
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -205,7 +205,7 @@ def google_drive(
             f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}\n"
         )
 
-        write_g_sheet_cell(
+        write_g_sheet_cell_v4(
             g_file_id, g_sheet_cell, g_sheet_value, None, db_adapter.user
         )
 

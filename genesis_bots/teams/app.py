@@ -15,12 +15,8 @@ from botbuilder.core import (
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.schema import Activity, ActivityTypes
 
-from genesis_bots.teams.bot import EchoBot
-from genesis_bots.teams.config import DefaultConfig
-
-from genesis_bots.core.logging_config import logger
-
-#from bots import BOT
+from teams.bots.bot import EchoBot
+from config import DefaultConfig
 
 CONFIG = DefaultConfig()
 
@@ -35,7 +31,7 @@ async def on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.
     # NOTE: In production environment, you should consider logging this to Azure
     #       application insights.
-    logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
+    print(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
     traceback.print_exc()
 
     # Send a message to the user
@@ -61,7 +57,7 @@ async def on_error(context: TurnContext, error: Exception):
 ADAPTER.on_turn_error = on_error
 
 # Create the Bot
-BOT = MyBot()
+BOT = EchoBot()
 
 
 # Listen for incoming requests on /api/messages
@@ -90,50 +86,3 @@ if __name__ == "__main__":
         web.run_app(APP, host="localhost", port=CONFIG.PORT)
     except Exception as error:
         raise error
-
-""" #ECHO BOT USING WEBSOCKETS
-import asyncio
-from aiohttp import web
-from botbuilder.core import BotFrameworkAdapterSettings, TurnContext, ActivityHandler
-from botbuilder.schema import Activity
-from botbuilder.integration.aiohttp import AiohttpBotFrameworkAdapter
-
-
-
-class MyBot(ActivityHandler):
-    async def on_message_activity(self, turn_context: TurnContext):
-        await turn_context.send_activity(f"You said: {turn_context.activity.text}")
-
-# Define bot settings
-settings = BotFrameworkAdapterSettings("a0f356cd-3de8-4b1f-95b5-41605677667f", "TeR8Q~wTTqTlKXz2xSMUyrKXNqfuOKSFGMaEuaQo")
-
-# Initialize the adapter
-adapter = AiohttpBotFrameworkAdapter(settings)
-
-# Create the bot
-bot = MyBot()
-
-# WebSocket connection handler
-async def websocket_handler(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-
-    async for msg in ws:
-        if msg.type == web.WSMsgType.TEXT:
-            # Process incoming WebSocket message
-            activity = Activity().deserialize(msg.data)
-            context = TurnContext(adapter, activity)
-            await bot.on_turn(context)
-        elif msg.type == web.WSMsgType.ERROR:
-            logger.info(f'WebSocket connection closed with exception {ws.exception()}')
-
-    return ws
-
-# Initialize aiohttp app and routes
-app = web.Application()
-app.router.add_get("/ws", websocket_handler)
-
-# Start the app
-if __name__ == "__main__":
-    web.run_app(app, host="localhost", port=3978)
-  """

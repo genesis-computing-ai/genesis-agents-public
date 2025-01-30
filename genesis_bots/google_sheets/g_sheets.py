@@ -687,7 +687,6 @@ def save_text_to_google_file(
         }
 
 
-
 def create_folder_in_folder(folder_name, parent_folder_id, user):
     SERVICE_ACCOUNT_FILE = f'g-workspace-credentials.json'
     creds = Credentials.from_service_account_file(
@@ -1008,7 +1007,7 @@ def create_google_sheet(self, shared_folder_id, title, data):
         print(f"An error occurred: {error}")
         return error
 
-def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=None, user=None):
+def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, creds=None, user=None):
     # if not spreadsheet_id or not cell_range or (not creds and not user):
     #     raise Exception(
     #         "Missing credentials, user name, spreadsheet ID, or cell_range name."
@@ -1103,7 +1102,40 @@ def write_g_sheet_cell(spreadsheet_id=None, cell_range=None, value=None, creds=N
             "Error": str(e),
         }
 
-    logger.info(f"Executed - Result: {result}")
+
+def write_g_sheet_cell_v4(
+    spreadsheet_id=None, cell_range=None, value=None, creds=None, user=None
+):
+    # if not spreadsheet_id or not cell_range or (not creds and not user):
+    #     raise Exception(
+    #         "Missing credentials, user name, spreadsheet ID, or cell_range name."
+    #     )
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    service = build("sheets", "v4", credentials=creds)
+
+    body = {"values": [[value]]}
+
+    result = (
+        service.spreadsheets()
+        .values()
+        .update(
+            spreadsheetId=spreadsheet_id,
+            range=cell_range,
+            valueInputOption="USER_ENTERED",
+            body=body,
+        )
+        .execute()
+    )
     return {
         "Success": True,
         "updatedCells": result.get("updatedCells"),

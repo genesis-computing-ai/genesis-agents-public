@@ -38,6 +38,13 @@ def create_build_directory(version):
     os.makedirs(build_dir)
     
     def ignore_patterns(path, names):
+        # Check if any parent directory is in IGNORE_DIRS
+        path_parts = path.replace('\\', '/').split('/')
+        for i in range(len(path_parts)):
+            current_path = '/'.join(path_parts[i:])
+            if current_path in IGNORE_DIRS:
+                return names  # Ignore everything in this directory
+                
         relative_paths = [os.path.join(path, name).replace('\\', '/') for name in names]
         return [n for n, p in zip(names, relative_paths) 
                 if n in IGNORE_DIRS or 
@@ -63,23 +70,14 @@ def create_build_directory(version):
     # Copy build files
     build_files = ['build_config.py', 'compile_setup.py', 'setup.py', 'cleanup.py']
     for file in build_files:
-        if file == 'build_config.py':
-            # Read the original file
-            with open(os.path.join('build', file), 'r') as f:
-                content = f.read()
-            # Add VERSION to the file
-            with open(os.path.join(build_dir, file), 'w') as f:
-                f.write(f'VERSION = "{version}"\n')
-                f.write(content)
-        else:
-            shutil.copy2(os.path.join('build', file), os.path.join(build_dir, file))
+        shutil.copy2(os.path.join('build', file), os.path.join(build_dir, file))
     
     # Copy pyproject.toml
     shutil.copy2('pyproject.toml', os.path.join(build_dir, 'pyproject.toml'))
     
     return build_dir
 
-def build_package(build_dir):
+def build_package(build_dir, args):
     """Run the build process in the specified directory."""
     original_dir = os.getcwd()
     try:
@@ -87,6 +85,9 @@ def build_package(build_dir):
         setup_build_environment()
         
         os.chdir(build_dir)
+        
+        # Set version environment variable
+        os.environ['PACKAGE_VERSION'] = args.version
         
         if COMPILE_CYTHON:
             print("\nCompiling extensions...")
@@ -165,7 +166,7 @@ def main():
     print("Starting build process...")
     print(f"Cython compilation {'enabled' if COMPILE_CYTHON else 'disabled'}")
     build_dir = create_build_directory(args.version)
-    build_package(build_dir)
+    build_package(build_dir, args)
     
     print("\nBuild process complete!")
     print(f"Build directory: {build_dir}")

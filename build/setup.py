@@ -2,11 +2,12 @@ from setuptools import setup, find_namespace_packages
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 import os
 import platform
-from build_config import IGNORE_DIRS, IGNORE_FILES, VERSION, PUBLIC_API_FILES
+from build_config import IGNORE_DIRS, IGNORE_FILES, PUBLIC_API_FILES
 import glob
 
 # Add this import
 COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
+VERSION = os.getenv('PACKAGE_VERSION', '0.0.0')  # Get version from environment variable
 
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
@@ -109,9 +110,10 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "
 with open(os.path.join(root_dir, "requirements.txt")) as f:
     required = f.read().splitlines()
 
+# Let setuptools handle version through pyproject.toml
 setup(
     name="genesis_bots",
-    version=VERSION,
+    version=VERSION,  # Add version here
     description="Genesis Bots Package",
     packages=find_packages_excluding(IGNORE_DIRS, IGNORE_FILES),
     package_dir={

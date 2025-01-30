@@ -1,6 +1,6 @@
 from setuptools import setup
 import os
-from build_config import VERSION, PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES
+from build_config import PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES
 from multiprocessing import freeze_support
 import platform
 
@@ -57,14 +57,8 @@ def main():
             except OSError as e:
                 print(f"Error removing {py_file}: {e}")
 
-    # Minimal setup call since most config is in pyproject.toml
+    # Minimal setup call with only Cython-related configuration
     setup(
-        name="genesis_bots",
-        version=VERSION,
-        license="SSPL",
-        classifiers=[
-            "License :: Other/Proprietary License",
-        ],
         ext_modules=extensions,
     )
 

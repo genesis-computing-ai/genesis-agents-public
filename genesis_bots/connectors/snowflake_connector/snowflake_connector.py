@@ -1112,32 +1112,79 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         Raises:
             Exception: If an error occurs during the SQL execution or database commit.
         """
-        try:
 
-            upsert_query = dedent(f"""
-            MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS t
-            USING (SELECT %s AS llm_type, %s AS model_name, %s AS embedding_model_name) s
-            ON (t.LLM_TYPE = s.llm_type)
-            WHEN MATCHED THEN
-                UPDATE SET t.MODEL_NAME = s.model_name, t.EMBEDDING_MODEL_NAME = s.embedding_model_name
-            WHEN NOT MATCHED THEN
-                INSERT (MODEL_NAME,EMBEDDING_MODEL_NAME) VALUES (s.model_name,s.embedding_model_name)
-            """)
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
-            cursor = self.client.cursor()
-            cursor.execute(upsert_query, ('openai', model_name, embedding_model_name,))
+        if self.source_name.lower() == "snowflake":
+            try:
 
-            # Commit the changes
-            self.client.commit()
+                upsert_query = dedent(f"""
+                MERGE INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS t
+                USING (SELECT %s AS llm_type, %s AS model_name, %s AS embedding_model_name, %s AS runner_id) s
+                ON (t.LLM_TYPE = s.llm_type AND t.RUNNER_ID = s.runner_id)
+                WHEN MATCHED THEN
+                    UPDATE SET t.MODEL_NAME = s.model_name, t.EMBEDDING_MODEL_NAME = s.embedding_model_name
+                WHEN NOT MATCHED THEN
+                    INSERT (MODEL_NAME, EMBEDDING_MODEL_NAME, LLM_TYPE, RUNNER_ID) 
+                    VALUES (s.model_name, s.embedding_model_name, s.llm_type, s.runner_id)
+                """)
 
-            json_data = json.dumps([{'Success': True}])
-            return {"Success": True, "Data": json_data}
-        except Exception as e:
-            err = f"An error occurred while inserting model names: {e}"
-            return {"Success": False, "Data": err}
-        finally:
-            if cursor is not None:
-                cursor.close()
+                cursor = self.client.cursor()
+                cursor.execute(upsert_query, ('openai', model_name, embedding_model_name,))
+
+                # Commit the changes
+                self.client.commit()
+
+                json_data = json.dumps([{'Success': True}])
+                return {"Success": True, "Data": json_data}
+            except Exception as e:
+                err = f"An error occurred while inserting model names: {e}"
+                return {"Success": False, "Data": err}
+            finally:
+                if cursor is not None:
+                    cursor.close()
+        else:
+            try:
+                cursor = self.client.cursor()
+
+                # First check if record exists
+                select_query = f"""
+                    SELECT 1 
+                    FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+                    WHERE LLM_TYPE = %s AND RUNNER_ID = %s
+                """
+                cursor.execute(select_query, ('openai', runner_id))
+                exists = cursor.fetchone() is not None
+
+                if exists:
+                    # Update existing record
+                    update_query = f"""
+                        UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS
+                        SET MODEL_NAME = %s,
+                            EMBEDDING_MODEL_NAME = %s
+                        WHERE LLM_TYPE = %s AND RUNNER_ID = %s
+                    """
+                    cursor.execute(update_query, (model_name, embedding_model_name, 'openai', runner_id))
+                else:
+                    # Insert new record
+                    insert_query = f"""
+                        INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS
+                        (MODEL_NAME, EMBEDDING_MODEL_NAME, LLM_TYPE, RUNNER_ID)
+                        VALUES (%s, %s, %s, %s)
+                    """
+                    cursor.execute(insert_query, (model_name, embedding_model_name, 'openai', runner_id))
+
+                # Commit the changes
+                self.client.commit()
+
+                json_data = json.dumps([{'Success': True}])
+                return {"Success": True, "Data": json_data}
+            except Exception as e:
+                err = f"An error occurred while inserting model names: {e}"
+                return {"Success": False, "Data": err}
+            finally:
+                if cursor is not None:
+                    cursor.close()
 
     def eai_test(self, site):
         try:
@@ -2946,53 +2993,125 @@ def get_status(site):
         # validate llm_type; use the str value for the rest of this method
         llm_type = BotLlmEngineEnum(llm_type).value # use the str value (e.g. 'openai)
 
-        try:
-            update_query = f"""
-    UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens
-    SET ACTIVE = FALSE
-    WHERE RUNNER_ID = '{runner_id}'
-    """
-            cursor = self.connection.cursor()
-            cursor.execute(update_query)
-            self.connection.commit()
-        except Exception as e:
-            logger.error(
-                f"Failed to deactivate current active LLM with error: {e}"
-            )
+        if self.source_name.lower() == "snowflake": 
 
-        # Query to merge the LLM tokens, inserting if the row doesn't exist
-        query = f"""
-            MERGE INTO  {self.genbot_internal_project_and_schema}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
-            WHEN MATCHED THEN
-                UPDATE SET llm_key = %s, llm_type = %s, active = TRUE, llm_endpoint = %s
-            WHEN NOT MATCHED THEN
-                INSERT (runner_id, llm_key, llm_type, active, llm_endpoint)
-                VALUES (%s, %s, %s, TRUE, %s)
+            # deactivate the current active LLM key
+            try:
+                update_query = f"""
+        UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens
+        SET ACTIVE = FALSE
+        WHERE RUNNER_ID = '{runner_id}'
         """
-
-        try:
-            if llm_key:
                 cursor = self.connection.cursor()
-                cursor.execute(
-                    query, (runner_id, llm_key, llm_type, llm_endpoint, runner_id, llm_key, llm_type, llm_endpoint)
-                )
+                cursor.execute(update_query)
                 self.connection.commit()
-                affected_rows = cursor.rowcount
-                cursor.close()
+            except Exception as e:
+                logger.error(
+                    f"Failed to deactivate current active LLM with error: {e}"
+                )
 
-                if affected_rows > 0:
-                    logger.info(f"Updated LLM key for runner_id: {runner_id}")
-                    return True
+            # Query to merge the LLM tokens, inserting if the row doesn't exist
+            query = f"""
+                MERGE INTO  {self.genbot_internal_project_and_schema}.llm_tokens USING (SELECT 1 AS one) ON (runner_id = %s and llm_type = '{llm_type}')
+                WHEN MATCHED THEN
+                    UPDATE SET llm_key = %s, llm_type = %s, active = TRUE, llm_endpoint = %s
+                WHEN NOT MATCHED THEN
+                    INSERT (runner_id, llm_key, llm_type, active, llm_endpoint)
+                    VALUES (%s, %s, %s, TRUE, %s)
+            """
+
+            try:
+                if llm_key:
+                    cursor = self.connection.cursor()
+                    cursor.execute(
+                        query, (runner_id, llm_key, llm_type, llm_endpoint, runner_id, llm_key, llm_type, llm_endpoint)
+                    )
+                    self.connection.commit()
+                    affected_rows = cursor.rowcount
+                    cursor.close()
+
+                    if affected_rows > 0:
+                        logger.info(f"Updated LLM key for runner_id: {runner_id}")
+                        return True
+                    else:
+                        logger.error(f"No rows updated for runner_id: {runner_id}")
+                        return False
                 else:
-                    logger.error(f"No rows updated for runner_id: {runner_id}")
-                    return False
-            else:
-                logger.info("key variable is empty and was not stored in the database")
-        except Exception as e:
-            logger.error(
-                f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
-            )
-            return False
+                    logger.info("key variable is empty and was not stored in the database")
+            except Exception as e:
+                logger.error(
+                    f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
+                )
+                return False
+        else:  # sqlite
+
+            # deactivate the current active LLM key
+            try:
+                update_query = f"""
+        UPDATE  {self.genbot_internal_project_and_schema}.llm_tokens
+        SET ACTIVE = FALSE
+        WHERE RUNNER_ID = '{runner_id}'
+        """
+                cursor = self.connection.cursor()
+                cursor.execute(update_query)
+                self.connection.commit()
+            except Exception as e:
+                logger.error(
+                    f"Failed to deactivate current active LLM with error: {e}"
+                )
+
+            # Check if record exists
+            select_query = f"""
+                SELECT 1 
+                FROM {self.genbot_internal_project_and_schema}.llm_tokens 
+                WHERE runner_id = %s AND llm_type = %s
+            """
+
+            try:
+                if llm_key:
+                    cursor = self.connection.cursor()
+                    cursor.execute(select_query, (runner_id, llm_type))
+                    exists = cursor.fetchone() is not None
+
+                    if exists:
+                        # Update existing record
+                        update_query = f"""
+                            UPDATE {self.genbot_internal_project_and_schema}.llm_tokens 
+                            SET llm_key = %s,
+                                llm_type = %s,
+                                active = TRUE,
+                                llm_endpoint = %s
+                            WHERE runner_id = %s AND llm_type = %s
+                        """
+                        cursor.execute(update_query, (llm_key, llm_type, llm_endpoint, runner_id, llm_type))
+                    else:
+                        # Insert new record
+                        insert_query = f"""
+                            INSERT INTO {self.genbot_internal_project_and_schema}.llm_tokens
+                            (runner_id, llm_key, llm_type, active, llm_endpoint)
+                            VALUES (%s, %s, %s, TRUE, %s)
+                        """
+                        cursor.execute(insert_query, (runner_id, llm_key, llm_type, llm_endpoint))
+
+                    self.connection.commit()
+                    affected_rows = cursor.rowcount
+                    cursor.close()
+
+                    if affected_rows > 0:
+                        logger.info(f"Updated LLM key for runner_id: {runner_id}")
+                        return True
+                    else:
+                        logger.error(f"No rows updated for runner_id: {runner_id}")
+                        return False
+                else:
+                    logger.info("key variable is empty and was not stored in the database")
+            except Exception as e:
+                logger.error(
+                    f"Failed to update LLM key for runner_id: {runner_id} with error: {e}"
+                )
+                return False
+
+
 
     def db_insert_new_bot(
         self,

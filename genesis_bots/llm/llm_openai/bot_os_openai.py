@@ -1049,7 +1049,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if chunk.usage != None and chunk.choices == []:
                      usage = chunk.usage
                      continue
-                  if hasattr(chunk.choices[0].delta, 'tool_calls') and chunk.choices[0].delta.tool_calls is not None:
+                  if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and chunk.choices[0].delta.tool_calls is not None:
                      tc_chunk_list = chunk.choices[0].delta.tool_calls
                      for tc_chunk in tc_chunk_list:
                         if len(tool_calls) <= tc_chunk.index:
@@ -1061,8 +1061,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                               tc['function']['name'] += tc_chunk.function.name
                         if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
                               tc['function']['arguments'] += tc_chunk.function.arguments
-
-                  if hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                  if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
                      delta_content = chunk.choices[0].delta.content
                   #   collected_chunks.append(chunk)  # save the event response
                   #   collected_messages.append(delta_content)  # save the message

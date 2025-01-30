@@ -3,12 +3,15 @@ import uuid
 import os
 #from connectors.snowflake_connector import SnowflakeConnector
 
-from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
+from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
 import asyncio
 import threading
 from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
-from genesis_bots.teams.bot import EchoBot
+from teams.bots.bot import EchoBot
+from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
+from connectors import get_global_db_connector
+import functools
 
 import json
 
@@ -26,14 +29,14 @@ from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFrameworkAuthentication
 from botbuilder.schema import Activity, ActivityTypes
 
-from genesis_bots.teams.config import DefaultConfig
-from genesis_bots.core.logging_config import logger
+from teams.config import DefaultConfig
+# from core.logging_config import logger
 
 async def teams_on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.
     # NOTE: In production environment, you should consider logging this to Azure
     #       application insights.
-    logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
+    # logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
     traceback.print_exc()
 
     # Send a message to the user
@@ -63,6 +66,8 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
     def __init__(self, bot_name=None, app_id=None, app_password=None, app_type=None, app_tenantid=None, bot_id=None, response_map=None, proxy_messages_in=None, events=None, genbot_internal_project_and_schema=None):
         super().__init__()
 
+        print('TeamsBotOsInputAdapter __init__')
+
         self.app_id = app_id if app_id is not None else os.environ.get("MicrosoftAppID", "f96bc6bd-b92c-4d9b-8258-b1fb659d6e8e")
         self.app_password = app_password if app_password is not None else os.environ.get("MicrosoftAppPassword", ".Y68Q~Ftdg8iKYp59dVTxpQ2JMcxsHyb0j0MQcNN")
         self.app_type = app_type if app_type is not None else os.environ.get("MicrosoftAppType", "MultiTenant")
@@ -83,7 +88,9 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
         CONFIG = DefaultConfig()
         ADAPTER = CloudAdapter(ConfigurationBotFrameworkAuthentication(CONFIG))
         ADAPTER.on_turn_error =teams_on_error
+
         BOT= EchoBot(add_event=self.add_event, response_map=self.response_map)
+        # BOT= AttachmentsBot()
 
         async def messages(req: Request) -> Response:
             data = json.loads(req.content._buffer[0])
@@ -118,6 +125,9 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
         #self.echo_bot_instance = EchoBot()
         #self.teams_bot_handler = TeamsBotOsInputAdapter(self.echo_bot_instance)
 
+        @functools.cached_property
+        def db_connector(self):
+            return get_global_db_connector()
 
     def add_event(self, event):
         self.events.append(event)
@@ -145,12 +155,12 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             message_text = event.text
         #    self.id_to_turncontext_map[uu] = event_tc
         except Exception as e:
-            logger.info('teams_bot_os_adapter get_input Error getting Input: ',e)
+            # logger.info('teams_bot_os_adapter get_input Error getting Input: ',e)
             return None
         return BotOsInputMessage(thread_id=thread_id, msg=message_text, metadata=metadata)
 
     async def return_result(self, turn_context: TurnContext, message: BotOsOutputMessage):
-        logger.info(f"return_result called with turn_context: {turn_context} and message: {message}")
+        # logger.info(f"return_result called with turn_context: {turn_context} and message: {message}")
         await turn_context.send_activity(
             MessageFactory.text(f"Response: {message.output}")
         )
@@ -160,12 +170,19 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             if message.output == '!NO_RESPONSE_REQUIRED':
                 self.response_map[in_uuid] = "(no response needed)"
             else:
-                self.response_map[in_uuid] = message.output
+                try:
+                    check_message = message.output.replace("\n","").replace("json","").replace("```","")
+                    print(check_message)
+                    process_json = json.loads(check_message)
+                    print(process_json)
+                    self.response_map[in_uuid] = process_json
+                except json.JSONDecodeError:
+                    self.response_map[in_uuid] = message.output
+
       #  event_tc = self.id_to_turncontext_map[in_uuid]
         #logger.info(message.output)
         #self.return_result(event_tc, message)
        #MessageFactory.text(f"Response: {message.output}")
-
 
 
     def submit(self, input, thread_id, bot_id):
@@ -179,4 +196,11 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
 
         #TeamsBotOsInputAdapter.teams_snow_connector.db_insert_llm_results(uu, "")
         return uu
+
+    def get_artifacts_store(db_adapter):
+        from connectors import SnowflakeConnector # avoid circular imports
+        if isinstance(db_adapter, SnowflakeConnector):
+            return SnowflakeStageArtifactsStore(db_adapter)
+        else:
+            raise NotImplementedError(f"No artifacts store is implemented for {db_adapter}")
 

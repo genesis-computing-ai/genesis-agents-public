@@ -23,7 +23,7 @@ from   genesis_bots.google_sheets.g_sheets   import (add_g_file_comment,
                                         get_g_file_version,
                                         get_g_file_web_link,
                                         get_g_folder_directory, read_g_sheet,
-                                        write_g_sheet_cell)
+                                        write_g_sheet_cell_v4)
 
 import collections
 import re
@@ -755,10 +755,10 @@ class ToolBelt:
             note_list = []
             for note in notes:
                 note_dict = {
-                    "timestamp": note[0], 
+                    "timestamp": note[0],
                     "bot_id": note[1],
                     "note_id": note[2],
-                    'note_name': note[3], 
+                    'note_name': note[3],
                     'note_type': note[4],
                     'note_content': note[5],
                     'note_params': note[6]

@@ -12,8 +12,8 @@ def main():
   snowflake_jwt = token_exchange(token,endpoint=args.endpoint, role=args.role,
                   snowflake_account_url=args.snowflake_account_url,
                   snowflake_account=args.account)
-  spcs_url=f'https://{args.endpoint_teams}{args.endpoint_path}:3978'
-  print(f"Connecting to url: {spcs_url}")
+  spcs_url=f'https://{args.endpoint}{args.endpoint_path}'
+  print(f"\nConnecting to url: {spcs_url}\n")
   connect_to_spcs(snowflake_jwt, spcs_url)
 
 def _get_token(args):
@@ -71,8 +71,8 @@ def _parse_args():
                 'use the default role.')
   cli_parser.add_argument('--endpoint', required=True,
               help='The ingress endpoint of the service')
-  cli_parser.add_argument('--endpoint_teams', required=True,
-              help='The ingress endpoint of the service for teams')
+  # cli_parser.add_argument('--endpoint_teams', required=True,
+  #             help='The ingress endpoint of the service for teams')
   cli_parser.add_argument('--endpoint-path', default='/',
               help='The url path for the ingress endpoint of the service')
   cli_parser.add_argument('--snowflake_account_url', default=None,

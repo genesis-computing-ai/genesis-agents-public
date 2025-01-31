@@ -258,7 +258,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       self.instructions = instructions
       self.tools = my_tools
       self.completion_threads = {}
-      
+
       genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
       if genbot_internal_project_and_schema is not None:
          genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
@@ -427,54 +427,54 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          if name not in self.__class__._shared_completion_threads:
             self.__class__._shared_completion_threads[name] = {}
          self.completion_threads = self.__class__._shared_completion_threads[name]
-         
+
          # Initialize other shared resources for this bot name
          if name not in self.__class__._shared_thread_run_map:
             self.__class__._shared_thread_run_map[name] = {}
          self.thread_run_map = self.__class__._shared_thread_run_map[name]
-         
+
          if name not in self.__class__._shared_active_runs:
             self.__class__._shared_active_runs[name] = deque()
          self.active_runs = self.__class__._shared_active_runs[name]
-         
+
          if name not in self.__class__._shared_processing_runs:
             self.__class__._shared_processing_runs[name] = deque()
          self.processing_runs = self.__class__._shared_processing_runs[name]
-         
+
          if name not in self.__class__._shared_tool_completion_status:
             self.__class__._shared_tool_completion_status[name] = {}
          self.tool_completion_status = self.__class__._shared_tool_completion_status[name]
-         
+
          if name not in self.__class__._shared_failed_retry_run_count_map:
             self.__class__._shared_failed_retry_run_count_map[name] = {}
          self.failed_retry_run_count_map = self.__class__._shared_failed_retry_run_count_map[name]
-         
+
          # Initialize shared done_map for this bot name
          if name not in self.__class__._shared_done_map:
             self.__class__._shared_done_map[name] = {}
          self.done_map = self.__class__._shared_done_map[name]
-         
+
          # Initialize the new shared variables
          if name not in self.__class__._shared_thread_stop_map:
             self.__class__._shared_thread_stop_map[name] = {}
          self.thread_stop_map = self.__class__._shared_thread_stop_map[name]
-         
+
          if name not in self.__class__._shared_stop_result_map:
             self.__class__._shared_stop_result_map[name] = {}
          self.stop_result_map = self.__class__._shared_stop_result_map[name]
-         
+
          if name not in self.__class__._shared_first_message_map:
             self.__class__._shared_first_message_map[name] = {}
          self.first_message_map = self.__class__._shared_first_message_map[name]
-         
+
          if name not in self.__class__._shared_thread_fast_mode_map:
             self.__class__._shared_thread_fast_mode_map[name] = {}
          self.thread_fast_mode_map = self.__class__._shared_thread_fast_mode_map[name]
-         
+
          if name not in self.__class__._shared_tool_failure_map:
             self.__class__._shared_tool_failure_map[name] = {}
          self.tool_failure_map = self.__class__._shared_tool_failure_map[name]
-         
+
          # Note: run_id_to_output_stream is handled by StreamingEventHandler class
 
          # Initialize shared completions runs for this bot name
@@ -675,7 +675,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             thread = self.client.beta.threads.create()
             thread_id = thread.id
             logger.info(f"{self.bot_name} openai assistant new_thread -> {thread_id}")
-        
+
         self.thread_working_set[thread_id] = thread
         self.first_message_map[thread_id] = True
 
@@ -945,6 +945,26 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                model_name = 'o1'
                input_message.msg = input_message.msg.replace('!o1!', '').strip()
                input_message.metadata['o1_override'] = True
+            elif '!o3-mini!' in input_message.msg or input_message.metadata.get('o3_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3!', '').strip() 
+               input_message.metadata['o3_override'] = True
+               input_message.metadata['reasoning_effort'] = 'low'
+            elif '!o3-mini-low!' in input_message.msg or input_message.metadata.get('o3_mini_low_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3-mini-low!', '').strip()
+               input_message.metadata['o3_mini_low_override'] = True
+               input_message.metadata['reasoning_effort'] = 'low'
+            elif '!o3-mini-medium!' in input_message.msg or input_message.metadata.get('o3_mini_medium_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3-mini-medium!', '').strip()
+               input_message.metadata['o3_mini_medium_override'] = True
+               input_message.metadata['reasoning_effort'] = 'medium'
+            elif '!o3-mini-high!' in input_message.msg or input_message.metadata.get('o3_mini_high_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3-mini-high!', '').strip()
+               input_message.metadata['o3_mini_high_override'] = True
+               input_message.metadata['reasoning_effort'] = 'high'
             # Create event for thread run created
             if reuse_run_id:
                run_id = reuse_run_id
@@ -984,7 +1004,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                 files_info += "You can reference these files in future calls using their full paths as shown above.]"
                 input_message.msg += files_info
                 attachments = input_message.files
-                
+
             # Check if we have existing messages for this thread
             if thread_id in self.completion_threads:
                 # Get existing messages and append new user message
@@ -1030,14 +1050,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   for tool_call in tool_calls_array:
                      tool_calls.append({"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}})
             else:  
-
                stream = self.client.chat.completions.create(
                   model=model_name,
                   **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
                   #tools=[{"type": "code_interpreter"}],
                   messages=openai_messages,
                   stream=True,
-                  stream_options={"include_usage": True}
+                  stream_options={"include_usage": True},
+                  **({'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {})
                )
 
                # Collect streaming chunks f
@@ -1108,8 +1128,24 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          except Exception as e:
                # Replace your old error handling
-               logger.info("Error during OpenAI streaming call: %s", e)
+               logger.error(f"Error during OpenAI streaming call: {e}")
+               # Add error info to input message metadata
+               if hasattr(input_message, 'metadata'):
+                  try:
+                     input_message.metadata['openai_error_info'] = str(e)
+                     if run_id in StreamingEventHandler.run_id_to_output_stream:
+                        StreamingEventHandler.run_id_to_output_stream[run_id] = str(e)
+                        # Set run to completed status when there's an error
+                        self.completions_runs[run_id].status = "completed"
+                        self.completions_runs[run_id].completed_at = datetime.datetime.now()
+                        self.completions_runs[run_id].response = str(e)
+                        self.completions_runs[run_id].tool_calls = None
+                        self.completions_runs[run_id].required_action = None
+                        return True
+                  except:
+                     pass
                return False
+
 
       primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
                                  'user_name': input_message.metadata.get('user_name', 'unknown_name'),
@@ -1695,7 +1731,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       threads_completed = {}
       threads_still_pending = []
 #      for thread_id in self.thread_run_map:
-  
+
       try:
          thread_id = self.active_runs.popleft()
          if thread_id is None:

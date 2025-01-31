@@ -106,7 +106,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             try:
                 runner = web.AppRunner(APP)
                 await runner.setup()
-                site = web.TCPSite(runner, host="0.0.0.0", port=CONFIG.PORT)
+                site = web.TCPSite(runner, host="localhost", port=CONFIG.PORT)
                 await site.start()
             except Exception as error:
                 raise error

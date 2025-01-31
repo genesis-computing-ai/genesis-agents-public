@@ -13,6 +13,7 @@ def main():
                   snowflake_account_url=args.snowflake_account_url,
                   snowflake_account=args.account)
   spcs_url=f'https://{args.endpoint}{args.endpoint_path}'
+  print(f"Connecting to url: {spcs_url}")
   connect_to_spcs(snowflake_jwt, spcs_url)
 
 def _get_token(args):
@@ -40,6 +41,7 @@ def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_accou
   return response.text
 
 def connect_to_spcs(token, url):
+
     # Create a request to the ingress endpoint with authz.
     headers = {'Authorization': f'Snowflake Token="{token}"'}
     data = {
@@ -47,7 +49,7 @@ def connect_to_spcs(token, url):
             [0, "test_value"]  # Row index 0 with a test value
         ]
     }
-    response = requests.post(f'{url}:3978', headers=headers, json=data)
+    response = requests.post(f'{url}', headers=headers, json=data)
     logger.info("return code %s" % response.status_code)
     logger.info(response.text)
 

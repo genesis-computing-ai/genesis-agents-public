@@ -53,6 +53,9 @@ $$
       - name: botgit
         source: "@app1.bot_git"
       endpoints:
+      - name: teamsendpoint
+        port: 3978
+        public: true
       - name: udfendpoint
         port: 8080
         public: true

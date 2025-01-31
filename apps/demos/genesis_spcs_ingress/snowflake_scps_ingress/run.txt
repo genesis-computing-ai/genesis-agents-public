@@ -8,25 +8,22 @@ python3 access-via-keypair.py \
 
 
 # for debugger:
-
-                 {
-                    "name": "Python: JWT Test",
-                    "type": "python",
-                    "request": "launch",
-                    "program": "${workspaceFolder}/tmp/jwttest/access-via-keypair.py",
-                    "args": [
-                        "--account", "<your account>",
-                        "--user", "<your user>",
-                        "--role", "<your role>",
-                        "--private_key_file_path", "<your private key file path>",
-                        "--endpoint", "<your endpoint>",
-                        "--endpoint-path", "<your endpoint path>"
-                    ],
-                    "console": "integratedTerminal",
-                    "justMyCode": true,
-                    "env": {
-                        "PYTHONPATH": "${workspaceFolder}"
-                    }
-    
+        {
+          "name": "Python: JWT Test",
+          "type": "python",
+          "request": "launch",
+          "program": "${workspaceFolder}/tmp/jwttest/access-via-keypair.py",
+          "args": [
+              "--account", "<your account>",
+              "--user", "<your user>",
+              "--role", "<your role>",
+              "--private_key_file_path", "<your private key file path>",
+              "--endpoint", "<your endpoint>",
+              "--endpoint-path", "<your endpoint path>"
+          ],
+          "console": "integratedTerminal",
+          "justMyCode": true,
+          "env": {
+              "PYTHONPATH": "${workspaceFolder}"
+          }
         },
-        

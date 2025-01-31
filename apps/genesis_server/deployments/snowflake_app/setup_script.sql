@@ -80,6 +80,7 @@ $$
     serviceRoles:
     - name: GENESISAPP_SERVICE_SERVICE_ROLE
       endpoints:
+      - teamsendpoint
       - udfendpoint
       - streamlit
       - streamlitdatacubes

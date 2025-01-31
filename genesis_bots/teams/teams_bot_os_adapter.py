@@ -97,8 +97,13 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             print(f"Received from Emulator: {data.get('text','')}")
             return await ADAPTER.process(req, BOT)
 
+        async def healthcheck(req: Request) -> Response:
+            print("3978 healthcheck")
+            return await json_response({"status": "ok"})
+
         APP = web.Application(middlewares=[aiohttp_error_middleware])
         APP.router.add_post("/api/messages", messages)
+        APP.router.add_get("/healthcheck", healthcheck)
 
         #if __name__ == "__main__":
 

@@ -59,9 +59,6 @@ $$
       - name: udfendpoint
         port: 8080
         public: true
-      - name: teamsendpoint
-        port: 3978
-        public: true
       - name: streamlit
         port: 8501
         public: true

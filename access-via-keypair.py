@@ -41,6 +41,7 @@ def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_accou
   return response.text
 
 def connect_to_spcs(token, url):
+
     # Create a request to the ingress endpoint with authz.
     headers = {'Authorization': f'Snowflake Token="{token}"'}
     data = {

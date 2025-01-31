@@ -67,9 +67,10 @@ def call_submit_udf(token, url, bot_id, row_data, thread_id=None, file=None):
         file: Optional file data to include
     """
     headers = {'Authorization': f'Snowflake Token="{token}"'}
-
+    
     # Format bot_id as JSON object
     bot_id_json = json.dumps({"bot_id": bot_id})
+    
 
     data = {
         "data": [
@@ -99,13 +100,14 @@ def call_lookup_udf(token, url, bot_id, uuid):
         'Authorization': f'Snowflake Token="{token}"',
         'Content-Type': 'application/json'
     }
-
+    
     data = {
         "data": [[1, uuid, bot_id]]
     }
-
+    
     lookup_url = f'{url}/udf_proxy/lookup_udf'
     response = requests.post(lookup_url, headers=headers, json=data)  # Use json parameter instead of data
+    
 
     return response
 
@@ -138,10 +140,11 @@ def test_chat(token, url):
             row_data=message,
             thread_id=thread_id
         )
-
+        
         if submit_response.status_code != 200:
             logger.error("Failed to submit message")
             continue
+            
 
         # Get UUID from response
         try:
@@ -158,10 +161,11 @@ def test_chat(token, url):
                 bot_id=bot_id,
                 uuid=uuid
             )
-
+            
             if lookup_response.status_code != 200:
                 logger.error("Failed to lookup response")
                 break
+                
 
             try:
                 response_data = lookup_response.json()['data'][0][1]

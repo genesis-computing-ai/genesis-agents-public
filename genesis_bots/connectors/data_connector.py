@@ -735,12 +735,12 @@ class DatabaseConnector:
                     """,
                     (connection_id,)
                 )
-                
+
                 cursor.execute(
                     f"""
                     DELETE FROM {self.db_adapter.schema}.HARVEST_RESULTS
                     WHERE source_name = %s
-                    """, 
+                    """,
                     (connection_id,)
                 )
                 self.db_adapter.client.commit()
@@ -749,13 +749,13 @@ class DatabaseConnector:
                     'success': True,
                     'message': 'Connection deleted successfully'
                 }
-                
+
                 if harvest_control_count > 0 or harvest_results_count > 0:
                     response['harvest_data_removed'] = {
                         'harvest_control_records': harvest_control_count,
                         'harvest_results_records': harvest_results_count
                     }
-                    
+
                 return response
 
             finally:

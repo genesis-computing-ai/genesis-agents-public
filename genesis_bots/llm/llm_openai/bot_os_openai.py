@@ -1128,7 +1128,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
          except Exception as e:
                # Replace your old error handling
-               logger.info(f"Error during OpenAI streaming call: {e}")
+               logger.error(f"Error during OpenAI streaming call: {e}")
                # Add error info to input message metadata
                if hasattr(input_message, 'metadata'):
                   try:

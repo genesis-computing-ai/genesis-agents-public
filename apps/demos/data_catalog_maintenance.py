@@ -98,16 +98,27 @@ def main():
         client.register_client_tool(BOT_ID, apply_catalog_change)
         msg = dedent('''
             Your task is to maintain our internal data catalog for our baseball dataset.
+            You are running this task in a non-interactive environment, DO NOT ask for confirmation or clarification in order to proceed.
+            You should only make changes to the catalog if you are sure that the changes are correct and necessary. 
+            Remember that the catalog is used primarily by humans for data exploration and reporting, so it should be as accurate and complete as possible.
+            
             Perfrom the followng steps:
+            
             1. list all the data assets currently available in the baseball dataset.
+            
             2. fetch the latest information on those assets from the data catalog (use the proper tool).
-            3. For assets for which we have catalog entries, check if any information is missing or is out of date. Here are the guidelines to follow:
+            
+            3. ONLY for assets for which we already have catalog entries, check if any information is missing or is out of date. 
+               Here are the guidelines to follow:
+            
               a. No catalog entry should have a missing value. If it is missing, suggest a value to fill it  in based on the latest asset metadata or data.
               b. If a catalog entry does not correctly or fully describes the latest metadata or data, suggest a change to the catalog to update it.
-            4. Suggest a series of actions to take on the catalog by calling the `apply_catalog_change` tool.
+              
+            4. Suggest a series of actions to existing catalog entries by calling the `apply_catalog_change` tool.
+            
             ''')
         req = client.submit_message(BOT_ID, msg)
-        response = client.get_response(BOT_ID, req.id)
+        response = client.get_response(BOT_ID, req.request_id)
         print(response)
 
 

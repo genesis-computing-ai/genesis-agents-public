@@ -1,7 +1,7 @@
 {
     "team": {
         "asset_type": "table",
-        "table_description": "Statistics and identifiers for baseball teams over various seasons.",
+        "table_description": "Statistics and identifiers for  teams over various seasons.",
         "columns": {
             "year": {
                 "description": "The year in which the season took place.",
@@ -203,9 +203,9 @@
         "table_description": "Comprehensive details about players, including personal and career-specific attributes.",
         "columns": {
             "player_id": {
-                "description": "Unique player identifier.",
+                "description": "unknown.",
                 "type": "TEXT",
-                "relationship": "Primary key referenced in other tables like pitching, appearances, etc."
+                "relationship": "missing"
             },
             "birth_year": {
                 "description": "Year of birth.",
@@ -267,11 +267,11 @@
     },
     "pitching": {
         "asset_type": "table",
-        "table_description": "Regular season pitching metrics, capturing everything from wins/losses to runs and home runs allowed.",
+        "table_description": null,
         "columns": {
             "player_id": {
                 "description": "Unique player identifier (linked to player table).",
-                "type": "TEXT",
+                "type": null,
                 "relationship": "Foreign key referencing player(player_id)."
             },
             "year": {
@@ -279,7 +279,7 @@
                 "type": "INTEGER"
             },
             "stint": {
-                "description": "Number of times played for the team in that year.",
+                "description": null,
                 "type": "INTEGER"
             },
             "team_id": {

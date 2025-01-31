@@ -154,6 +154,7 @@ player:
     player_id:
       description: unknown.
       type: TEXT
+      # NOTE: Using the terml "missing" to indicate that the relationship is not known.
       relationship: missing
     birth_year:
       description: Year of birth.
@@ -202,16 +203,19 @@ player:
       type: TEXT
 pitching:
   asset_type: table
+  # NOTE: missing table description
   table_description: null
   columns:
     player_id:
       description: Unique player identifier (linked to player table).
+      # NOTE: missing column type
       type: null
       relationship: Foreign key referencing player(player_id).
     year:
       description: Year of the season.
       type: INTEGER
     stint:
+      # NOTE: missing column description
       description: null
       type: INTEGER
     team_id:

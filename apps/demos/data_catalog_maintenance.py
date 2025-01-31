@@ -1,9 +1,8 @@
 """
-This script serves as a demonstration of how to interact with Genesis bots using the Genesis API.
+This script demonstrates how to use the Genesis API to maintain a custom data catalog.
 It showcases the following functionalities:
-1. Fetching and displaying infromation on avaialable baseball teams from a demo database, without explicitly specifying
-   what table or query to use.
-2. Asking the bot to calculate some stat like win/lose ratio based on input from the user.
+1. Harnesing the the built-in power of the Genesis Bots to understand data and metadata as well as basica data engineering concepts like data catalog maintenance.
+2. Providing custom tools to the bots to perfrom client-side operations (maintaining the catalog).
 
 See the command line options for more information on how to connect to a Genesis bot server.
 """
@@ -16,7 +15,7 @@ from   genesis_bots.api.utils   import add_default_argparse_options
 import json
 import os
 from   textwrap                 import dedent
-
+import yaml
 
 BOT_ID = "Eve"
 
@@ -24,10 +23,11 @@ BOT_ID = "Eve"
 @lru_cache(maxsize=None)
 def _load_demo_catalog_data() -> dict:
     current_dir = os.path.dirname(__file__)
-    json_file_path = os.path.join(current_dir, 'demo_data', 'demo_baseball_catalog.json')
+    yaml_file_path = os.path.join(current_dir, 'demo_data', 'demo_baseball_catalog.yaml')
+    print(">>>>", "Loading catalog data from", yaml_file_path)
 
-    with open(json_file_path, 'r') as file:
-        catalog_data = json.load(file)
+    with open(yaml_file_path, 'r') as file:
+        catalog_data = yaml.safe_load(file)
 
     return catalog_data
 
@@ -50,6 +50,11 @@ def get_catalog_entry(schema: str, asset_name: str) -> str:
         return {}
 
 
+from io import StringIO
+
+# Global StringIO object to accumulate prints
+suggested_changes = StringIO()
+
 @bot_client_tool(
     schema="The schema of the asset for which to apply the changes. ",
     asset_name="The name of the asset for which to apply the changes. ",
@@ -71,15 +76,15 @@ def apply_catalog_change(schema: str, asset_name: str, action: str, action_args:
         * add_constraint:	    Adds a constraint to table.
         * remove_constraint:	Removes an existing constraint.
     """
-    print("\n" + "-"*80 + "\n")
-    print("\nSUGGESTED CHANGE TO CATALOG:")
-    print(f"ASSET: {schema}.{asset_name}")
-    print(f"ACTION: {action}")
-    print(f"ACTION ARGS: ")
+    suggested_changes.write("\n" + "-"*80 + "\n")
+    suggested_changes.write("\nSUGGESTED CHANGE TO CATALOG:\n")
+    suggested_changes.write(f"ASSET: {schema}.{asset_name}\n")
+    suggested_changes.write(f"ACTION: {action}\n")
+    suggested_changes.write("ACTION ARGS: \n")
     action_args_dict = json.loads(action_args)
-    print(json.dumps(action_args_dict, indent=4))
-    print(f"CHANGE DESCRIPTION: {change_description}")
-    print("\n" + "-"*80 + "\n")
+    suggested_changes.write(json.dumps(action_args_dict, indent=4) + "\n")
+    suggested_changes.write(f"CHANGE DESCRIPTION: {change_description}\n")
+    suggested_changes.write("\n" + "-"*80 + "\n")
 
 
 
@@ -111,15 +116,23 @@ def main():
             3. ONLY for assets for which we already have catalog entries, check if any information is missing or is out of date. 
                Here are the guidelines to follow:
             
-              a. No catalog entry should have a missing value. If it is missing, suggest a value to fill it  in based on the latest asset metadata or data.
-              b. If a catalog entry does not correctly or fully describes the latest metadata or data, suggest a change to the catalog to update it.
+              a. No catalog entry should have a missing value (such as a null, empty value, etc). If it is missing, suggest a value to fill it  in based on the latest asset metadata or data.
               
+              b. If a catalog entry does not correctly or fully describes the latest metadata or data, suggest a change to the catalog to update it.
+
+              c. If a catalog entry is partial, incomplete, or otherwise incorrect, suggest a change to the catalog to update it.
+
+              d. If a catalog entry is redundant, suggest a change to the catalog to remove it.
+
             4. Suggest a series of actions to existing catalog entries by calling the `apply_catalog_change` tool.
             
             ''')
-        req = client.submit_message(BOT_ID, msg)
-        response = client.get_response(BOT_ID, req.request_id)
+        req = client.submit_message(BOT_ID, msg, )
+        response = client.get_response(BOT_ID, req.request_id, print_stream=True)
         print(response)
+        global suggested_changes
+        print("------------- SUGGESTED CATALOG CHANGES -------------")
+        print(suggested_changes.getvalue())
 
 
 

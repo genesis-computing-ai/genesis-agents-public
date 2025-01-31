@@ -949,6 +949,22 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                model_name = 'o3-mini'
                input_message.msg = input_message.msg.replace('!o3!', '').strip() 
                input_message.metadata['o3_override'] = True
+               input_message.metadata['reasoning_effort'] = 'low'
+            elif '!o3-mini-low!' in input_message.msg or input_message.metadata.get('o3_mini_low_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3-mini-low!', '').strip()
+               input_message.metadata['o3_mini_low_override'] = True
+               input_message.metadata['reasoning_effort'] = 'low'
+            elif '!o3-mini-medium!' in input_message.msg or input_message.metadata.get('o3_mini_medium_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3-mini-medium!', '').strip()
+               input_message.metadata['o3_mini_medium_override'] = True
+               input_message.metadata['reasoning_effort'] = 'medium'
+            elif '!o3-mini-high!' in input_message.msg or input_message.metadata.get('o3_mini_high_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3-mini-high!', '').strip()
+               input_message.metadata['o3_mini_high_override'] = True
+               input_message.metadata['reasoning_effort'] = 'high'
             # Create event for thread run created
             if reuse_run_id:
                run_id = reuse_run_id
@@ -1034,14 +1050,14 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   for tool_call in tool_calls_array:
                      tool_calls.append({"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}})
             else:  
-
                stream = self.client.chat.completions.create(
                   model=model_name,
                   **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
                   #tools=[{"type": "code_interpreter"}],
                   messages=openai_messages,
                   stream=True,
-                  stream_options={"include_usage": True}
+                  stream_options={"include_usage": True},
+                  **({'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {})
                )
 
                # Collect streaming chunks f
@@ -1113,7 +1129,23 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          except Exception as e:
                # Replace your old error handling
                logger.info("Error during OpenAI streaming call: %s", e)
+               # Add error info to input message metadata
+               if hasattr(input_message, 'metadata'):
+                  try:
+                     input_message.metadata['openai_error_info'] = str(e)
+                     if run_id in StreamingEventHandler.run_id_to_output_stream:
+                        StreamingEventHandler.run_id_to_output_stream[run_id] = str(e)
+                        # Set run to completed status when there's an error
+                        self.completions_runs[run_id].status = "completed"
+                        self.completions_runs[run_id].completed_at = datetime.datetime.now()
+                        self.completions_runs[run_id].response = str(e)
+                        self.completions_runs[run_id].tool_calls = None
+                        self.completions_runs[run_id].required_action = None
+                        return True
+                  except:
+                     pass
                return False
+
 
       primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
                                  'user_name': input_message.metadata.get('user_name', 'unknown_name'),

@@ -945,6 +945,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                model_name = 'o1'
                input_message.msg = input_message.msg.replace('!o1!', '').strip()
                input_message.metadata['o1_override'] = True
+            elif '!o3-mini!' in input_message.msg or input_message.metadata.get('o3_override', False)==True:
+               model_name = 'o3-mini'
+               input_message.msg = input_message.msg.replace('!o3!', '').strip() 
+               input_message.metadata['o3_override'] = True
             # Create event for thread run created
             if reuse_run_id:
                run_id = reuse_run_id

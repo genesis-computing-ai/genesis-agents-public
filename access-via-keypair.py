@@ -47,7 +47,7 @@ def connect_to_spcs(token, url):
             [0, "test_value"]  # Row index 0 with a test value
         ]
     }
-    response = requests.post(f'{url}', headers=headers, json=data)
+    response = requests.post(f'{url}:3978', headers=headers, json=data)
     logger.info("return code %s" % response.status_code)
     logger.info(response.text)
 

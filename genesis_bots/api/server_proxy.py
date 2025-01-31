@@ -1,4 +1,3 @@
-from   flask                    import Flask
 from   genesis_bots.api.genesis_base \
                                 import (GenesisBotConfig, RequestHandle,
                                         _ALL_BOTS_, get_tool_func_descriptor,
@@ -7,7 +6,7 @@ from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 from   genesis_bots.demo.app.genesis_app \
                                 import DEFAULT_HTTP_ENDPOINT_PORT, genesis_app
-from   genesis_bots.demo.routes import main_routes, udf_routes
+
 import json
 import requests
 from   requests                 import Response
@@ -498,6 +497,8 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
 
 
     def _start_flask_app(self):
+        from   genesis_bots.demo.routes import main_routes, udf_routes  # lazy import to avoid unecessary dependencies
+        from   flask                    import Flask
         def run_flask(): # flask thread function
             # Monkey-patch flask.cli.show_server_banner to be a no-op function to avoid printing information to stdout
             try:

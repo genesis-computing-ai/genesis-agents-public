@@ -1,16 +1,14 @@
+from   apscheduler.schedulers.background \
+                                import BackgroundScheduler
+from   datetime                 import datetime, timedelta
+
+from   genesis_bots.core        import global_flags
+from   genesis_bots.core.logging_config \
+                                import logger
+from   genesis_bots.core.system_variables \
+                                import SystemVariables
+
 import os
-from genesis_bots.core.logging_config import logger
-from genesis_bots.connectors import get_global_db_connector
-from genesis_bots.core import global_flags
-from genesis_bots.core.bot_os_llm import LLMKeyHandler
-from genesis_bots.bot_genesis.make_baby_bot import  get_slack_config_tokens, test_slack_config_token
-from genesis_bots.core.system_variables import SystemVariables
-from genesis_bots.demo.sessions_creator import create_sessions
-from apscheduler.schedulers.background import BackgroundScheduler
-from genesis_bots.auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from genesis_bots.schema_explorer import SchemaExplorer
-import time
-from datetime import datetime, timedelta
 
 
 DEFAULT_HTTP_ENDPOINT_PORT = 8080
@@ -138,7 +136,7 @@ class GenesisApp:
         Attributes:
             db_adapter: The database adapter instance for connecting to the database.
         """
-
+        from   genesis_bots.connectors  import get_global_db_connector  # lazy import to avoid unecessary dependencies
         genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
         db_adapter = get_global_db_connector(genesis_source)
 
@@ -190,6 +188,8 @@ class GenesisApp:
         Attributes:
             llm_api_key_struct: The structure to store LLM API key information.
         """
+        from   genesis_bots.core.bot_os_llm import LLMKeyHandler  # lazy import to avoid unecessary dependencies
+
         llm_api_key_struct = None
         llm_key_handler = LLMKeyHandler(db_adapter=self.db_adapter)
 
@@ -216,6 +216,10 @@ class GenesisApp:
             global_flags.slack_active (bool): The flag indicating whether the Slack
                 connector is active.
         """
+
+        from   genesis_bots.bot_genesis.make_baby_bot import (  # lazy import to avoid unecessary dependencies
+            get_slack_config_tokens, test_slack_config_token)
+
         t, r = get_slack_config_tokens()
         global_flags.slack_active = test_slack_config_token()
         if global_flags.slack_active == 'token_expired':
@@ -239,6 +243,8 @@ class GenesisApp:
         Args:
             bot_list (list, optional): A list of bot configurations to create sessions for. Defaults to None.
         """
+        from   genesis_bots.demo.sessions_creator import create_sessions  # lazy import to avoid unecessary dependencies
+
         db_adapter = self.db_adapter
         llm_api_key_struct = self.llm_api_key_struct
         if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
@@ -339,17 +345,19 @@ class GenesisApp:
         Returns:
             bool: True if ngrok was successfully activated, False if not.
         """
-
+        from   genesis_bots.auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots  # lazy import to avoid unecessary dependencies
         ngrok_active = launch_ngrok_and_update_bots(update_endpoints=global_flags.slack_active)
-
+        return ngrok_active
 
     def start_harvester(self):
         """
         Initializes and starts the harvester process using the existing database connection
         and LLM key configuration.
         """
+        from   genesis_bots.schema_explorer import SchemaExplorer  # lazy import to avoid unecessary dependencies
+
         logger.info('Starting harvester component...')
-        
+
         # Only start if harvesting is enabled
         if os.getenv('INTERNAL_HARVESTER_ENABLED', 'TRUE').upper() != 'TRUE':
             logger.info('Internal Harvester disabled via INTERNAL_HARVESTER_ENABLED environment variable')
@@ -360,12 +368,12 @@ class GenesisApp:
             self.schema_explorer = None
         else:
             self.schema_explorer = SchemaExplorer(self.db_adapter, self.llm_api_key_struct.llm_key)
-        
+
         # Add harvester job to scheduler
         refresh_seconds = int(os.getenv("HARVESTER_REFRESH_SECONDS", 60))
         if os.getenv("HARVEST_TEST", "FALSE").upper() == "TRUE":
             refresh_seconds = 5
-        
+
         # Flag to track if harvester is currently running
         self.harvester_running = False
         # Track last log time and consecutive inactive runs
@@ -382,7 +390,7 @@ class GenesisApp:
             if self.harvester_running:
                 logger.info("Previous harvester job still running, skipping this run")
                 return
-            
+
             try:
                 wake_up = False
 
@@ -432,7 +440,7 @@ class GenesisApp:
         # Schedule runs with no initial delay (next_run_time=datetime.now())
         self.scheduler.add_job(
             harvester_job,
-            'interval', 
+            'interval',
             seconds=refresh_seconds,
             id='harvester_job',
             replace_existing=True,
@@ -470,14 +478,14 @@ class GenesisApp:
         if not hasattr(self, 'schema_explorer'):
             logger.error("Harvester not initialized. Call start_harvester() first.")
             return False
-            
+
         if self.harvester_running:
             logger.info("Harvester already running, cannot trigger immediate harvest")
             return False
-            
+
         try:
             self.harvester_running = True
-            
+
             # Create dataset filter for specific database if provided
             dataset_filter = None
             if database_name or source_name:
@@ -485,16 +493,16 @@ class GenesisApp:
                     'database_name': database_name,
                     'source_name': source_name or self.db_adapter.source_name
                 }
-            
+
             # Run the harvest with optional filter
             self.schema_explorer.explore_and_summarize_tables_parallel(dataset_filter=dataset_filter)
             logger.info(f"Immediate harvest completed for {database_name or 'all databases'}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error during immediate harvest: {e}")
             return False
-            
+
         finally:
             self.harvester_running = False
 

@@ -12,7 +12,7 @@ python3 access-via-keypair.py \
           "name": "Python: JWT Test",
           "type": "python",
           "request": "launch",
-          "program": "${workspaceFolder}/tmp/jwttest/access-via-keypair.py",
+          "program": "${workspaceFolder}/apps/demos/genesis_spcs_ingress/snowflake_scps_ingress/access-via-keypair.py",
           "args": [
               "--account", "<your account>",
               "--user", "<your user>",

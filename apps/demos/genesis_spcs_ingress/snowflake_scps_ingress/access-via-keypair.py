@@ -16,7 +16,7 @@ def main():
   spcs_url=f'https://{args.endpoint}{args.endpoint_path}'
   connect_to_spcs(snowflake_jwt, spcs_url)
   test_chat(snowflake_jwt, spcs_url)
-  
+
 def _get_token(args):
   token = JWTGenerator(args.account, args.user, args.private_key_file_path, timedelta(minutes=args.lifetime),
             timedelta(minutes=args.renewal_delay)).get_token()
@@ -71,16 +71,17 @@ def call_submit_udf(token, url, bot_id, row_data, thread_id=None, file=None):
     # Format bot_id as JSON object
     bot_id_json = json.dumps({"bot_id": bot_id})
     
+
     data = {
         "data": [
             [0, row_data, thread_id, bot_id_json, file]  # Match input_rows structure
         ]
     }
-    
+
 
     submit_url = f'{url}/udf_proxy/submit_udf'
     response = requests.post(submit_url, headers=headers, json=data)
-    
+
     #logger.info(f"Submit UDF status code: {response.status_code}")
     #logger.info(f"Submit UDF response: {response.text}")
     return response
@@ -107,6 +108,7 @@ def call_lookup_udf(token, url, bot_id, uuid):
     lookup_url = f'{url}/udf_proxy/lookup_udf'
     response = requests.post(lookup_url, headers=headers, json=data)  # Use json parameter instead of data
     
+
     return response
 
 
@@ -123,13 +125,13 @@ def test_chat(token, url):
     # Get bot ID from user
     bot_id = input("Enter bot ID (default: Eve): ") or "Eve"
     thread_id = str(uuid.uuid4())  # Generate thread ID for conversation
-    
+
     while True:
         # Get message from user
         message = input("\nEnter message (or 'quit' to exit): ")
         if message.lower() == 'quit':
             break
-            
+
         # Submit message
         submit_response = call_submit_udf(
             token=token,
@@ -143,13 +145,14 @@ def test_chat(token, url):
             logger.error("Failed to submit message")
             continue
             
+
         # Get UUID from response
         try:
             uuid = submit_response.json()['data'][0][1]
         except (KeyError, IndexError, json.JSONDecodeError) as e:
             logger.error(f"Failed to parse UUID from response: {e}")
             continue
-            
+
         # Poll for response
         while True:
             lookup_response = call_lookup_udf(
@@ -163,6 +166,7 @@ def test_chat(token, url):
                 logger.error("Failed to lookup response")
                 break
                 
+
             try:
                 response_data = lookup_response.json()['data'][0][1]
                 if response_data != "not found":
@@ -171,7 +175,7 @@ def test_chat(token, url):
             except (KeyError, IndexError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to parse response: {e}")
                 break
-                
+
             time.sleep(1)  # Wait before polling again
 
 

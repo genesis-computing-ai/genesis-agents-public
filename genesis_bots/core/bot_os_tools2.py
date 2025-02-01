@@ -346,21 +346,26 @@ class ToolFuncDescriptor:
             raise ValueError(f"All groups for function {name} must have the same lifetime type. Found lifetimes: {lifetimes}")
         self._groups = groups
 
+
     @property
     def name(self) -> str:
         return self._name
+
 
     @property
     def description(self) -> str:
         return self._description
 
+
     @property
     def parameters_desc(self) -> Iterable[ToolFuncParamDescriptor]:
         return self._parameters_desc
 
+
     @property
     def groups(self) -> List[ToolFuncGroup]:
-        return list(self._groups)
+        return self._groups
+
 
     def to_llm_description_dict(self) -> Dict[str, Any]:
         """Generate the object used to describe this function to an LLM."""
@@ -380,6 +385,7 @@ class ToolFuncDescriptor:
             }
         }
 
+
     def to_json(self) -> dict:
         """
         Converts the ToolFuncDescriptor instance to a JSON-compatible dictionary.
@@ -393,6 +399,7 @@ class ToolFuncDescriptor:
             "parameters_desc": [param.to_json() for param in self._parameters_desc],
             "groups": [group.to_json() for group in self._groups]
         }
+
 
     @classmethod
     def from_json(cls, data: dict):
@@ -533,6 +540,7 @@ def is_tool_func(func):
         bool: True if the function is a tool function, False otherwise.
     """
     return hasattr(func, ToolFuncDescriptor.GC_TOOL_DESCRIPTOR_ATTR_NAME) and isinstance(getattr(func, ToolFuncDescriptor.GC_TOOL_DESCRIPTOR_ATTR_NAME, None), ToolFuncDescriptor)
+
 
 def get_tool_func_descriptor(func):
     """

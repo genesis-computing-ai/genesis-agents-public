@@ -780,8 +780,8 @@ class TestGCTools(unittest.TestCase):
             self.assertIn("Function ephemeral_function is already assigned to bot_id bot_1. No action taken.", log.output[0])
 
         # Test revoking an ephemeral tool function from a bot
-        revoked_func = registry.revoke_ephemeral_tool_func_from_bot("bot_1", ephemeral_function)
-        self.assertEqual(revoked_func, ephemeral_function)
+        revoked_bots = registry.revoke_ephemeral_tool_func_from_bot("bot_1", ephemeral_function)
+        self.assertEqual(["bot_1"], revoked_bots)
         self.assertNotIn(ephemeral_function, registry.get_ephemeral_tool_funcs_for_bot("bot_1"))
 
         # Test revoking a non-existent ephemeral tool function from a bot

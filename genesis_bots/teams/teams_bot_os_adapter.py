@@ -76,10 +76,10 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
         @app.route("/healthcheck", methods=["GET"])
         def healthcheck():
             print("3978 healthcheck")
-            return jsonify({"status": "Port 3978 says ok"})
+            return jsonify({"status": "I'm ready (from get /healthcheck:3978)"})
 
         def start_flask_app():
-            app.run(host="localhost", port=3978)
+            app.run(host="0.0.0.0", port=3978)
 
         t = threading.Thread(target=start_flask_app)
         t.start()

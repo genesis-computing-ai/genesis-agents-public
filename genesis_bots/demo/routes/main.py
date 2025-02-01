@@ -9,7 +9,7 @@ main_routes = Blueprint('main_routes', __name__)
 @main_routes.get("/relay")
 def relay_8080_to_3978():
     logger.info("Flask: /relay probe received")
-    url = "http://localhost:3978/healthcheck"
+    url = "http://0.0.0.0:3978/healthcheck"
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -22,11 +22,13 @@ def relay_8080_to_3978():
 @main_routes.get("/healthcheck")
 def readiness_probe():
     # logger.info("Flask: /healthcheck probe received")
-    return "I'm ready!"
+    response = make_response({"data": "I'm ready! (from get /healthcheck:8080)"})
+    response.headers['Content-type'] = 'application/json'
+    return response
 
 @main_routes.post("/healthcheck")
 def readiness_probe_post():
-    response = make_response({"data": "I'm ready!"})
+    response = make_response({"data": "I'm ready! (from post /healthcheck:8080)"})
     response.headers['Content-type'] = 'application/json'
     return response
 

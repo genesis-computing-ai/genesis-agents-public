@@ -19,6 +19,7 @@ import threading
 import random
 import re
 import datetime
+import traceback
 
 
 # module level
@@ -100,6 +101,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             # Define Slack event handlers
             @self.slack_socket.event("message")
             def handle_message_events(ack, event, say):
+                logger.info(f"[EVENT] Received Slack event - type: {event.get('type')}, subtype: {event.get('subtype')}, ts: {event.get('ts')}")
                 ack()
                 # TODO, clear this after 30 min
                 if event.get("subtype", None) == "message_changed":
@@ -312,10 +314,11 @@ class SlackBotAdapter(BotOsInputAdapter):
     def get_input(
         self, thread_map=None, active=None, processing=None, done_map=None
     ) -> BotOsInputMessage | None:
-        # logger.info(f"SlackBotAdapter:get_input")
-        files = []
+        # Get call stack info
+        stack = traceback.extract_stack()
+        caller = stack[-2]  # -2 because -1 would be this line
+        logger.info(f"[TRACE] get_input called from {caller.filename}:{caller.lineno}")
 
-     #   logger.info(self.bot_name)
         with self.events_lock:
             if len(self.events) == 0:
                 return None
@@ -613,7 +616,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         # Add before the return statement
         if bot_input_message:  # assuming 'bot_input_message' is your BotOsInputMessage
-            logger.info(f"[PROCESSING] Created BotOsInputMessage - session: {bot_input_message.session_id}, thread: {bot_input_message.thread_id}")
+            logger.info(f"[PROCESSING] Created BotOsInputMessage - thread: {bot_input_message.thread_id}, ts: {bot_input_message.message_id}, user: {bot_input_message.user_id}")
         else:
             logger.info("[PROCESSING] No message created from event")
         return bot_input_message

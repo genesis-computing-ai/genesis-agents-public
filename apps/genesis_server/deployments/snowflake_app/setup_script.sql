@@ -71,12 +71,16 @@ $$
       - name: voicerelay
         port: 8081
         public: true
+      - name: teamsendpoint
+        port: 3978
+        public: true
       logExporters:
         eventTableConfig:
           logLevel: INFO
     serviceRoles:
     - name: GENESISAPP_SERVICE_SERVICE_ROLE
       endpoints:
+      - teamsendpoint
       - udfendpoint
       - streamlit
       - streamlitdatacubes

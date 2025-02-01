@@ -65,8 +65,8 @@ class GenesisAPI:
         while timeout_seconds is None or time.time() - time_start < timeout_seconds:
             response = self._server_proxy.get_message(bot_id, request_id)
             if response is not None:
-                if response.endswith('💬'): # remove trailing chat bubble
-                    response = response[:-1]
+                if len(response) > 2 and response.endswith(' 💬'): # remove trailing chat bubble
+                    response = response[:-2]
                 else:
                     done = True
                 # Store the new content before any formatting

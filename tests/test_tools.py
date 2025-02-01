@@ -10,11 +10,12 @@ from genesis_bots.api import GenesisAPI, build_server_proxy
 from uuid import uuid4
 from apps.demos.cli_chat import get_available_bots
 from datetime import datetime, timedelta
-# from genesis_bots.connectors.data_connector import _query_database
+
 from genesis_bots.core.tools.process_scheduler import process_scheduler
 from genesis_bots.connectors.data_connector import _query_database, _search_metadata, _list_database_connections
 from genesis_bots.core.tools.image_tools import image_generation
 from genesis_bots.core.tools.process_manager import manage_processes
+from genesis_bots.bot_genesis.make_baby_bot import make_baby_bot, add_new_tools_to_bot, update_bot_instructions
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -58,7 +59,6 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
 
         response = process_scheduler(action='HISTORY', bot_id=bot_id, task_id=task_id)
-        print(response)
         self.assertTrue(response['Success'])
 
     def test_data_connections_functions(self):
@@ -103,6 +103,28 @@ class TestTools(unittest.TestCase):
         request = self.client.submit_message(curr_bot_id, 'List of bots?', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
         print(response)
+
+
+
+    def test_make_baby_bot(self):
+        bot_id = 'BotId'
+        bot_name = 'BotName'
+        response = make_baby_bot(bot_id=bot_id, bot_name=bot_name, confirmed='CONFIRMED', bot_instructions='You are a helpful test bot.')
+        self.assertTrue(response['success'])
+
+        self.assertTrue(bot_id in get_available_bots(self.client))
+
+        response = add_new_tools_to_bot(bot_id=bot_id, new_tools=['make_baby_bot'])
+        self.assertTrue(response['success'])
+
+        thread_id = str(uuid4())
+        request = self.client.submit_message(bot_id, 'List of bots?', thread_id=thread_id)
+        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+
+        response = update_bot_instructions(bot_id=bot_id, new_instructions='You are a helpful test bot. Respond in Spanish!', confirmed='CONFIRMED')
+        self.assertTrue(response['success'])
+
+
 
     @classmethod
     def tearDownClass(cls):

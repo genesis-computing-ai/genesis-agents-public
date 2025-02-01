@@ -34,9 +34,9 @@ def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_accou
   url = f'https://{snowflake_account}.snowflakecomputing.com/oauth/token'
   if snowflake_account_url:
     url =       f'{snowflake_account_url}/oauth/token'
-  logger.info("oauth url: %s" %url)
+  logger.info("\noauth url: %s\n" % url)
   response = requests.post(url, data=data)
-  logger.info("snowflake jwt : %s" % response.text)
+  logger.info("\nsnowflake jwt : %s\n" % response.text)
   assert 200 == response.status_code, "unable to get snowflake token"
   return response.text
 
@@ -71,8 +71,6 @@ def _parse_args():
                 'use the default role.')
   cli_parser.add_argument('--endpoint', required=True,
               help='The ingress endpoint of the service')
-  # cli_parser.add_argument('--endpoint_teams', required=True,
-  #             help='The ingress endpoint of the service for teams')
   cli_parser.add_argument('--endpoint-path', default='/',
               help='The url path for the ingress endpoint of the service')
   cli_parser.add_argument('--snowflake_account_url', default=None,

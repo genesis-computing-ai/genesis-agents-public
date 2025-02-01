@@ -11,7 +11,7 @@ def readiness_probe():
     # logger.info("Flask: /healthcheck probe received")
     return "I'm ready!"
 
-@main_routes.post("/healthcheck_post")
+@main_routes.post("/healthcheck")
 def readiness_probe_post():
     response = make_response({"data": "I'm ready!"})
     response.headers['Content-type'] = 'application/json'

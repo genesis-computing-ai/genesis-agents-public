@@ -456,6 +456,8 @@ class SlackBotAdapter(BotOsInputAdapter):
             else:
                 thinking_ts = None
 
+        # Initialize files list before use
+        files = []
         if "files" in event:
             #    logger.info(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
             files = self._download_slack_files(event, thread_id=thread_id)

@@ -1336,7 +1336,10 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
                else: # target bot is not openai assistant-backed
                   # this will start a new session with the updated tools and proper instructions
-                  self.reset_bot_if_not_openai(bot_id=target_bot)
+
+                   # this is no needed here anymore since we are doing it inside the function directly 
+                  # self.reset_bot_if_not_openai(bot_id=target_bot)
+                  pass
 
                logger.info(f"Bot tools for {target_bot} updated.")
 

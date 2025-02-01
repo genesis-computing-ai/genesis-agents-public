@@ -1105,13 +1105,13 @@ def make_baby_bot(
     bb_db_connector = get_global_db_connector()
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
 
-    files = []  # files system no longer supported
-    try:
-        files_array = json.loads(files)
-        if isinstance(files_array, list):
-            files = files_array
-    except Exception as e:
-        pass
+    # files = []  # files system no longer supported
+    # try:
+    #     files_array = json.loads(files)
+    #     if isinstance(files_array, list):
+    #         files = files_array
+    # except Exception as e:
+    #     pass
 
     if isinstance(files, str):
         files = files.split(',') if files else []

@@ -613,7 +613,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         # Add before the return statement
         if bot_input_message:  # assuming 'bot_input_message' is your BotOsInputMessage
-            logger.info(f"[PROCESSING] Created BotOsInputMessage - thread: {bot_input_message.thread_id}, ts: {bot_input_message.message_id}, user: {bot_input_message.user_id}")
+            logger.info(f"[PROCESSING] Created BotOsInputMessage - thread: {bot_input_message.thread_id}, ts: {bot_input_message.msg}, user: {bot_input_message.metadata['user_id']}")
         else:
             logger.info("[PROCESSING] No message created from event")
         return bot_input_message

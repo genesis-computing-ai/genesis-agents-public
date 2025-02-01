@@ -1118,7 +1118,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     filename = msg_url.split("/")[-1]
                     msg_prime = msg
 
-                    msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>",msg)
+                    msg = re.sub(rf"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>",msg)
                     alt_pattern = re.compile(r"\[(.*?)\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)" )
                     msg = re.sub(alt_pattern, f"<{{msg_url}}|\\1>", msg)
 
@@ -1338,7 +1338,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             filename = msg_url.split("/")[-1]
             msg_prime = msg
 
-            msg = re.sub(f"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg)
+            msg = re.sub(rf"(?i)\(sandbox:/mnt/data/{filename}\)", f"<{{msg_url}}>", msg)
             alt_pattern = re.compile(
                 r"\[(.*?)\]\(\./runtime/downloaded_files/thread_(.*?)/(.+?)\)"
             )

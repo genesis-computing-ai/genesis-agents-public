@@ -101,6 +101,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             @self.slack_socket.event("message")
             def handle_message_events(ack, event, say):
                 ack()
+                logger.info(f"[INCOMING] Slack message received - type: {event.get('type')}, user: {event.get('user')}, text: {event.get('text', '')[:100]}")
                 # TODO, clear this after 30 min
                 if event.get("subtype", None) == "message_changed":
                     msg = event["message"].get("text", None)
@@ -313,7 +314,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         # logger.info(f"SlackBotAdapter:get_input")
         files = []
 
-     #    logger.info(self.bot_name)
+     #   logger.info(self.bot_name)
         with self.events_lock:
             if len(self.events) == 0:
                 return None
@@ -815,6 +816,8 @@ class SlackBotAdapter(BotOsInputAdapter):
         in_uuid=None,
         task_meta=None,
     ):
+        # Add this logging line here
+        logger.info(f"[OUTGOING] Sending response - session: {session_id}, thread: {message.thread_id}, text: {message.output[:100]}")
    #     if "!NO_RESPONSE_REQUIRED" in message.output:
    #         pass
         logger.debug(f"SlackBotAdapter:handle_response - {session_id} {message}")
@@ -861,25 +864,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                                 msg = msg[last_index + len(l100):]
                                 trimmed=True
              #                   logger.info(f"    Length of new trimmed msg: {len(msg)}")
-                    if not trimmed:
-                        msg_fixed = self.fix_fn_calls(msg)
-                        if last100 in msg_fixed:
-              #              logger.info(f"    Last 100 is in msg_fixed")
-                            last_index = msg_fixed.rfind(last100, 0, current_chunk_start)
-               #             logger.info(f"    Last index: {last_index}")
-                            if last_index != -1:
-                                msg = msg_fixed[last_index + len(last100):]
-                                trimmed=True
-                        l100 = last100.replace(" \n\n", "\n")
-                        if l100 in msg_fixed:
-              #              logger.info(f"    Last 100 is in msg_fixed")
-                            last_index = msg_fixed.rfind(l100, 0, current_chunk_start)
-               #             logger.info(f"    Last index: {last_index}")
-                            if last_index != -1:
-                                msg = msg_fixed[last_index + len(l100):]
-                                trimmed=True
-
-                #                logger.info(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                  #       logger.info("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
                         msg = msg[current_chunk_start:]

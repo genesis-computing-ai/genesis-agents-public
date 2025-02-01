@@ -1,52 +1,33 @@
-from flask import Blueprint, request, render_template, make_response, jsonify
+from flask import Flask, request, jsonify
 import uuid
 import os
-#from connectors.snowflake_connector import SnowflakeConnector
-
 from core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from collections import deque
-import asyncio
 import threading
 from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from teams.bots.bot import EchoBot
 from core.bot_os_artifacts import ARTIFACT_ID_REGEX, get_artifacts_store
 from connectors import get_global_db_connector
 import functools
-
 import json
-
 import sys
 import traceback
 from datetime import datetime
 from http import HTTPStatus
-
-from aiohttp import web
-from aiohttp.web import Request, Response, json_response
-from botbuilder.core import (
-    TurnContext,
-)
+from botbuilder.core import TurnContext
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFrameworkAuthentication
 from botbuilder.schema import Activity, ActivityTypes
-
 from teams.config import DefaultConfig
 from core.logging_config import logger
 
-async def teams_on_error(context: TurnContext, error: Exception):
-    # This check writes out errors to console log .vs. app insights.
-    # NOTE: In production environment, you should consider logging this to Azure
-    #       application insights.
-    # logger.info(f"\n [on_turn_error] unhandled error: {error}", file=sys.stderr)
-    traceback.print_exc()
+app = Flask(__name__)
 
-    # Send a message to the user
+async def teams_on_error(context: TurnContext, error: Exception):
+    traceback.print_exc()
     await context.send_activity("The bot encountered an error or bug.")
-    await context.send_activity(
-        "To continue to run this bot, please fix the bot source code."
-    )
-    # Send a trace activity if we're talking to the Bot Framework Emulator
+    await context.send_activity("To continue to run this bot, please fix the bot source code.")
     if context.activity.channel_id == "emulator":
-        # Create a trace activity that contains the error object
         trace_activity = Activity(
             label="TurnError",
             name="on_turn_error Trace",
@@ -55,14 +36,9 @@ async def teams_on_error(context: TurnContext, error: Exception):
             value=f"{error}",
             value_type="https://www.botframework.com/schemas/error",
         )
-        # Send a trace activity, which will be displayed in Bot Framework Emulator
         await context.send_activity(trace_activity)
 
-#from teams.bots import BOT
-
 class TeamsBotOsInputAdapter(BotOsInputAdapter):
-    #teams_snow_connector = SnowflakeConnector(connection_name='Snowflake')
-
     def __init__(self, bot_name=None, app_id=None, app_password=None, app_type=None, app_tenantid=None, bot_id=None, response_map=None, proxy_messages_in=None, events=None, genbot_internal_project_and_schema=None):
         super().__init__()
 
@@ -87,48 +63,26 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
 
         CONFIG = DefaultConfig()
         ADAPTER = CloudAdapter(ConfigurationBotFrameworkAuthentication(CONFIG))
-        ADAPTER.on_turn_error =teams_on_error
+        ADAPTER.on_turn_error = teams_on_error
 
-        BOT= EchoBot(add_event=self.add_event, response_map=self.response_map)
-        # BOT= AttachmentsBot()
+        BOT = EchoBot(add_event=self.add_event, response_map=self.response_map)
 
-        async def messages(req: Request) -> Response:
-            data = json.loads(req.content._buffer[0])
+        @app.route("/api/messages", methods=["POST"])
+        def messages():
+            data = request.json
             print(f"Received from Emulator: {data.get('text','')}")
-            return await ADAPTER.process(req, BOT)
+            return ADAPTER.process(request, BOT)
 
-        async def healthcheck(req: Request) -> Response:
+        @app.route("/healthcheck", methods=["GET"])
+        def healthcheck():
             print("3978 healthcheck")
-            return json_response({"status": "Port 3978 says ok"})
+            return jsonify({"status": "Port 3978 says ok"})
 
-        APP = web.Application(middlewares=[aiohttp_error_middleware])
-        APP.router.add_post("/api/messages", messages)
-        APP.router.add_get("/healthcheck", healthcheck)
+        def start_flask_app():
+            app.run(host="localhost", port=3978)
 
-        #if __name__ == "__main__":
-
-        async def run_app():
-            try:
-                runner = web.AppRunner(APP)
-                await runner.setup()
-                site = web.TCPSite(runner, host="localhost", port=CONFIG.PORT)
-                await site.start()
-            except Exception as error:
-                raise error
-
-
-        def start_background_loop(loop):
-            asyncio.set_event_loop(loop)
-            loop.run_forever()
-
-        new_loop = asyncio.new_event_loop()
-        t = threading.Thread(target=start_background_loop, args=(new_loop,))
+        t = threading.Thread(target=start_flask_app)
         t.start()
-
-        asyncio.run_coroutine_threadsafe(run_app(), new_loop)
-
-        #self.echo_bot_instance = EchoBot()
-        #self.teams_bot_handler = TeamsBotOsInputAdapter(self.echo_bot_instance)
 
         @functools.cached_property
         def db_connector(self):
@@ -137,7 +91,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
     def add_event(self, event):
         self.events.append(event)
 
-    def get_input(self, thread_map=None, active=None, processing=None, done_map=None):# -> BotOsInputMessage | None:
+    def get_input(self, thread_map=None, active=None, processing=None, done_map=None):
         if len(self.events) == 0:
             return None
         try:
@@ -158,14 +112,11 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             metadata["user_name"] = bot_id.name
             thread_id = 'thread_1'
             message_text = event.text
-        #    self.id_to_turncontext_map[uu] = event_tc
         except Exception as e:
-            # logger.info('teams_bot_os_adapter get_input Error getting Input: ',e)
             return None
         return BotOsInputMessage(thread_id=thread_id, msg=message_text, metadata=metadata)
 
     async def return_result(self, turn_context: TurnContext, message: BotOsOutputMessage):
-        # logger.info(f"return_result called with turn_context: {turn_context} and message: {message}")
         await turn_context.send_activity(
             MessageFactory.text(f"Response: {message.output}")
         )
@@ -177,18 +128,11 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             else:
                 try:
                     check_message = message.output.replace("\n","").replace("json","").replace("```","")
-                    print(check_message)
                     process_json = json.loads(check_message)
                     print(process_json)
                     self.response_map[in_uuid] = process_json
                 except json.JSONDecodeError:
                     self.response_map[in_uuid] = message.output
-
-      #  event_tc = self.id_to_turncontext_map[in_uuid]
-        #logger.info(message.output)
-        #self.return_result(event_tc, message)
-       #MessageFactory.text(f"Response: {message.output}")
-
 
     def submit(self, input, thread_id, bot_id):
         if type(bot_id) == str:
@@ -199,13 +143,11 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
 
         self.add_event({"msg": input, "thread_id": thread_id, "uuid": uu, "bot_id": bot_id})
 
-        #TeamsBotOsInputAdapter.teams_snow_connector.db_insert_llm_results(uu, "")
         return uu
 
     def get_artifacts_store(db_adapter):
-        from connectors import SnowflakeConnector # avoid circular imports
+        from connectors import SnowflakeConnector
         if isinstance(db_adapter, SnowflakeConnector):
             return SnowflakeStageArtifactsStore(db_adapter)
         else:
             raise NotImplementedError(f"No artifacts store is implemented for {db_adapter}")
-

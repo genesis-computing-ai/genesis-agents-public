@@ -657,7 +657,13 @@ def add_new_tools_to_bot(bot_id, new_tools):
     updated_tools_str = json.dumps(updated_tools)
 
     bot_servicing_table = bb_db_connector.bot_servicing_table_name
-    return bb_db_connector.db_update_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, new_tools_to_add=new_tools_to_add, already_present=already_present, updated_tools=updated_tools)
+    response = bb_db_connector.db_update_bot_tools(project_id=project_id,dataset_name=dataset_name, 
+                                                   bot_servicing_table=bot_servicing_table, bot_id=bot_id, 
+                                                   updated_tools_str=updated_tools_str, new_tools_to_add=new_tools_to_add,
+                                                     already_present=already_present, updated_tools=updated_tools)
+    if os.getenv("OPENAI_USE_ASSISTANTS", "False").lower() != "true":
+        os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+    return response
 
 
 def validate_potential_files(new_file_ids=None):
@@ -1992,7 +1998,13 @@ def remove_tools_from_bot(bot_id, remove_tools):
     updated_tools_str = json.dumps(updated_tools_list)
 
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    return bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name,bot_servicing_table=bot_servicing_table, bot_id=bot_id, updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, invalid_tools=invalid_tools, updated_tools=updated_tools_list)
+    response = bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name, 
+                                                   bot_servicing_table=bot_servicing_table, bot_id=bot_id, 
+                                                   updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, 
+                                                   invalid_tools=invalid_tools, updated_tools=updated_tools_list)    
+    if os.getenv("OPENAI_USE_ASSISTANTS", "False").lower() != "true":
+        os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
+    return response
 
 
 def remove_bot_from_slack():

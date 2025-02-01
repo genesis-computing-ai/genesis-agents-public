@@ -107,16 +107,13 @@ class SlackBotAdapter(BotOsInputAdapter):
                     thread_ts = event["message"].get("thread_ts", None)
                     user_id = event["message"].get("user", "NO_USER")
                     txt = msg[:30]
-                    logger.info(f"[EDIT] Processing edited message - ts: {event.get('ts')}")
+                    logger.info(f"[EDIT] Processing edited message - ts: {event.get('ts')}, user: {user_id}, text: {msg[:100]}")
                 else:
-                    #              if self.handled_events.get(event['ts'],False) == True:
-                    #                  return
                     msg = event.get("text", "")
                     thread_ts = event.get("thread_ts", event.get("ts", ""))
                     user_id = event.get("user", "NO_USER")
                     txt = event.get("text", "no text")[:30]
-                    logger.info(f"[DELETE] Processing deleted message - ts: {event.get('ts')}")
-                #             self.handled_events[event['ts']]=True
+                    logger.info(f"[MESSAGE] Processing new message - ts: {event.get('ts')}, user: {user_id}, text: {msg[:100]}")
                 if len(txt) == 50:
                     txt = txt + "..."
                 if (
@@ -148,7 +145,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             "event": event,
                             "datetime": datetime.datetime.now().isoformat(),
                         }
-                        logger.info(f"[QUEUE] Added message to events queue - queue size: {len(self.events)}, ts: {event.get('ts')}")
+                        logger.info(f"[QUEUE] Added message to events queue - queue size: {len(self.events)}, ts: {event.get('ts')}, user: {user_id}, text: {msg[:100]}")
                         if random.randint(1, 100) == 1:
                             current_time = datetime.datetime.now()
                             thirty_minutes_ago = current_time - datetime.timedelta(
@@ -169,7 +166,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                                 if thinking_time < thirty_minutes_ago:
                                     del self.thinking_map[thinking_ts]
                                     
-                logger.info(f"[INCOMING] Slack message received - type: {event.get('type')}, user: {event.get('user')}, text: {event.get('text', '')[:100]}")
+                logger.info(f"[INCOMING] Slack message received - type: {event.get('type')}, user: {user_id}, text: {msg[:100]}")
 
             @self.slack_socket.event("app_mention")
             def mention_handler(event, say):
@@ -332,6 +329,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             msg = event["message"]["text"]
             thread_ts = event["message"].get("thread_ts", None)
             if event["previous_message"].get("text", None) == msg:
+                logger.info(f"[SKIP] Message unchanged, skipping - ts: {event['ts']}, text: {msg[:100]}")
                 done_map[event["ts"]] = True
                 return None
         else:
@@ -340,6 +338,8 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if thread_map is not None:
             openai_thread = thread_map.get(thread_ts, None)
+            if openai_thread is None:
+                logger.info(f"[SKIP] No OpenAI thread mapping found - ts: {thread_ts}, text: {msg[:100]}")
 
         if done_map.get(event.get("ts", "")) == True:
             logger.info(f"*****!!! Resubmission zapped")
@@ -347,6 +347,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         if thread_map is not None and processing is not None and active is not None:
             if (openai_thread in active or openai_thread in processing) and msg.strip().lower() not in ["!stop", "stop"]:
+                logger.info(f"[SKIP] OpenAI Thread already active/processing - thread: {openai_thread}, text: {msg[:100]}")
                 self.events.append(event)
                 return None
         if event["ts"] in self.thinking_map:

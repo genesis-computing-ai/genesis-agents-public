@@ -19,7 +19,6 @@ import threading
 import random
 import re
 import datetime
-import traceback
 
 
 # module level
@@ -314,10 +313,6 @@ class SlackBotAdapter(BotOsInputAdapter):
     def get_input(
         self, thread_map=None, active=None, processing=None, done_map=None
     ) -> BotOsInputMessage | None:
-        # Get call stack info
-        stack = traceback.extract_stack()
-        caller = stack[-2]  # -2 because -1 would be this line
-        logger.info(f"[TRACE] get_input called from {caller.filename}:{caller.lineno}")
 
         with self.events_lock:
             if len(self.events) == 0:

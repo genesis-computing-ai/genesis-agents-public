@@ -30,7 +30,7 @@ from botbuilder.integration.aiohttp import CloudAdapter, ConfigurationBotFramewo
 from botbuilder.schema import Activity, ActivityTypes
 
 from teams.config import DefaultConfig
-# from core.logging_config import logger
+from core.logging_config import logger
 
 async def teams_on_error(context: TurnContext, error: Exception):
     # This check writes out errors to console log .vs. app insights.
@@ -99,7 +99,7 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
 
         async def healthcheck(req: Request) -> Response:
             print("3978 healthcheck")
-            return await json_response({"status": "ok"})
+            return json_response({"status": "ok"})
 
         APP = web.Application(middlewares=[aiohttp_error_middleware])
         APP.router.add_post("/api/messages", messages)

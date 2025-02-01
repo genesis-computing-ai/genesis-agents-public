@@ -14,7 +14,7 @@ def main():
                   snowflake_account=args.account)
   spcs_url=f'https://{args.endpoint}{args.endpoint_path}'
   print(f"\nConnecting to url: {spcs_url}\n")
-  connect_to_spcs(snowflake_jwt, spcs_url)
+  connect_to_spcs(snowflake_jwt, args.endpoint, args.endpoint_path)
 
 def _get_token(args):
   token = JWTGenerator(args.account, args.user, args.private_key_file_path, timedelta(minutes=args.lifetime),
@@ -40,7 +40,7 @@ def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_accou
   assert 200 == response.status_code, "unable to get snowflake token"
   return response.text
 
-def connect_to_spcs(token, url):
+def connect_to_spcs(token, base_url, path):
 
     # Create a request to the ingress endpoint with authz.
     headers = {'Authorization': f'Snowflake Token="{token}"'}
@@ -49,6 +49,8 @@ def connect_to_spcs(token, url):
             [0, "test_value"]  # Row index 0 with a test value
         ]
     }
+    url = f'https://{base_url}{path}'
+    logger.info("URL %s" % url)
     response = requests.post(f'{url}', headers=headers, json=data)
     logger.info("return code %s" % response.status_code)
     logger.info(response.text)

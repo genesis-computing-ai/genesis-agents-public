@@ -101,13 +101,13 @@ class SlackBotAdapter(BotOsInputAdapter):
             @self.slack_socket.event("message")
             def handle_message_events(ack, event, say):
                 ack()
-                logger.info(f"[INCOMING] Slack message received - type: {event.get('type')}, user: {event.get('user')}, text: {event.get('text', '')[:100]}")
                 # TODO, clear this after 30 min
                 if event.get("subtype", None) == "message_changed":
                     msg = event["message"].get("text", None)
                     thread_ts = event["message"].get("thread_ts", None)
                     user_id = event["message"].get("user", "NO_USER")
                     txt = msg[:30]
+                    logger.info(f"[EDIT] Processing edited message - ts: {event.get('ts')}")
                 else:
                     #              if self.handled_events.get(event['ts'],False) == True:
                     #                  return
@@ -115,6 +115,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     thread_ts = event.get("thread_ts", event.get("ts", ""))
                     user_id = event.get("user", "NO_USER")
                     txt = event.get("text", "no text")[:30]
+                    logger.info(f"[DELETE] Processing deleted message - ts: {event.get('ts')}")
                 #             self.handled_events[event['ts']]=True
                 if len(txt) == 50:
                     txt = txt + "..."
@@ -147,6 +148,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             "event": event,
                             "datetime": datetime.datetime.now().isoformat(),
                         }
+                        logger.info(f"[QUEUE] Added message to events queue - queue size: {len(self.events)}, ts: {event.get('ts')}")
                         if random.randint(1, 100) == 1:
                             current_time = datetime.datetime.now()
                             thirty_minutes_ago = current_time - datetime.timedelta(
@@ -166,6 +168,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                                 )
                                 if thinking_time < thirty_minutes_ago:
                                     del self.thinking_map[thinking_ts]
+                                    
+                logger.info(f"[INCOMING] Slack message received - type: {event.get('type')}, user: {event.get('user')}, text: {event.get('text', '')[:100]}")
 
             @self.slack_socket.event("app_mention")
             def mention_handler(event, say):
@@ -320,6 +324,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 return None
             try:
                 event = self.events.popleft()
+                logger.info(f"[INCOMING] Processing Slack message - user: {event.get('user')}, text: {event.get('text', '')[:100]}")
             except IndexError:
                 return None
 
@@ -605,6 +610,11 @@ class SlackBotAdapter(BotOsInputAdapter):
             "datetime": datetime.datetime.now().isoformat(),
         }
 
+        # Add before the return statement
+        if bot_input_message:  # assuming 'bot_input_message' is your BotOsInputMessage
+            logger.info(f"[PROCESSING] Created BotOsInputMessage - session: {bot_input_message.session_id}, thread: {bot_input_message.thread_id}")
+        else:
+            logger.info("[PROCESSING] No message created from event")
         return bot_input_message
 
 
@@ -828,12 +838,15 @@ class SlackBotAdapter(BotOsInputAdapter):
             if orig_thinking in self.thinking_msg_overide_map:
                 thinking_ts = self.thinking_msg_overide_map[orig_thinking]
             if thinking_ts:
+                logger.info(f"[RESPONSE] Updating thinking message - ts: {thinking_ts}")
+            if orig_thinking in self.thinking_msg_overide_map:
+                thinking_ts = self.thinking_msg_overide_map[orig_thinking]
+            if thinking_ts:
              #   logger.info('0-0-0-0-0-0-0-0 SLACK RESPONSE HANDLER -0-0-0-0-0-0-0-0-0')
                 current_chunk_start =  self.chunk_start_map.get(orig_thinking,None)
          #       if current_chunk_start:
          #           logger.info('     Current chunk start: ', current_chunk_start)
                 msg = message.output.replace("\n 💬", " 💬")
-                full_msg = msg
          #       if current_chunk_start:
          #           logger.info(f"    Length of message: {len(msg)}")
                 inmarkdown = False
@@ -1109,7 +1122,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     msg = re.sub(alt_pattern, f"<{{msg_url}}|\\1>", msg)
 
                     # Catch the pattern with thread ID and replace it with the correct URL
-                    thread_file_pattern = re.compile(r"\[(.*?)\]\(sandbox:/mnt/data/runtime/downloaded_files/thread_(.*?)/(.+?)\)")
+                    thread_file_pattern = re.compile(r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)")
                     msg = re.sub(thread_file_pattern, f"<{{msg_url}}|\\1>", msg)
 
                     msg = msg.replace("{msg_url}", msg_url)
@@ -1241,6 +1254,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                 logger.error(
                     f"SlackBotAdapter:handle_response - Error posting message: {e}"
                 )
+
+        logger.info(f"[RESPONSE] About to send message to Slack - thread: {thread_ts}")
 
     def process_attachments(self, msg, attachments, files_in = None):
         files_to_attach = []

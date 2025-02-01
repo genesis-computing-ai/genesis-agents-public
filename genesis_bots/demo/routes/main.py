@@ -2,9 +2,22 @@ import os
 from flask import Blueprint
 from genesis_bots.core.logging_config import logger
 from flask import request, make_response
+import requests
 
 main_routes = Blueprint('main_routes', __name__)
 
+@main_routes.get("/relay")
+def relay_8080_to_3978():
+    logger.info("Flask: /relay probe received")
+    url = "http://localhost:3978/healthcheck"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        logger.info(f"Relay successful - Status: {response.status_code}")
+        return response.text
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Relay failed: {str(e)}")
+        return make_response({"error": str(e)}, 500)
 
 @main_routes.get("/healthcheck")
 def readiness_probe():

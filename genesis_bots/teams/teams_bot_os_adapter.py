@@ -99,11 +99,11 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
 
         async def healthcheck(req: Request) -> Response:
             print("3978 healthcheck")
-            return json_response({"status": "ok"})
+            return json_response({"status": "Port 3978 says ok"})
 
         APP = web.Application(middlewares=[aiohttp_error_middleware])
         APP.router.add_post("/api/messages", messages)
-        APP.router.add_get("/healthcheck_3978", healthcheck)
+        APP.router.add_get("/healthcheck", healthcheck)
 
         #if __name__ == "__main__":
 

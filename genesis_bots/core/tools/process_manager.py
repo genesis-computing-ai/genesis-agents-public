@@ -295,7 +295,7 @@ def manage_processes(
             }
 
     except Exception as e:
-        return {"Success": False, "Error": f"Error connecting to LLM: {e}"}
+        return {"Success": False, "Error": f"Error in process_manager: {e}"}
 
     if action == "CREATE_CONFIRMED":
         action = "CREATE"

@@ -34,7 +34,9 @@ class BotOsThread:
         self.validated = False
 
     def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
-        # logger.debug("BotOsThread:add message")
+        thread_id = message.thread_id
+        logger.info(f"[TRACE:{thread_id}] BotOsThread adding message to assistant")
+        
         if current_assistant is not None:
             self.assistant_impl = current_assistant
         if isinstance(self.assistant_impl, BotOsAssistantSnowflakeCortex):
@@ -43,11 +45,12 @@ class BotOsThread:
             ret = self.assistant_impl.add_message(message)
         #ret = self.assistant_impl.add_message(message)
         if ret == False:
-            logger.info("thread add_message: false return, run already going")
+            logger.info(f"[TRACE:{thread_id}] Thread add_message: false return, run already going")
             return ret
 
     def handle_response(self, session_id: str, output_message: BotOsOutputMessage):
-        logger.debug("BotOsThread:handle_response")
+        thread_id = output_message.thread_id
+        logger.info(f"[TRACE:{thread_id}] BotOsThread handling response back to input adapter")
         in_thread = output_message.input_metadata.get("input_thread", None)
         in_uuid = output_message.input_metadata.get("input_uuid", None)
         task_meta = output_message.input_metadata.get("task_meta", None)

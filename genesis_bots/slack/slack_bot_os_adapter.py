@@ -140,6 +140,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     and self.bot_user_id != user_id
                     and event.get("subtype", "none") != "message_deleted"
                 ):
+                    logger.info(f"[TRACE:{event.get('thread_ts', event.get('ts', ''))}] Received new Slack message: {msg[:100]}")
                     with self.events_lock:
                         self.events.append(event)
                         self.events_map[event.get("ts", None)] = {
@@ -165,6 +166,8 @@ class SlackBotAdapter(BotOsInputAdapter):
                                 )
                                 if thinking_time < thirty_minutes_ago:
                                     del self.thinking_map[thinking_ts]
+                else:
+                    logger.info(f"[TRACE:{thread_ts}] Message filtered - not an active thread or something. msg: {msg} ")
 
             @self.slack_socket.event("app_mention")
             def mention_handler(event, say):
@@ -319,18 +322,27 @@ class SlackBotAdapter(BotOsInputAdapter):
                 return None
             try:
                 event = self.events.popleft()
+                logger.info(f"[TRACE:{event.get('thread_ts', event.get('ts', ''))}] Processing event from queue")
+                logger.info(f"[TRACE:{event.get('thread_ts', event.get('ts', ''))}] Thread state - active:{active} processing:{processing} done:{done_map.get(event.get('ts',''), False) if done_map else None}")
+                logger.info(f"[TRACE:{event.get('thread_ts', event.get('ts', ''))}] Event details - subtype:{event.get('subtype', 'none')} user:{event.get('user', 'unknown')} bot_id:{event.get('bot_id', 'none')}")
+                logger.info(f"[TRACE:{event.get('thread_ts', event.get('ts', ''))}] Message text: {event.get('text', '')[:100]}")
             except IndexError:
+                logger.info(f"[TRACE:{event.get('thread_ts', event.get('ts', ''))}] IndexError - No event in queue")
                 return None
 
         if event.get("subtype", None) == "message_changed":
             msg = event["message"]["text"]
             thread_ts = event["message"].get("thread_ts", None)
+            logger.info(f"###[MESSAGE_CHANGED] thread_ts: {thread_ts} ts: {event['ts']} subtype: {event['subtype']} msg: {msg}")
             if event["previous_message"].get("text", None) == msg:
                 done_map[event["ts"]] = True
+                logger.info(f"###[MESSAGE_SAME_AS_PREVIOUS] thread_ts: {thread_ts} ts: {event['ts']} subtype: {event['subtype']} msg: {msg}")
                 return None
         else:
             msg = event.get("text", "")
             thread_ts = event.get("thread_ts", event.get("ts", ""))
+            logger.info(f"###[EVENT] - thread_ts: {thread_ts}, msg: {msg}, event: {event}, thread_map: {thread_map}, done_map: {done_map}")
+
 
         if thread_map is not None:
             openai_thread = thread_map.get(thread_ts, None)
@@ -342,16 +354,13 @@ class SlackBotAdapter(BotOsInputAdapter):
         if thread_map is not None and processing is not None and active is not None:
             if (openai_thread in active or openai_thread in processing) and msg.strip().lower() not in ["!stop", "stop"]:
                 self.events.append(event)
+                logger.info(f"###[EVENT_IN_PROCESSING] thread_ts: {thread_ts} ts: {event['ts']} subtype: {event['subtype']} msg: {msg} openai_thread: {openai_thread} active: {active} processing: {processing}")
                 return None
+
         if event["ts"] in self.thinking_map:
             input_message = self.thinking_map[event["ts"]]["input_message"]
             logger.info(f"***** Resubmission {input_message.msg}")
             return input_message
-
-        #     if active is not None and processing is not None:
-        #         if thread_ts in active or thread_ts in processing:
-        #             self.events.append(event)
-        #             return None
 
         if msg.strip().lower() == "!delete":
             last_message_id = self.last_message_id_dict.get(thread_ts)
@@ -373,29 +382,30 @@ class SlackBotAdapter(BotOsInputAdapter):
         if msg.strip().lower() == "stop":
             # Remove the thread from the followed thread map if it exists
             was_indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
-            #if (self.bot_user_id, thread_ts) in thread_ts_dict:
-            #    with meta_lock:
-            #        del thread_ts_dict[(self.bot_user_id, thread_ts)]
             if was_indic:
                 msg = "!stop"
             else:
                 return
 
         if msg == "_thinking..._" or msg[:10] == ":toolbox: " or msg == '!NO_RESPONSE_REQUIRED':
+            logger.info(f"[TRACE:{thread_ts}] Message filtered - thinking or toolbox or no_response")
             return None
 
         if msg.endswith("💬") or msg.endswith(":speech_balloon:"):
+            logger.info(f"[TRACE:{thread_ts}] Message filtered - speech_balloon")
             return None
 
         if msg.startswith("_still running..._"):
+            logger.info(f"[TRACE:{thread_ts}] Message filtered - still running")
             return None
 
         active_thread = False
         channel_type = event.get("channel_type", "")
 
-        # logger.info(f"{uniq} {self.bot_name}-Looking for {(self.bot_user_id, thread_ts)}-Is in? {(self.bot_user_id, thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
-        tag = (f"<@{self.bot_user_id}>" in msg) # or (f"((invite:{self.bot_name}))" in msg)
-        indic = ((self.bot_user_id, thread_ts) in thread_ts_dict)
+        tag = (f"<@{self.bot_user_id}>" in msg)
+        logger.info(f"[TRACE:{thread_ts}] Current thread_ts_dict state: {thread_ts_dict}")
+        indic = (self.bot_user_id, thread_ts) in thread_ts_dict
+        logger.info(f"[TRACE:{thread_ts}] Thread check - bot_id:{self.bot_user_id} thread_ts:{thread_ts} in thread_ts_dict: {indic}")
         dmcheck = channel_type == "im" and msg != ""
         legacy = thread_ts in self.legacy_sessions
         txt = msg[:50]
@@ -406,31 +416,25 @@ class SlackBotAdapter(BotOsInputAdapter):
             active_thread = True
             if legacy:
                 self.legacy_sessions.remove(thread_ts)
+            logger.info(f"[TRACE:{thread_ts}] Checking thread_ts_dict - key:({self.bot_user_id}, {thread_ts}), was_indic:{was_indic}, current_dict:{thread_ts_dict}")
             if (self.bot_user_id, thread_ts) not in thread_ts_dict and not was_indic:
-                #     logger.info(f'{uniq}     --ENGAGE/ADD>  Adding {thread_ts} to dict')
                 with meta_lock:
+                    logger.info(f"[TRACE:{thread_ts}] Adding thread to thread_ts_dict for bot {self.bot_user_id}")
                     thread_ts_dict[self.bot_user_id, thread_ts] = {
                         "event": event,
                         "thread_id": None,
                     }
-            #    logger.info(f"{uniq} {self.bot_name}-ADDED-Now is {(self.bot_user_id,thread_ts)} in??-Is in? {(self.bot_user_id,thread_ts) in thread_ts_dict}-Current keys in thread_ts_dict:", thread_ts_dict.keys())
-
-        #   else:
-        #   logger.info(f'{uniq}     --ENGAGE/EXISTING>  {thread_ts} already in dict')
+        else:
+            logger.info(f"[TRACE:{thread_ts}] Message filtered - not an active thread. tag:{tag} indic:{indic} dmcheck:{dmcheck} was_indic:{was_indic} legacy:{legacy}")
+            return None
 
         if active_thread is False:
-            # public channel, not flagged yet in thread
+            logger.info(f"[TRACE:{thread_ts}] Message filtered - active thread=false. tag:{tag} indic:{indic} dmcheck:{dmcheck} was_indic:{was_indic} legacy:{legacy}")
             return None
 
         thread_id = thread_ts
-        #
         channel = event.get("channel", "")
 
-        # I dont think this works, perhaps remove it (its trying to map openai to slack thread ids thats why..)
-        #        if active is not None and processing is not None:
-        #            if thread_ts in active or thread_ts in processing:
-        #                self.events.append(event)
-        #                return None
         if False:
             pass
         else:
@@ -452,12 +456,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                 thinking_ts = None
 
         if "files" in event:
-            #    logger.info(f"    --/DOWNLOAD> downloading files for ({self.bot_name}) ")
             files = self._download_slack_files(event, thread_id=thread_id)
-        #    logger.info(f"    --/DOWNLOADED> downloaded files for ({self.bot_name}), files={files} ")
         else:
             pass
-        #   logger.info('...*-*-*-* Files not in event')
 
         user_id = "unknown_id"
         try:
@@ -538,7 +539,6 @@ class SlackBotAdapter(BotOsInputAdapter):
             # Check if the conversation history retrieval was successful
             if not conversation_history.get("ok", False):
                 pass
-            #       logger.info("Failed to retrieve conversation history.")
             else:
                 original_user = (
                     conversation_history["messages"][0]["user"]
@@ -579,19 +579,9 @@ class SlackBotAdapter(BotOsInputAdapter):
                     thread_history_msg += "\nTHE MESSAGE THAT YOU WERE JUST TAGGED ON AND SHOULD RESPOND TO IS:\n"
                     msg_with_user_and_id = f"{thread_history_msg}{msg_with_user_and_id}"
 
-        #  if active is not None and processing is not None:
-        #      if thread_ts in active or thread_ts in processing:
-        #          self.events.append(event)
-        #          return None
-
         if is_bot == "TRUE":
             msg_with_user_and_id += "\n\nRESPONSE GUIDANCE: This message is from another Bot. RESPOND WITH !NO_RESPONSE_REQUIRED UNLESS 1) the message is directed to you by the other bot or a human has asked you to work with the other bot, 2) you have not already answered a similar message, and 3) the thread does not seem to be in a loop.  Do NOT proactively suggest other things for the bot to do like you would with a human user."
 
-        # msg_with_user_and_id += (
-        #     "\n\nWhen providing options or choices to the user, always answer using Slack blocks. "
-        #     "Make sure the JSON starts with a 'blocks' key and that it will be found with "
-        #     "re.compile(r\"```(?:json|slack)(.*?)```\", re.DOTALL)."
-        # )
         bot_input_message = BotOsInputMessage(
             thread_id=thread_id,
             msg=msg_with_user_and_id,   # + '<<!!FAST_MODE!!>>',
@@ -604,6 +594,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             "datetime": datetime.datetime.now().isoformat(),
         }
 
+        logger.info(f"[TRACE:{thread_id}] Created BotOsInputMessage with metadata: {json.dumps(metadata, default=str)[:200]}")
         return bot_input_message
 
 
@@ -649,7 +640,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                 msg_json = json.loads(json_match.strip())
                 if "blocks" in msg_json:
                     blocks += msg_json["blocks"]
-            # except json.JSONDecodeError as e:
             except Exception as e:
                 logger.info("Failed to decode JSON:", e)
         return blocks if blocks else None
@@ -861,25 +851,6 @@ class SlackBotAdapter(BotOsInputAdapter):
                                 msg = msg[last_index + len(l100):]
                                 trimmed=True
              #                   logger.info(f"    Length of new trimmed msg: {len(msg)}")
-                    if not trimmed:
-                        msg_fixed = self.fix_fn_calls(msg)
-                        if last100 in msg_fixed:
-              #              logger.info(f"    Last 100 is in msg_fixed")
-                            last_index = msg_fixed.rfind(last100, 0, current_chunk_start)
-               #             logger.info(f"    Last index: {last_index}")
-                            if last_index != -1:
-                                msg = msg_fixed[last_index + len(last100):]
-                                trimmed=True
-                        l100 = last100.replace(" \n\n", "\n")
-                        if l100 in msg_fixed:
-              #              logger.info(f"    Last 100 is in msg_fixed")
-                            last_index = msg_fixed.rfind(l100, 0, current_chunk_start)
-               #             logger.info(f"    Last index: {last_index}")
-                            if last_index != -1:
-                                msg = msg_fixed[last_index + len(l100):]
-                                trimmed=True
-
-                #                logger.info(f"    Length of new trimmed msg: {len(msg)}")
                     if not trimmed:
                  #       logger.info("     Not trimmed based on last100, going to trim on current chunk start: ",current_chunk_start)
                         msg = msg[current_chunk_start:]
@@ -1257,6 +1228,12 @@ class SlackBotAdapter(BotOsInputAdapter):
                 logger.error(
                     f"SlackBotAdapter:handle_response - Error posting message: {e}"
                 )
+
+        # Before posting to Slack
+        logger.info(f"[TRACE:{thread_ts}] Sending message to Slack channel={message.input_metadata.get('channel', self.channel_id)}")
+        
+        # After posting to Slack
+        logger.info(f"[TRACE:{thread_ts}] Successfully posted to Slack with thinking_ts={thinking_ts}")
 
     def process_attachments(self, msg, attachments, files_in = None):
         files_to_attach = []

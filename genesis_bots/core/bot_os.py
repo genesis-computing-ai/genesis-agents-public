@@ -35,7 +35,6 @@ class BotOsThread:
 
     def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
         thread_id = message.thread_id
-        logger.info(f"[TRACE:{thread_id}] BotOsThread adding message to assistant")
         
         if current_assistant is not None:
             self.assistant_impl = current_assistant
@@ -45,12 +44,10 @@ class BotOsThread:
             ret = self.assistant_impl.add_message(message)
         #ret = self.assistant_impl.add_message(message)
         if ret == False:
-            logger.info(f"[TRACE:{thread_id}] Thread add_message: false return, run already going")
             return ret
 
     def handle_response(self, session_id: str, output_message: BotOsOutputMessage):
         thread_id = output_message.thread_id
-        logger.info(f"[TRACE:{thread_id}] BotOsThread handling response back to input adapter")
         in_thread = output_message.input_metadata.get("input_thread", None)
         in_uuid = output_message.input_metadata.get("input_uuid", None)
         task_meta = output_message.input_metadata.get("task_meta", None)
@@ -274,7 +271,6 @@ class BotOsSession:
         #        self.out_to_in_thread_map = maps.get("out_to_in", {})
 
     def create_thread(self, input_adapter) -> str:
-        logger.info("create llm thread")
         logger.debug("create llm thread")
         thread = BotOsThread(self.assistant_impl, input_adapter)
         self.threads[thread.thread_id] = thread

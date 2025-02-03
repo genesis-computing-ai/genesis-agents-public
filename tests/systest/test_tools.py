@@ -16,6 +16,8 @@ from genesis_bots.connectors.data_connector import _query_database, _search_meta
 from genesis_bots.core.tools.image_tools import image_generation
 from genesis_bots.core.tools.process_manager import manage_processes
 from genesis_bots.bot_genesis.make_baby_bot import make_baby_bot, add_new_tools_to_bot, update_bot_instructions
+from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
+
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -102,9 +104,7 @@ class TestTools(unittest.TestCase):
         curr_bot_id = self.available_bots[0]
         request = self.client.submit_message(curr_bot_id, 'List of bots?', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
-        print(response)
-
-
+        #print(response)
 
     def test_make_baby_bot(self):
         bot_id = 'BotId'
@@ -124,7 +124,11 @@ class TestTools(unittest.TestCase):
         response = update_bot_instructions(bot_id=bot_id, new_instructions='You are a helpful test bot. Respond in Spanish!', confirmed='CONFIRMED')
         self.assertTrue(response['success'])
 
+        request = self.client.submit_message(bot_id, 'Hello, how are you?', thread_id=thread_id)
+        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
 
+        response = remove_tools_from_bot(bot_id=bot_id, remove_tools=['make_baby_bot'])
+        self.assertTrue(response['success'])
 
     @classmethod
     def tearDownClass(cls):

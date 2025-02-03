@@ -32,6 +32,8 @@ def bot_config():
                         available_tools = bot["available_tools"].strip("[]").replace('"', "").replace("'", "")
                         st.caption(f"Available Tools: {available_tools}")
                         bot_llms = get_metadata("bot_llms")
+                        current_llm = 'unknown'  # Set default value
+                        preferred_llm = None     # Initialize preferred_llm
                         if len(bot_llms) > 0:
                             for bot_id, llm_info in bot_llms.items():
                                 if bot_id == bot["bot_id"]:

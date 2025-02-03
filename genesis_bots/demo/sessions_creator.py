@@ -606,7 +606,7 @@ def create_sessions(
     skip_vectors=False,
     bot_list=None,
     skip_slack=False,
-    max_workers=5, # New parameter to control parallel execution
+    max_workers=1, # New parameter to control parallel execution - currently set to 1 to allow slack to work
     llm_change=False
 ):
     """

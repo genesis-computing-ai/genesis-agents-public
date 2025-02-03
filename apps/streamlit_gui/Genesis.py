@@ -464,7 +464,7 @@ if st.session_state.data:
             selected_page_id = "chat_page" if "chat_page" in pages.all else list(pages.all.keys())[0]
     assert selected_page_id is not None
 
-    # Create a vertical navigation bar in the sidebar
+    # Create a vertical navigation bar in the sidebar with grouping:
     with st.sidebar:
         # Add custom CSS for navigation styling
         st.markdown("""
@@ -472,12 +472,15 @@ if st.session_state.data:
             div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button {
                 text-align: left !important;
                 font-weight: 400 !important;
-                padding: 0.75rem 1rem !important;
+                padding: 0rem 1rem !important;
                 border: none !important;
                 background-color: transparent !important;
                 width: 100% !important;
-                margin: 0.125rem 0 !important;
-                color: rgb(49, 51, 63) !important;  /* Dark text for readability */
+                margin: 0 !important;
+                color: rgb(49, 51, 63) !important;
+                height: 2.5rem !important;
+                line-height: 2.5rem !important;
+                box-sizing: border-box !important;
             }
             div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button:hover {
                 background-color: rgba(255, 255, 255, 0.1) !important;
@@ -487,32 +490,130 @@ if st.session_state.data:
             div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button.selected {
                 background-color: rgba(255, 255, 255, 0.9) !important;
                 border-radius: 0.3rem !important;
-                color: rgb(49, 51, 63) !important;  /* Dark text for selected state */
+                color: rgb(49, 51, 63) !important;
                 font-weight: 600 !important;
                 border-left: 4px solid #ff4b4b !important;
-                box-shadow: 0 0 0 1px rgba(49, 51, 63, 0.2) !important;  /* Subtle border */
+                box-shadow: 0 0 0 1px rgba(49,51,63,0.2) !important;
                 position: relative !important;
+                margin: 0 !important;
+                height: 2.5rem !important;
+                line-height: 2.5rem !important;
+                box-sizing: border-box !important;
             }
             </style>
         """, unsafe_allow_html=True)
 
-        # Render navigation buttons
+        # Pre-categorize pages into standalone and configuration
+        chat_pages = []
+        support_pages = []
+        config_pages = []
         for page_id, page in pages.all.items():
+            if page.display_name.lower() == "chat with bots":
+                chat_pages.append((page_id, page))
+            elif page.display_name.lower() == "support and community":
+                support_pages.append((page_id, page))
+            else:
+                config_pages.append((page_id, page))
+
+        # Render standalone pages (Chat with Bots)
+        for page_id, page in chat_pages:
             is_selected = page_id == selected_page_id
             button_key = f"nav_{page_id}"
-            
             if is_selected:
-                # Render the selected page as a styled non-clickable label
                 st.markdown(f'''
                 <div style="
                     background-color: rgba(255, 255, 255, 0.9);
                     border-left: 4px solid #ff4b4b;
                     border: 1px solid rgba(49,51,63,0.2);
                     border-radius: 0.3rem;
-                    padding: 0.75rem 1rem;
+                    padding: 0rem 1rem;
                     font-weight: 600;
                     color: rgb(49, 51, 63);
-                    margin: 0.125rem 0;
+                    text-align: left;
+                    margin: 0;
+                    height: 2.5rem;
+                    line-height: 2.5rem;
+                    box-sizing: border-box;
+                ">{page.display_name}</div>
+                ''', unsafe_allow_html=True)
+            else:
+                if st.button(
+                    page.display_name,
+                    key=button_key,
+                    use_container_width=True,
+                    help=f"Navigate to {page.display_name}",
+                    type="secondary",
+                ):
+                    st.session_state["selected_page_id"] = page_id
+                    st.session_state["radio"] = page.display_name
+                    st.session_state["previous_selection"] = page.display_name
+                    st.rerun()
+
+        # Render top-level "Configuration" toggle button with arrow indicator
+        config_expanded = st.session_state.get("config_expanded", False)
+        config_button_label = f"Configuration {'▼' if config_expanded else '►'}"
+        if st.button(config_button_label, key="nav_configuration", use_container_width=True, type="secondary", help="Toggle configuration links"):
+            st.session_state["config_expanded"] = not config_expanded
+            st.rerun()
+
+        # If the configuration toggle is expanded, display the configuration links (always use indentation)
+        if st.session_state.get("config_expanded", False):
+            for page_id, page in config_pages:
+                is_selected = page_id == selected_page_id
+                button_key = f"nav_{page_id}"
+                cols = st.columns([0.1, 1])
+                with cols[0]:
+                    st.write("")  # Indentation spacer.
+                with cols[1]:
+                    if is_selected:
+                        st.markdown(f'''
+                        <div style="
+                            background-color: rgba(255, 255, 255, 0.9);
+                            border-left: 4px solid #ff4b4b;
+                            border: 1px solid rgba(49,51,63,0.2);
+                            border-radius: 0.3rem;
+                            padding: 0rem 1rem;
+                            font-weight: 600;
+                            color: rgb(49, 51, 63);
+                            text-align: left;
+                            margin: 0;
+                            height: 2.5rem;
+                            line-height: 2.5rem;
+                            box-sizing: border-box;
+                        ">{page.display_name}</div>
+                        ''', unsafe_allow_html=True)
+                    else:
+                        if st.button(
+                            page.display_name,
+                            key=button_key,
+                            use_container_width=True,
+                            help=f"Navigate to {page.display_name}",
+                            type="secondary",
+                        ):
+                            st.session_state["selected_page_id"] = page_id
+                            st.session_state["radio"] = page.display_name
+                            st.session_state["previous_selection"] = page.display_name
+                            st.rerun()
+
+        # Render standalone pages (Support and Community)
+        for page_id, page in support_pages:
+            is_selected = page_id == selected_page_id
+            button_key = f"nav_{page_id}"
+            if is_selected:
+                st.markdown(f'''
+                <div style="
+                    background-color: rgba(255, 255, 255, 0.9);
+                    border-left: 4px solid #ff4b4b;
+                    border: 1px solid rgba(49,51,63,0.2);
+                    border-radius: 0.3rem;
+                    padding: 0rem 1rem;
+                    font-weight: 600;
+                    color: rgb(49, 51, 63);
+                    text-align: left;
+                    margin: 0;
+                    height: 2.5rem;
+                    line-height: 2.5rem;
+                    box-sizing: border-box;
                 ">{page.display_name}</div>
                 ''', unsafe_allow_html=True)
             else:

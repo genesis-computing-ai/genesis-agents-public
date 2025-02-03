@@ -464,25 +464,75 @@ if st.session_state.data:
             selected_page_id = "chat_page" if "chat_page" in pages.all else list(pages.all.keys())[0]
     assert selected_page_id is not None
 
-    # Use a dropdown for page selection, Use page display names
-    selection = st.sidebar.selectbox(
-        "#### Menu:",  # Added ### to make it bigger in Markdown
-        [page.display_name for page in pages.all.values()],
-        index=list(pages.all).index(selected_page_id),
-        key="page_selection"
-    )
+    # Create a vertical navigation bar in the sidebar
+    with st.sidebar:
+        # Add custom CSS for navigation styling
+        st.markdown("""
+            <style>
+            div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button {
+                text-align: left !important;
+                font-weight: 400 !important;
+                padding: 0.75rem 1rem !important;
+                border: none !important;
+                background-color: transparent !important;
+                width: 100% !important;
+                margin: 0.125rem 0 !important;
+                color: rgb(49, 51, 63) !important;  /* Dark text for readability */
+            }
+            div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button:hover {
+                background-color: rgba(255, 255, 255, 0.1) !important;
+                border-radius: 0.3rem !important;
+            }
+            /* Selected button styling */
+            div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button.selected {
+                background-color: rgba(255, 255, 255, 0.9) !important;
+                border-radius: 0.3rem !important;
+                color: rgb(49, 51, 63) !important;  /* Dark text for selected state */
+                font-weight: 600 !important;
+                border-left: 4px solid #ff4b4b !important;
+                box-shadow: 0 0 0 1px rgba(49, 51, 63, 0.2) !important;  /* Subtle border */
+                position: relative !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
 
-    # Check if the selection has changed
-    if "previous_selection" not in st.session_state or st.session_state.previous_selection != selection:
-        st.session_state.previous_selection = selection
-        st.session_state["radio"] = selection
-        st.rerun()
+        # Render navigation buttons
+        for page_id, page in pages.all.items():
+            is_selected = page_id == selected_page_id
+            button_key = f"nav_{page_id}"
+            
+            if is_selected:
+                # Render the selected page as a styled non-clickable label
+                st.markdown(f'''
+                <div style="
+                    background-color: rgba(255, 255, 255, 0.9);
+                    border-left: 4px solid #ff4b4b;
+                    border: 1px solid rgba(49,51,63,0.2);
+                    border-radius: 0.3rem;
+                    padding: 0.75rem 1rem;
+                    font-weight: 600;
+                    color: rgb(49, 51, 63);
+                    margin: 0.125rem 0;
+                ">{page.display_name}</div>
+                ''', unsafe_allow_html=True)
+            else:
+                if st.button(
+                    page.display_name,
+                    key=button_key,
+                    use_container_width=True,
+                    help=f"Navigate to {page.display_name}",
+                    type="secondary",
+                ):
+                    st.session_state["selected_page_id"] = page_id
+                    st.session_state["radio"] = page.display_name
+                    st.session_state["previous_selection"] = page.display_name
+                    st.rerun()
 
     try:
-        page_desc = pages.lookup_page("display_name", selection) # TODO: again, refactor to use page IDs.
-        pages.dispatch_page(page_desc.page_id)
-    except ValueError:
-        pass
+        # Use page_id directly instead of looking up by display name
+        pages.dispatch_page(selected_page_id)
+    except ValueError as e:
+        st.error(f"Error loading page: {e}")
 
 else:
     pages = {

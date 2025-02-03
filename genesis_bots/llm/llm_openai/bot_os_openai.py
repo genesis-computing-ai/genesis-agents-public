@@ -88,7 +88,6 @@ class StreamingEventHandler(AssistantEventHandler):
    @override
    def on_message_created(self, message: Message) -> None:
       self.run_id = message.run_id
-      logger.info(f"[TRACE:{self.thread_id}] OpenAI message created for run_id={self.run_id}")
       if self.run_id in StreamingEventHandler.run_id_to_messages:
          messages = StreamingEventHandler.run_id_to_messages[self.run_id]
          if messages and messages[-1]["type"] == "tool_call":
@@ -98,7 +97,6 @@ class StreamingEventHandler(AssistantEventHandler):
     #   logger.info(f"\nassistant on_message_created > {message}\n")
    @override
    def on_message_done(self, message: Message) -> None:
-      logger.info(f"[TRACE:{self.thread_id}] OpenAI message completed for run_id={self.run_id}")
       if self.run_id not in StreamingEventHandler.run_id_to_messages:
           StreamingEventHandler.run_id_to_messages[self.run_id] = []
 
@@ -159,7 +157,6 @@ class StreamingEventHandler(AssistantEventHandler):
        try:
           if event.event == 'thread.run.created':
             self.run_id = event.data.id
-            logger.info(f"[TRACE:{self.thread_id}] OpenAI run created with run_id={self.run_id}")
             StreamingEventHandler.run_id_to_metadata[self.run_id] = self.metadata
             StreamingEventHandler.run_id_to_bot_assist[self.run_id] = self.bot_assist
             if 'parent_run' in self.metadata:
@@ -736,7 +733,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
 
    def add_message(self, input_message:BotOsInputMessage, reuse_run_id=None):
       thread_id = input_message.thread_id
-      logger.info(f"[TRACE:{thread_id}] OpenAI assistant processing message")
       #logger.debug("BotOsA ssistantOpenAI:add_message")
 
       if input_message.metadata and 'thread_id' in input_message.metadata:

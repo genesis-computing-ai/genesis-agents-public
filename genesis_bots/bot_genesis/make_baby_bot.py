@@ -657,8 +657,8 @@ def add_new_tools_to_bot(bot_id, new_tools):
     updated_tools_str = json.dumps(updated_tools)
 
     bot_servicing_table = bb_db_connector.bot_servicing_table_name
-    response = bb_db_connector.db_update_bot_tools(project_id=project_id,dataset_name=dataset_name, 
-                                                   bot_servicing_table=bot_servicing_table, bot_id=bot_id, 
+    response = bb_db_connector.db_update_bot_tools(project_id=project_id,dataset_name=dataset_name,
+                                                   bot_servicing_table=bot_servicing_table, bot_id=bot_id,
                                                    updated_tools_str=updated_tools_str, new_tools_to_add=new_tools_to_add,
                                                      already_present=already_present, updated_tools=updated_tools)
     if os.getenv("OPENAI_USE_ASSISTANTS", "False").lower() != "true":
@@ -1213,18 +1213,18 @@ def make_baby_bot(
             else:
                 query1 = f"SHOW ENDPOINTS IN SERVICE {project_id}.{dataset_name}.GENESISAPP_SERVICE_SERVICE;"
             try:
-                logger.warning(f"Running query to check endpoints: {query1}")
+                logger.info(f"Running query to check endpoints: {query1}")
                 bb_db_connector = get_global_db_connector()
                 results = bb_db_connector.run_query(query1)
                 udf_endpoint_url = next((endpoint['INGRESS_URL'] for endpoint in results if endpoint['NAME'] == 'udfendpoint'), None)
                 return udf_endpoint_url
             except Exception as e:
-                logger.warning(f"Failed to get UDF endpoint URL with error: {e}")
+                logger.error(f"Failed to get UDF endpoint URL with error: {e}")
                 return None
 
         if not api_bot_update:
             ep = get_udf_endpoint_url()
-            logger.warning(f'Endpoint for service: {ep}')
+            logger.info(f'Endpoint for service: {ep}')
 
             if slack_active and activate_slack != 'N' and not api_mode:
 
@@ -1998,10 +1998,10 @@ def remove_tools_from_bot(bot_id, remove_tools):
     updated_tools_str = json.dumps(updated_tools_list)
 
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    response = bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name, 
-                                                   bot_servicing_table=bot_servicing_table, bot_id=bot_id, 
-                                                   updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools, 
-                                                   invalid_tools=invalid_tools, updated_tools=updated_tools_list)    
+    response = bb_db_connector.db_remove_bot_tools(project_id=project_id,dataset_name=dataset_name,
+                                                   bot_servicing_table=bot_servicing_table, bot_id=bot_id,
+                                                   updated_tools_str=updated_tools_str, tools_to_be_removed=remove_tools,
+                                                   invalid_tools=invalid_tools, updated_tools=updated_tools_list)
     if os.getenv("OPENAI_USE_ASSISTANTS", "False").lower() != "true":
         os.environ[f'RESET_BOT_SESSION_{bot_id}'] = 'True'
     return response

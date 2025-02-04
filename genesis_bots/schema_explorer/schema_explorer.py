@@ -48,10 +48,66 @@ class SchemaExplorer:
                 
                 db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
                 
+                if matching_connection.get('connection_string'):
+                    if '.redshift.' in matching_connection['connection_string'].lower() or '.redshift-serverless.' in matching_connection['connection_string'].lower():
+                        db_type = 'redshift'                
+
                 # Use get_view_ddl for views, get_ddl for tables
                 query_type = 'get_view_ddl' if object_type == 'VIEW' else 'get_ddl'
                 sql = self.load_custom_query(db_type, query_type)
-                
+                # Handle Redshift DDL queries separately since they need special handling
+                if sql is None and db_type == 'redshift':
+                    if object_type == 'VIEW':
+                        sql = """SELECT 'CREATE OR REPLACE VIEW ' || schemaname || '.' || viewname || ' AS ' || definition 
+                                FROM pg_views 
+                                WHERE schemaname = '!schema_name!' AND viewname = '!table_name!'"""
+                    else:
+                        # Get raw column data from pg_table_def
+                        sql = """SELECT "column", "notnull", "type"
+                                FROM pg_table_def 
+                                WHERE schemaname = '!schema_name!' 
+                                AND tablename = '!table_name!';"""
+                        
+                        try:
+                            result = connector.query_database(
+                                connection_id=dataset['source_name'],
+                                bot_id='system',
+                                query=sql.replace('!schema_name!', dataset['schema_name']).replace('!table_name!', table_name.split('.')[-1].strip('"')),
+                                max_rows=1000,
+                                max_rows_override=True,
+                                bot_id_override=True,
+                                database_name=dataset['database_name']
+                            )
+                            
+                            if isinstance(result, dict) and result.get('success') and result.get('rows'):
+                                # Build DDL in Python
+                                columns = []
+                                for row in result['rows']:
+                                    # Convert all values to strings and handle None values
+                                    column_name = str(row[0]) if row[0] is not None else ''
+                                    column_type = str(row[1]) if row[1] is not None else ''
+                                    is_notnull = bool(row[2]) if row[2] is not None else False
+                                    
+                                    # Only proceed if we have valid column name and type
+                                    if column_name and column_type:
+                                        column_def = f'    "{column_name}" {column_type}'
+                                        if is_notnull:
+                                            column_def += " NOT NULL"
+                                        columns.append(column_def)
+                                
+                                if columns:  # Only create DDL if we have valid columns
+                                    # Assemble the complete DDL
+                                    table_name_clean = table_name.split('.')[-1].strip('"')
+                                    ddl = f'CREATE TABLE "{dataset["schema_name"]}"."{table_name_clean}" (\n'
+                                    ddl += ',\n'.join(columns)
+                                    ddl += '\n);'
+                                    return ddl
+                                
+                            return "CREATE TABLE (No columns found);"
+                            
+                        except Exception as e:
+                            logger.info(f'Error building DDL from pg_table_def: {e}')
+                            return f"CREATE TABLE (Error: {str(e)});"
                 if sql:
                     sql = sql.replace('!database_name!', dataset['database_name'])
                     sql = sql.replace('!schema_name!', dataset['schema_name'])
@@ -437,6 +493,10 @@ class SchemaExplorer:
 
             database_name = database['database_name']
 
+            # Check if connection string contains redshift and update db_type accordingly
+            if matching_connection.get('connection_string'):
+                if '.redshift.' in matching_connection['connection_string'].lower() or '.redshift-serverless.' in matching_connection['connection_string'].lower():
+                    db_type = 'redshift'
             sql = self.load_custom_query(db_type, 'get_schemas')
 
             if sql is None:
@@ -576,38 +636,48 @@ class SchemaExplorer:
                     logger.info(f"No matching connection found for source {dataset['source_name']}")
                     return []
 
-                # Pre-defined column listing queries for common database types
-                sql = None
-
                 db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
-                sql = self.load_custom_query(db_type, 'get_columns')
-
-                if sql is None:
-                    column_queries = {
-                    'mysql': 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = \'!schema_name!\' AND TABLE_NAME = \'!table_name!\' ORDER BY ORDINAL_POSITION',
-                    'postgresql': 'SELECT column_name FROM information_schema.columns WHERE table_catalog = \'!database_name!\' AND table_schema = \'!schema_name!\' AND table_name = \'!table_name!\' ORDER BY ordinal_position',
-                    'sqlite': 'SELECT name FROM pragma_table_info(\'!table_name!\')',
-                    'snowflake': 'SHOW COLUMNS IN TABLE !database_name!.!schema_name!.!table_name!'
-                }
-
-                # Check if we have a pre-defined query for this database type
-                    if matching_connection['db_type'].lower() in column_queries:
-                        sql = column_queries[matching_connection['db_type'].lower()]
+                
+                # Check if it's Redshift
+                if matching_connection.get('connection_string'):
+                    if '.redshift.' in matching_connection['connection_string'].lower() or '.redshift-serverless.' in matching_connection['connection_string'].lower():
+                        db_type = 'redshift'
+                
+                if db_type == 'redshift':
+                    # Use pg_table_def for Redshift
+                    sql = """SELECT "column"
+                            FROM pg_table_def 
+                            WHERE schemaname = '!schema_name!' 
+                            AND tablename = '!table_name!';
+                           """
+                else:
+                    # Pre-defined column listing queries for other database types
+                    sql = self.load_custom_query(db_type, 'get_columns')
 
                     if sql is None:
-                        # Generate prompt to get SQL for column listing based on database type
-                        p = [
-                            {"role": "user", "content": f"Write a SQL query to list all columns in a {matching_connection['db_type']} database table. Use placeholders !database_name!, !schema_name!, and !table_name! which will be replaced at runtime. Return only the SQL query without explanation, with no markdown, no ``` and no ```sql. The query should return a single column containing the column names."}
-                        ]
+                        column_queries = {
+                            'mysql': 'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = \'!schema_name!\' AND TABLE_NAME = \'!table_name!\' ORDER BY ORDINAL_POSITION',
+                            'postgresql': 'SELECT column_name FROM information_schema.columns WHERE table_catalog = \'!database_name!\' AND table_schema = \'!schema_name!\' AND table_name = \'!table_name!\' ORDER BY ordinal_position',
+                            'sqlite': 'SELECT name FROM pragma_table_info(\'!table_name!\')',
+                            'snowflake': 'SHOW COLUMNS IN TABLE !database_name!.!schema_name!.!table_name!'
+                        }
 
-                        sql = self.run_prompt(p)
+                        if db_type.lower() in column_queries:
+                            sql = column_queries[db_type.lower()]
+
+                        if sql is None:
+                            # Generate prompt to get SQL for column listing based on database type
+                            p = [
+                                {"role": "user", "content": f"Write a SQL query to list all columns in a {db_type} database table. Use placeholders !database_name!, !schema_name!, and !table_name! which will be replaced at runtime. Return only the SQL query without explanation, with no markdown, no ``` and no ```sql. The query should return a single column containing the column names."}
+                            ]
+                            sql = self.run_prompt(p)
 
                 # Replace placeholders in SQL query
                 sql = sql.replace('!database_name!', dataset['database_name'])
                 sql = sql.replace('!schema_name!', dataset['schema_name'])
-                sql = sql.replace('!table_name!', table_name)
+                sql = sql.replace('!table_name!', table_name.split('.')[-1].strip('"'))
 
-                # Execute the generated SQL query through the connector
+                # Execute the query
                 result = connector.query_database(
                     connection_id=dataset['source_name'],
                     bot_id='system',
@@ -619,7 +689,14 @@ class SchemaExplorer:
                 )
 
                 if isinstance(result, dict) and result.get('success'):
-                    return [row[0] for row in result['rows']]
+                    # Extract column names from the result
+                    columns = []
+                    for row in result['rows']:
+                        if row[0] is not None:  # Check for None values
+                            columns.append(str(row[0]))  # Convert to string
+                    return columns
+
+                return []
 
             except Exception as e:
                 logger.info(f'Error getting columns for table {table_name}: {e}')
@@ -712,6 +789,10 @@ class SchemaExplorer:
 
                     database_name = dataset['database_name']
                     schema_name = dataset['schema_name']
+
+                    if matching_connection.get('connection_string'):
+                        if '.redshift.' in matching_connection['connection_string'].lower() or '.redshift-serverless.' in matching_connection['connection_string'].lower():
+                            db_type = 'redshift'                
 
                     # Get tables
                     sql_tables = self.load_custom_query(db_type, 'get_tables')
@@ -1035,6 +1116,11 @@ class SchemaExplorer:
 
                 # Pre-defined sample data queries for common database types
                 db_type = matching_connection['db_type'].split('+')[0] if '+' in matching_connection['db_type'] else matching_connection['db_type']
+
+                if matching_connection.get('connection_string'):
+                    if '.redshift.' in matching_connection['connection_string'].lower() or '.redshift-serverless.' in matching_connection['connection_string'].lower():
+                        db_type = 'redshift'                
+
                 sql = self.load_custom_query(db_type, 'get_sample_data')
                 if sql is None:
                     sample_queries = {

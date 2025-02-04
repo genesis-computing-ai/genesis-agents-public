@@ -5,6 +5,8 @@ from   genesis_bots.core.logging_config      import logger
 import os
 from   sqlalchemy               import create_engine, text
 from   urllib.parse             import quote_plus
+import boto3
+import time
 
 from genesis_bots.google_sheets.g_sheets     import (
     create_google_sheet_from_export,
@@ -38,7 +40,8 @@ class DatabaseConnector:
         from genesis_bots.connectors import get_global_db_connector # to avoid circular import
         if not hasattr(self, '_initialized'):  # Check if already initialized
             self.db_adapter = get_global_db_connector()
-            self.connections = {}  # Store SQLAlchemy engines
+            self.connections = {}  
+            self.connection_expiration = {} # Store SQLAlchemy engines
             self._ensure_tables_exist()
             self._initialized = True  # Mark as initialized
 
@@ -133,16 +136,19 @@ class DatabaseConnector:
                 # Handle cases like oracle+oracledb:// or postgresql+psycopg2://
                 db_type = db_type.split('+')[0]
 
-            engine = create_engine(connection_string)
-            with engine.connect() as conn:
+            processed_conn_string = self.get_connection_string(connection_string)
+
+            engine = create_engine(processed_conn_string)
+            conn = engine.connect()
+            try:
                 # Oracle requires FROM DUAL for simple SELECT statements
                 # and needs to be committed to avoid ORA-01000: maximum open cursors exceeded
                 if db_type == 'oracle':
                     conn.execute(text('SELECT 1 FROM DUAL'))
-                    conn.commit()
                 else:
                     conn.execute(text('SELECT 1'))
-                    conn.commit()
+            finally:
+                conn.close()
 
             # Verify allowed bot IDs exist in BOT_SERVICING table
             if allowed_bots_str and allowed_bots_str != '*':
@@ -361,7 +367,7 @@ class DatabaseConnector:
             connection_id_string = connection_id
             if db_type.lower() == 'postgresql' and database_name: # postgres needs seprate connections for each database
                 connection_id_string = f"{connection_id}_{database_name}"
-            if connection_id_string not in self.connections:
+            if connection_id_string not in self.connections or (connection_id_string in self.connection_expiration and self.connection_expiration[connection_id_string] < time.time()):
                 if db_type == 'sqlite':
                     # Verify SQLite file exists or parent directory is writable
                     db_path = connection_string.split('sqlite:///')[1]
@@ -388,7 +394,10 @@ class DatabaseConnector:
                         elif connection_string[-4:].isdigit():
                             connection_string = f"{connection_string[:-4]}/{database_name}"
                 try:
-                    self.connections[connection_id_string] = create_engine(connection_string)
+                    processed_connection_string = self.get_connection_string(connection_string)
+                    self.connections[connection_id_string] = create_engine(processed_connection_string)
+                    if processed_connection_string != connection_string:
+                        self.connection_expiration[connection_id_string] = time.time() + 3500  # 1 hour
                 except Exception as e:
                     error_msg = str(e)
                     if db_type == 'sqlite':
@@ -526,14 +535,13 @@ class DatabaseConnector:
 
             # For local connections with trust authentication
             test_conn_string = f"postgresql://{user}@{host}:{port}/{database}"
-
             logger.info(f"Attempting to connect to PostgreSQL at {host}:{port}")
 
             success = self.add_connection(
                 connection_id="test_postgresql",
                 connection_string=test_conn_string,
-                bot_id="test_bot",
-                allowed_bot_ids=["test_bot"],
+                bot_id="Eve",
+                allowed_bot_ids=["Eve"],
                 description="Demo PostgreSQL connection"
             )
 
@@ -542,8 +550,9 @@ class DatabaseConnector:
 
             result = self.query_database(
                 "test_postgresql",
-                "test_bot",
-                "SELECT version()"
+                "Eve",
+                "SELECT version()",
+                database_name=database
             )
 
             if not result['success']:
@@ -574,8 +583,8 @@ class DatabaseConnector:
             success = self.add_connection(
                 connection_id="test_mysql",
                 connection_string=test_conn_string,
-                bot_id="test_bot",
-                allowed_bot_ids=["test_bot"],
+                bot_id="Eve",
+                allowed_bot_ids=["Eve"],
                 description="Demo MySQL connection"
             )
 
@@ -584,7 +593,7 @@ class DatabaseConnector:
 
             result = self.query_database(
                 "test_mysql",
-                "test_bot",
+                "Eve",
                 "SELECT version()"
             )
 
@@ -665,6 +674,7 @@ class DatabaseConnector:
             )
             self.db_adapter.client.commit()
             self.connections.pop(connection_id, None)
+            self.connection_expiration.pop(connection_id, None)
         finally:
             cursor.close()
 
@@ -708,7 +718,7 @@ class DatabaseConnector:
 
                 if connection_id in self.connections:
                     del self.connections[connection_id]
-
+                    self.connection_expiration.pop(connection_id, None)  # Safely remove if exists
                 # Delete related records from harvest_control and harvest_summary
                 cursor.execute(
                     f"""
@@ -768,12 +778,37 @@ class DatabaseConnector:
                 'error': str(e)
             }
 
+    def _test_redshift(self):
+        """Test method specifically for Redshift connections"""
+        try:
+            # Test IAM auth with serverless
+            result = self._test_redshift_connection(
+                "postgresql+psycopg2://iam@default-workgroup.730335510242.us-east-2.redshift-serverless.amazonaws.com:5439/dev"
+            )
+            if not result['success']:
+                raise Exception(f"Redshift serverless IAM test failed: {result.get('error')}")
+
+            # Test direct auth with provisioned cluster
+            result = self._test_redshift_connection(
+                "postgresql+psycopg2://admin:my_password@default-workgroup.730335510242.us-east-2.redshift-serverless.amazonaws.com:5439/dev"
+            )
+            if not result['success']:
+                raise Exception(f"Redshift provisioned direct auth test failed: {result.get('error')}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Redshift test connection failed: {str(e)}")
+            raise
+
+
     def _test(self):
         """
         Run all database connector tests.
         """
         logger.info("Running database connector tests...")
         self._test_postgresql()
+        self._test_redshift()
         self._test_mysql()
         self._test_snowflake()
 
@@ -829,7 +864,7 @@ class DatabaseConnector:
                         'updated_at': row[5],
                         'description': row[6]
                     }
-                    if row[2] == bot_id:
+                    if row[2] == bot_id or bot_id_override:
                         connection['allowed_bot_ids'] = row[3].split(',') if row[3] else []
                         connection['connection_string'] = row[7]
                     connections.append(connection)
@@ -1015,6 +1050,175 @@ class DatabaseConnector:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
             return "An error occurred while trying to find the memory."
 
+    def get_connection_string(self, conn_string=None):
+        """Process any database connection string"""
+        if not conn_string:
+            conn_string = get_required_env('DB_CONNECTION')
+        
+        # Parse the connection string
+        if '://' not in conn_string:
+            raise ValueError("Connection string must include protocol (e.g., postgresql://, mysql://, etc.)")
+        
+        prefix, rest = conn_string.split('://')
+        if '@' in rest:
+            auth, host_part = rest.split('@')
+        else:
+            auth = ''
+            host_part = rest
+        
+        # Extract host and database
+        if '/' not in host_part:
+            raise ValueError("Connection string must include database name")
+        host_port, database = host_part.split('/', 1)
+        if '?' in database:
+            database = database.split('?')[0]
+        
+        # Check if this is a Redshift connection
+        is_redshift = any(x in host_part.lower() for x in [
+            'redshift-serverless.amazonaws.com',
+            'redshift.amazonaws.com'
+        ])
+        
+        # Handle Redshift IAM authentication
+        if is_redshift and auth.lower() == 'iam':
+            # Get workgroup/cluster name from host
+            identifier = host_port.split('.')[0]
+            is_serverless = 'redshift-serverless' in host_part.lower()
+            
+            try:
+                session = boto3.session.Session()
+                region = os.getenv('AWS_REGION') or session.region_name
+                
+                if is_serverless:
+                    client = boto3.client('redshift-serverless', region_name=region)
+                    credentials = client.get_credentials(
+                        workgroupName=identifier,
+                        dbName=database,
+                        durationSeconds=3600
+                    )
+                    username, password = credentials['dbUser'], credentials['dbPassword']
+                else:
+                    client = boto3.client('redshift', region_name=region)
+                    credentials = client.get_cluster_credentials(
+                        DbUser='IAM_USER',
+                        DbName=database,
+                        ClusterIdentifier=identifier,
+                        DurationSeconds=3600,
+                        AutoCreate=False
+                    )
+                    username, password = credentials['DbUser'], credentials['DbPassword']
+                
+                auth = f"{quote_plus(username)}:{quote_plus(password)}"
+                
+            except Exception as e:
+                logger.error(f"Error getting AWS credentials: {str(e)}")
+                raise ValueError("Could not get AWS credentials for Redshift")
+        
+        # Construct connection string with appropriate parameters
+        conn_params = []
+        
+        # Add SSL parameters based on host
+        if prefix.startswith('postgresql'):
+            is_local = host_port.startswith('localhost') or host_port.startswith('127.0.0.1')
+            if is_local:
+                conn_params.append("sslmode=disable")  # Disable SSL for local connections
+            else:
+                conn_params.extend([
+                    "sslmode=verify-full",
+                    "sslrootcert=system"
+                ])
+        
+        # Add any existing parameters from the original connection string
+        if '?' in conn_string:
+            existing_params = conn_string.split('?')[1]
+            if existing_params:
+                conn_params.append(existing_params)
+        
+        # Build final connection string
+        result = f"{prefix}://"
+        if auth:
+            result += f"{auth}@"
+        result += f"{host_port}/{database}"
+        if conn_params:
+            result += '?' + '&'.join(conn_params)
+        
+        return result
+
+    def _test_redshift_connection(self, connection_string: str) -> dict:
+        """
+        Test a Redshift connection string before adding it to the connections list
+        
+        Args:
+            connection_string: Full SQLAlchemy connection string for Redshift
+
+        Returns:
+            dict: Result of connection test with success/error information
+        """
+        try:
+            # Parse connection string to determine Redshift type
+            if '://' not in connection_string:
+                return {
+                    'success': False,
+                    'error': "Invalid connection string format. Must include protocol (e.g., postgresql://)"
+                }
+            
+            host_part = connection_string.split('@')[1].split('/')[0] if '@' in connection_string else connection_string.split('/')[0]
+            
+            # Verify this is a Redshift connection
+            if not any(x in host_part.lower() for x in [
+                'redshift-serverless.amazonaws.com',
+                'redshift.amazonaws.com'
+            ]):
+                return {
+                    'success': False,
+                    'error': "Not a Redshift connection string. Host should contain 'redshift.amazonaws.com' or 'redshift-serverless.amazonaws.com'"
+                }
+            
+            # Get processed connection string (handles IAM if needed)
+            try:
+                final_conn_string = self.get_connection_string(connection_string)
+            except Exception as e:
+                return {
+                    'success': False,
+                    'error': f"Failed to process connection string: {str(e)}"
+                }
+            
+            # Test the connection
+            engine = create_engine(final_conn_string)
+            with engine.connect() as conn:
+                # Test query
+                result = conn.execute(text('SELECT version()')).fetchone()
+                version = result[0] if result else "Unknown"
+                
+                # Get Redshift type
+                is_serverless = 'redshift-serverless' in host_part.lower()
+                redshift_type = "Redshift Serverless" if is_serverless else "Redshift Provisioned"
+                
+                return {
+                    'success': True,
+                    'message': f"Successfully connected to {redshift_type}",
+                    'version': version,
+                    'type': redshift_type,
+                    'note': "Connection test successful. You can now add this connection using add_database_connection()"
+                }
+            
+        except Exception as e:
+            error_msg = str(e)
+            response = {
+                'success': False,
+                'error': f"Connection test failed: {error_msg}"
+            }
+            
+            # Add helpful hints based on common errors
+            if 'timeout' in error_msg.lower():
+                response['hint'] = "Check VPC/Security Group settings and ensure port 5439 is open"
+            elif 'password' in error_msg.lower():
+                response['hint'] = "Check your credentials or IAM permissions"
+            elif 'database' in error_msg.lower():
+                response['hint'] = "Verify the database name exists and you have access"
+            
+            return response
+
 
 data_connector_tools = ToolFuncGroup(
     name="data_connector_tools",
@@ -1182,11 +1386,12 @@ def _search_metadata(
 
 @gc_tool(
     search_string="String to search for in metadata",
-    database="Database name",
-    schema="Schema name",
+    database="Database name (not valid for Sqlite)",
+    schema="Schema name (not valid for Sqlite)",
     table="Table name",
     top_n="Number of rows to return",
     knowledge_base_path="Path to the knowledge vector base",
+    connection_id="ID of the database connection to query",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools],
@@ -1209,7 +1414,7 @@ def _data_explorer(
         schema=schema,
         table=table,
         scope="database_metadata",
-        top_n="top_n",
+        top_n=top_n,
         verbosity="high",
         full_ddl="true",
         connection_id=connection_id,
@@ -1274,3 +1479,8 @@ _all_data_connections_functions = [
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_data_connections_functions():
     return _all_data_connections_functions
+
+
+if __name__ == "__main__":
+    DatabaseConnector()._test()
+

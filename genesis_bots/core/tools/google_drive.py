@@ -20,6 +20,7 @@ from genesis_bots.google_sheets.g_sheets import (
     get_g_folder_directory,
     read_g_sheet,
     write_g_sheet_cell_v4,
+    create_g_sheet_v4
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -51,6 +52,7 @@ google_drive_tools = ToolFuncGroup(
             GET_LINK_FROM_FILE_ID - Gets the url link to a file given a g_file_id
             GET_FILE_BY_NAME - Searches for a file by name and returns the file id
             SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet
+            CREATE_SHEET - Creates a new Google Sheet with data from user
     """
     ),
     g_folder_id="The unique identifier of a folder stored on Google Drive.",
@@ -245,7 +247,13 @@ def google_drive(
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
         db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
-        pass
+        return {"Success": True, "Message": "Query results saved to Google Sheet."}
+
+    elif action == "CREATE_SHEET":
+        response = create_g_sheet_v4(
+            g_file_id, g_sheet_value, None, db_adapter.user
+        )
+        return response
 
     return {"Success": False, "Error": "Invalid action specified."}
 

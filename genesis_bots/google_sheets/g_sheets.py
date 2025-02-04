@@ -856,7 +856,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 #             "Error": str(e),
 #         }
 
-def create_google_sheet(self, shared_folder_id, title, data):
+def create_google_sheet_from_export(self, shared_folder_id, title, data):
     """
     Creates a Google Sheet with the given title and table data and moves it
     from the service account to the shared folder.
@@ -1006,6 +1006,70 @@ def create_google_sheet(self, shared_folder_id, title, data):
     except HttpError as error:
         print(f"An error occurred: {error}")
         return error
+
+def create_g_sheet_v4(g_file_id, g_sheet_values, creds=None, user=None):
+    """
+    Create a Google Sheet with the given values.
+    Load pre-authorized user credentials from the environment.
+    """
+    if not user:
+        raise Exception("User not specified for google drive conventions.")
+
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    except Exception as e:
+        print(f"Error loading credentials: {e}")
+        return None
+
+    try:
+        service = build("sheets", "v4", credentials=creds)
+
+        # Create the Google Sheet
+        spreadsheet = {"properties": {"title": g_file_id}}
+        spreadsheet = (
+            service.spreadsheets()
+            .create(body=spreadsheet, fields="spreadsheetId")
+            .execute()
+        )
+
+        ss_id = spreadsheet.get("spreadsheetId")
+        print(f"Spreadsheet ID: {ss_id}")
+
+        # Prepare the body for the update request
+        body = {
+            "values": g_sheet_values
+        }
+
+        # Update the Google Sheet with the new values
+        result = (
+            service.spreadsheets()
+            .values()
+            .update(
+                spreadsheetId=ss_id,
+                range="Sheet1!A1",
+                valueInputOption="USER_ENTERED",
+                body=body,
+            )
+            .execute()
+        )
+
+        print(f"{result.get('updatedCells')} cells created.")
+
+        return {
+            "Success": True,
+            "file_id": spreadsheet.get("spreadsheetId"),
+        }
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return {
+            "Success": False,
+            "Error": str(e),
+        }
 
 def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, creds=None, user=None):
     # if not spreadsheet_id or not cell_range or (not creds and not user):

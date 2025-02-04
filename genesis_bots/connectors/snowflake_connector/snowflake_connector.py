@@ -26,7 +26,7 @@ from .stage_utils import add_file_to_stage, read_file_from_stage, update_file_in
 from .ensure_table_exists import ensure_table_exists, one_time_db_fixes, get_process_info, get_processes_list
 
 from genesis_bots.google_sheets.g_sheets import (
-    create_google_sheet,
+    create_google_sheet_from_export,
 )
 
 from genesis_bots.core.bot_os_tools2 import (
@@ -1125,7 +1125,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 WHEN MATCHED THEN
                     UPDATE SET t.MODEL_NAME = s.model_name, t.EMBEDDING_MODEL_NAME = s.embedding_model_name
                 WHEN NOT MATCHED THEN
-                    INSERT (MODEL_NAME, EMBEDDING_MODEL_NAME, LLM_TYPE, RUNNER_ID) 
+                    INSERT (MODEL_NAME, EMBEDDING_MODEL_NAME, LLM_TYPE, RUNNER_ID)
                     VALUES (s.model_name, s.embedding_model_name, s.llm_type, s.runner_id)
                 """)
 
@@ -1149,8 +1149,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
                 # First check if record exists
                 select_query = f"""
-                    SELECT 1 
-                    FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS 
+                    SELECT 1
+                    FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
                     WHERE LLM_TYPE = %s AND RUNNER_ID = %s
                 """
                 cursor.execute(select_query, ('openai', runner_id))
@@ -2641,7 +2641,7 @@ def get_status(site):
 
             if export_title is None:
                 export_title = 'Genesis Export'
-            result = create_google_sheet(self, shared_folder_id['result'], title=f"{export_title}", data=sample_data )
+            result = create_google_sheet_from_export(self, shared_folder_id['result'], title=f"{export_title}", data=sample_data )
 
             return {
                 "Success": True,
@@ -2993,7 +2993,7 @@ def get_status(site):
         # validate llm_type; use the str value for the rest of this method
         llm_type = BotLlmEngineEnum(llm_type).value # use the str value (e.g. 'openai)
 
-        if self.source_name.lower() == "snowflake": 
+        if self.source_name.lower() == "snowflake":
 
             # deactivate the current active LLM key
             try:
@@ -3062,8 +3062,8 @@ def get_status(site):
 
             # Check if record exists
             select_query = f"""
-                SELECT 1 
-                FROM {self.genbot_internal_project_and_schema}.llm_tokens 
+                SELECT 1
+                FROM {self.genbot_internal_project_and_schema}.llm_tokens
                 WHERE runner_id = %s AND llm_type = %s
             """
 
@@ -3076,7 +3076,7 @@ def get_status(site):
                     if exists:
                         # Update existing record
                         update_query = f"""
-                            UPDATE {self.genbot_internal_project_and_schema}.llm_tokens 
+                            UPDATE {self.genbot_internal_project_and_schema}.llm_tokens
                             SET llm_key = %s,
                                 llm_type = %s,
                                 active = TRUE,

@@ -7,7 +7,7 @@ from   sqlalchemy               import create_engine, text
 from   urllib.parse             import quote_plus
 
 from genesis_bots.google_sheets.g_sheets     import (
-    create_google_sheet,
+    create_google_sheet_from_export,
 )
 from genesis_bots.connectors.connector_helpers import llm_keys_and_types_struct
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
@@ -486,7 +486,7 @@ class DatabaseConnector:
 
                             if export_title is None:
                                 export_title = 'Genesis Export'
-                            result = create_google_sheet(self, shared_folder_id['result'], title=f"{export_title}", data=rows )
+                            result = create_google_sheet_from_export(self, shared_folder_id['result'], title=f"{export_title}", data=rows )
 
                             response["result"] = f'Data sent to Google Sheets - Link to folder: {result["folder_url"]} | Link to file: {result["file_url"]}'
                             del response["rows"]
@@ -712,7 +712,7 @@ class DatabaseConnector:
                 # Delete related records from harvest_control and harvest_summary
                 cursor.execute(
                     f"""
-                    SELECT COUNT(*) FROM {self.db_adapter.schema}.HARVEST_CONTROL 
+                    SELECT COUNT(*) FROM {self.db_adapter.schema}.HARVEST_CONTROL
                     WHERE source_name = %s
                     """,
                     (connection_id,)
@@ -730,7 +730,7 @@ class DatabaseConnector:
 
                 cursor.execute(
                     f"""
-                    DELETE FROM {self.db_adapter.schema}.HARVEST_CONTROL 
+                    DELETE FROM {self.db_adapter.schema}.HARVEST_CONTROL
                     WHERE source_name = %s
                     """,
                     (connection_id,)

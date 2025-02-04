@@ -35,7 +35,7 @@ class TestTools(unittest.TestCase):
         cls.eve_id = cls.available_bots[0]
 
     def test_process_scheduler(self):
-        bot_id = self.eve_id     
+        bot_id = self.eve_id
         task_id = str(uuid4())
 
         response = process_scheduler(action='CREATE', bot_id=bot_id)
@@ -53,10 +53,10 @@ class TestTools(unittest.TestCase):
             "task_learnings": None,
             "task_active": True,
         }
-        
+
         response = process_scheduler(action='CREATE_CONFIRMED', bot_id=bot_id, task_id=task_id, task_details=task_details)
         self.assertTrue(response['Success'])
-        
+
 
         response = process_scheduler(action='LIST', bot_id=bot_id)
         self.assertTrue(response['Success'])
@@ -67,11 +67,11 @@ class TestTools(unittest.TestCase):
 
     def test_data_connections_functions(self):
         bot_id = self.eve_id
-        response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id, 
+        response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id,
                                    query='SELECT COUNT(DISTINCT team_id) from team')
         self.assertTrue(response['success'])
 
-        response = _search_metadata(connection_id='baseball_sqlite', bot_id=bot_id, 
+        response = _search_metadata(connection_id='baseball_sqlite', bot_id=bot_id,
                                     query='SELECT COUNT(DISTINCT team_id) from team')
         self.assertTrue(len(response) > 0)
 
@@ -84,17 +84,17 @@ class TestTools(unittest.TestCase):
         response = image_generation(thread_id=thread_id, prompt='A picture of a dog')
         self.assertTrue(response['success'])
 
-    
+
     def test_process_manager(self):
         bot_id = self.eve_id
         process_name = 'test_process'
         process_instructions = 'Run test_process each day'
 
-        response = manage_processes(action='CREATE', bot_id=bot_id, process_name=process_name, 
+        response = manage_processes(action='CREATE', bot_id=bot_id, process_name=process_name,
                                     process_instructions=process_instructions)
         self.assertFalse(response['Success'])
 
-        response = manage_processes(action='CREATE_CONFIRMED', bot_id=bot_id, process_name=process_name, 
+        response = manage_processes(action='CREATE_CONFIRMED', bot_id=bot_id, process_name=process_name,
                                     process_instructions=process_instructions)
         self.assertTrue(response['Success'])
 
@@ -137,7 +137,7 @@ class TestTools(unittest.TestCase):
         bot_id = self.eve_id
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog', thread_id=thread_id)
-        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=40)
         self.assertTrue('_ImageGeneration_' in response)
         self.assertTrue('.png' in response)
 

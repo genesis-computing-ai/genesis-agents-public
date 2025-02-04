@@ -367,11 +367,11 @@ if "data" in st.session_state:
 if "last_response" not in st.session_state:
     st.session_state["last_response"] = ""
 
-if st.session_state.show_email_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
-    hide_modal()
-elif st.session_state.show_modal:
-    # Show modal if the session state allows
-    show_modal()
+# if st.session_state.show_email_config == False and st.session_state.show_openai_config == False and st.session_state.show_slack_config == False:
+#     hide_modal()
+# elif st.session_state.show_modal:
+#     # Show modal if the session state allows
+#     show_modal()
 
 # st.success(st.session_state.data)
 if st.session_state.data:

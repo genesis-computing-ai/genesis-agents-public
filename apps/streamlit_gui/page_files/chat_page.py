@@ -593,7 +593,7 @@ def chat_page():
             # Sidebar content
             # -------------------------------------------
             with st.container():
-                colA, colB, colC = st.columns([2, 1, 1])
+                colA, colB = st.columns([1, 2])
                 with colA:
                     if len(bot_names) > 0:
                 #      st.markdown("### Start a New Chat")
@@ -638,13 +638,13 @@ def chat_page():
                             # Trigger a rerun to update the UI
                             st.rerun()
                 
-                with colB:
+                #with colB:
                     if not st.session_state.NativeMode:
                         uploaded_file = st.file_uploader("FILE UPLOADER", key=st.session_state['uploader_key'])
                     else:
                         uploaded_file = None
 
-                with colC:
+                #with colC:
                     st.markdown("#### Active Chat Sessions:")
 
                     # Initialize active_sessions in session state if it doesn't exist
@@ -777,69 +777,70 @@ def chat_page():
 
             # Main chat content area
             # --------------------------------------------
-            encoded_bot_avatar_image_array = None
-            bot_avatar_image_url = None
-            if len(bot_names) > 0:
-
-                # get avatar images
+            with colB:
+                encoded_bot_avatar_image_array = None
                 bot_avatar_image_url = None
-                if len(bot_images) > 0:
-                    selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
-                    if selected_bot_image_index >= 0:
-                        # Use the default G logo image for all bots
-                        encoded_bot_avatar_image = bot_avatar_images[0]
-                        if encoded_bot_avatar_image:
-                            encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
-                            bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
+                if len(bot_names) > 0:
 
-                if selected_thread_id:
-                    # Initialize chat history if it doesn't exist for the current thread
-                    if f"messages_{selected_thread_id}" not in st.session_state:
-                        st.session_state[f"messages_{selected_thread_id}"] = []
+                    # get avatar images
+                    bot_avatar_image_url = None
+                    if len(bot_images) > 0:
+                        selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
+                        if selected_bot_image_index >= 0:
+                            # Use the default G logo image for all bots
+                            encoded_bot_avatar_image = bot_avatar_images[0]
+                            if encoded_bot_avatar_image:
+                                encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
+                                bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
 
-                    # Display chat messages from history
-                    messages = st.session_state[f"messages_{selected_thread_id}"]
-                    for i, message in enumerate(messages):
-                        # Skip intro prompts
-                        if message.is_intro_prompt:
-                            continue
+                    if selected_thread_id:
+                        # Initialize chat history if it doesn't exist for the current thread
+                        if f"messages_{selected_thread_id}" not in st.session_state:
+                            st.session_state[f"messages_{selected_thread_id}"] = []
 
-                        # Skip the last message if there's a pending request OR if it's a duplicate intro message
-                        if (i == len(messages)-1 and
-                            (selected_thread_id in st.session_state.session_message_uuids or
-                             (i > 0 and message.content == messages[i-1].content))):  # Check for duplicate content
-                            continue
+                        # Display chat messages from history
+                        messages = st.session_state[f"messages_{selected_thread_id}"]
+                        for i, message in enumerate(messages):
+                            # Skip intro prompts
+                            if message.is_intro_prompt:
+                                continue
 
-                        if message.role == "assistant" and bot_avatar_image_url is not None:
-                            with st.chat_message(message.role, avatar=bot_avatar_image_url):
-                                st.markdown(message.content, unsafe_allow_html=True)
-                        else:
-                            with st.chat_message(message.role):
-                                st.markdown(message.content, unsafe_allow_html=True)
+                            # Skip the last message if there's a pending request OR if it's a duplicate intro message
+                            if (i == len(messages)-1 and
+                                (selected_thread_id in st.session_state.session_message_uuids or
+                                (i > 0 and message.content == messages[i-1].content))):  # Check for duplicate content
+                                continue
 
-                    # Check if there's a pending request for the current session
-                    if selected_thread_id in st.session_state.session_message_uuids:
-                        pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
-                        handle_pending_request(selected_thread_id, pending_request_id)
+                            if message.role == "assistant" and bot_avatar_image_url is not None:
+                                with st.chat_message(message.role, avatar=bot_avatar_image_url):
+                                    st.markdown(message.content, unsafe_allow_html=True)
+                            else:
+                                with st.chat_message(message.role):
+                                    st.markdown(message.content, unsafe_allow_html=True)
 
-                    # React to user input (this will append to `messages`)
-                    if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
-                        file = {}
-                        if uploaded_file:
-                            bytes_data = base64.b64encode(uploaded_file.read()).decode()
-                            st.session_state['uploader_key'] = random.randint(0, 1 << 32)
-                            file = {'filename': uploaded_file.name, 'content': bytes_data}
-                        submit_button(prompt,
-                                      st.chat_message("user"),
-                                      intro_prompt=False,
-                                      file=file)
+                        # Check if there's a pending request for the current session
+                        if selected_thread_id in st.session_state.session_message_uuids:
+                            pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
+                            handle_pending_request(selected_thread_id, pending_request_id)
 
-                    # Generate initial message and bot introduction only for sessions without an initial user prompts.
-                    intro_prompt_used = any(m.is_intro_prompt for m in messages[:4]) # dont bother checking beyond the first few messages
-                    if not intro_prompt_used:
-                        submit_button(selected_bot_intro_prompt,
-                                      st.empty(),
-                                      intro_prompt=True)
+                        # React to user input (this will append to `messages`)
+                        if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
+                            file = {}
+                            if uploaded_file:
+                                bytes_data = base64.b64encode(uploaded_file.read()).decode()
+                                st.session_state['uploader_key'] = random.randint(0, 1 << 32)
+                                file = {'filename': uploaded_file.name, 'content': bytes_data}
+                            submit_button(prompt,
+                                        st.chat_message("user"),
+                                        intro_prompt=False,
+                                        file=file)
+
+                        # Generate initial message and bot introduction only for sessions without an initial user prompts.
+                        intro_prompt_used = any(m.is_intro_prompt for m in messages[:4]) # dont bother checking beyond the first few messages
+                        if not intro_prompt_used:
+                            submit_button(selected_bot_intro_prompt,
+                                        st.empty(),
+                                        intro_prompt=True)
 
       #          email_popup()
 

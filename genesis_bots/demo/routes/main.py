@@ -61,7 +61,7 @@ def echo():
     output_rows = [[row[0], "Hi there!"] for row in input_rows]
     logger.info(f"Produced {len(output_rows)} rows")
 
-    response = make_response({"data": output_rows})
+    response = make_response({"data": input_rows})
     response.headers["Content-type"] = "application/json"
     logger.debug(f"Sending response: {response.json}")
     return response

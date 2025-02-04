@@ -2,19 +2,20 @@
 GENESIS BOT TODOS
 =================
 
-claude/cortex: catch when token window is exceeded and compress the history
-(test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots 
+(off for now) claude/cortex: catch when token window is exceeded and compress the history
+x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots 
 x waive 20 tool call per thread limit for claude threads
 next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
-email collector / telemetry on local vers
+(pr) email collector / telemetry on local vers
 better way to collect NGROK_TOKEN and reporting when its not set 
 make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
 x (aviv) test gxs with completion mode (w/git etc)
-(aviv) make connection, harvest, search metadata, and query database work directly via api 
+x (aviv) make connection, harvest, search metadata, and query database work directly via api 
 (test) harvester on standalone snowflake connection
 (test) harvester on oracle
-test/fix redshift, bigquery, databricks
+x add redshift
+test/fix bigquery, databricks
 (test) axure openai, cortex on local runner via snowflake creds?
 dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed

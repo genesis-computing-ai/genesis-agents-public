@@ -1052,9 +1052,6 @@ class DatabaseConnector:
 
     def get_connection_string(self, conn_string=None):
         """Process any database connection string"""
-        if not conn_string:
-            conn_string = get_required_env('DB_CONNECTION')
-        
         # Parse the connection string
         if '://' not in conn_string:
             raise ValueError("Connection string must include protocol (e.g., postgresql://, mysql://, etc.)")

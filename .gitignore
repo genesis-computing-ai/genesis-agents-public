@@ -62,3 +62,4 @@ genesis_api_whl.egg-info/
 jl.db
 runtime/*
 apps/vscode-curosr-ext/node_modules/
+sample_catalog_stage

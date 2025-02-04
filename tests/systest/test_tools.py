@@ -32,9 +32,10 @@ class TestTools(unittest.TestCase):
         server_proxy = build_server_proxy('embedded', None)
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bots = get_available_bots(cls.client)
+        cls.eve_id = cls.available_bots[0]
 
     def test_process_scheduler(self):
-        bot_id = self.available_bots[0]        
+        bot_id = self.eve_id     
         task_id = str(uuid4())
 
         response = process_scheduler(action='CREATE', bot_id=bot_id)
@@ -59,12 +60,13 @@ class TestTools(unittest.TestCase):
 
         response = process_scheduler(action='LIST', bot_id=bot_id)
         self.assertTrue(response['Success'])
+        self.assertTrue(len(response['Scheduled Processes']) == 1)
 
         response = process_scheduler(action='HISTORY', bot_id=bot_id, task_id=task_id)
         self.assertTrue(response['Success'])
 
     def test_data_connections_functions(self):
-        bot_id = self.available_bots[0]
+        bot_id = self.eve_id
         response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id, 
                                    query='SELECT COUNT(DISTINCT team_id) from team')
         self.assertTrue(response['success'])
@@ -84,7 +86,7 @@ class TestTools(unittest.TestCase):
 
     
     def test_process_manager(self):
-        bot_id = self.available_bots[0]
+        bot_id = self.eve_id
         process_name = 'test_process'
         process_instructions = 'Run test_process each day'
 
@@ -99,12 +101,13 @@ class TestTools(unittest.TestCase):
         response = manage_processes(action='LIST', bot_id=bot_id)
         self.assertTrue(response['Success'])
 
-    def test_list_of_bots(self):
+    def test_list_of_bots_agent(self):
         thread_id = str(uuid4())
-        curr_bot_id = self.available_bots[0]
-        request = self.client.submit_message(curr_bot_id, 'List of bots?', thread_id=thread_id)
+        bot_id = self.eve_id
+        request = self.client.submit_message(bot_id, 'List of bots?', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
-        #print(response)
+        self.assertTrue('Eve' in response)
+        self.assertTrue('_ListAllBots_' in response)
 
     def test_make_baby_bot(self):
         bot_id = 'BotId'
@@ -129,6 +132,14 @@ class TestTools(unittest.TestCase):
 
         response = remove_tools_from_bot(bot_id=bot_id, remove_tools=['make_baby_bot'])
         self.assertTrue(response['success'])
+
+    def test_image_tools_agent(self):
+        bot_id = self.eve_id
+        thread_id = str(uuid4())
+        request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog', thread_id=thread_id)
+        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+        self.assertTrue('_ImageGeneration_' in response)
+        self.assertTrue('.png' in response)
 
     @classmethod
     def tearDownClass(cls):

@@ -483,7 +483,7 @@ class ProjectManager:
                 if not project_details:
                     return {"success": False, "error": "Project details are required"}
 
-                required_fields = ["project_name", "project_manager_bot_id"]
+                required_fields = ["project_name", "project_description"]
                 missing_fields = [f for f in required_fields if f not in project_details]
                 if missing_fields:
                     return {"success": False, "error": f"Missing required fields: {', '.join(missing_fields)}"}
@@ -501,7 +501,7 @@ class ProjectManager:
                         project_id,
                         project_details["project_name"],
                         project_details.get("description", ""),
-                        project_details["project_manager_bot_id"],
+                        bot_id,
                         requested_by_user,
                         project_details.get("current_status", "NEW"),
                         project_details.get("target_completion_date")
@@ -582,7 +582,7 @@ class ProjectManager:
                 allowed_fields = {
                     "project_name": "Project name updated",
                     "description": "Description updated",
-                    "project_manager_bot_id": "Project manager changed",
+                    "bot_id": "Project manager changed",
                     "target_completion_date": "Target completion date updated"
                 }
 

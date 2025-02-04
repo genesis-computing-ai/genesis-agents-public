@@ -1209,7 +1209,7 @@ def _data_explorer(
         schema=schema,
         table=table,
         scope="database_metadata",
-        top_n=8,
+        top_n="top_n",
         verbosity="high",
         full_ddl="true",
         connection_id=connection_id,

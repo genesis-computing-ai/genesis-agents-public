@@ -483,7 +483,7 @@ class ProjectManager:
                 if not project_details:
                     return {"success": False, "error": "Project details are required"}
 
-                required_fields = ["project_name", "project_description"]
+                required_fields = ["project_name", "description"]
                 missing_fields = [f for f in required_fields if f not in project_details]
                 if missing_fields:
                     return {"success": False, "error": f"Missing required fields: {', '.join(missing_fields)}"}

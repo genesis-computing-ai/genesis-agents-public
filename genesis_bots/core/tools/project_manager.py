@@ -112,13 +112,13 @@ def manage_todos(
     project_id="ID of the project (required for CREATE and UPDATE)",
     project_details=ToolFuncParamDescriptor(
         name="project_details",
-        description="Details for the project. For CREATE: requires project_name, project_description. "
+        description="Details for the project. For CREATE: requires project_name, description. "
         "For UPDATE: requires only new_status.",
         llm_type_desc=dict(
             type="object",
             properties=dict(
                 project_name=dict(type="string", description="Name of the project"),
-                project_description=dict(
+                description=dict(
                     type="string", description="Description of the project"
                 ),
                 new_status=dict(

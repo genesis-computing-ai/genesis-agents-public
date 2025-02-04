@@ -76,7 +76,7 @@ class JWTGenerator(object):
             pemlines = pem_in.read()
             try:
                 # Try to access the private key without a passphrase.
-                self.private_key = load_pem_private_key(pemlines, None, default_backend())
+                self.private_key = load_pem_private_key(pemlines, ''.encode(), default_backend())
             except TypeError:
                 # If that fails, provide the passphrase returned from get_private_key_passphrase().
                 self.private_key = load_pem_private_key(pemlines, get_private_key_passphrase().encode(), default_backend())

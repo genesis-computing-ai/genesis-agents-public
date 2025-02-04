@@ -17,6 +17,12 @@ def main():
   connect_to_spcs(snowflake_jwt, args.endpoint, args.endpoint_path)
 
 def _get_token(args):
+  print(f"\nargs.account: {args.account}")
+  print(f"args.user: {args.user}")
+  print(f"args.private_key_file_path: {args.private_key_file_path}")
+  print(f"args.lifetime: {args.lifetime}")
+  print(f"args.renewal_delay: {args.renewal_delay}")
+  logger.info(f'args.life_time: {args.renewal_delay}')
   token = JWTGenerator(args.account, args.user, args.private_key_file_path, timedelta(minutes=args.lifetime),
             timedelta(minutes=args.renewal_delay)).get_token()
   logger.info("Key Pair JWT: %s" % token)
@@ -25,6 +31,7 @@ def _get_token(args):
 def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_account):
   scope_role = f'session:role:{role}' if role is not None else None
   scope = f'{scope_role} {endpoint}' if scope_role is not None else endpoint
+
   data = {
     'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
     'scope': scope,
@@ -33,8 +40,8 @@ def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_accou
   logger.info(data)
   url = f'https://{snowflake_account}.snowflakecomputing.com/oauth/token'
   if snowflake_account_url:
+    print(f"\nUsing snowflake account url: {snowflake_account_url}\n")
     url =       f'{snowflake_account_url}/oauth/token'
-  logger.info("\noauth url: %s\n" % url)
   response = requests.post(url, data=data)
   logger.info("\nsnowflake jwt : %s\n" % response.text)
   assert 200 == response.status_code, "unable to get snowflake token"

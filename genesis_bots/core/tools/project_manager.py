@@ -58,9 +58,11 @@ project_manager_tools = ToolFuncGroup(
                     description="The bot_id (not just the name) of the bot assigned to this todo. Omit to assign it to yourself.",
                 ),
                 depends_on=dict(
-#                    type=["string", "array", "null"],
-                    type="string",
+                    type=["string", "array"],
                     description="ID or array of IDs of todos that this todo depends on",
+                    items=dict(
+                        type="string"
+                    )
                 ),
                 new_status=dict(
                     name="new_status",
@@ -113,7 +115,7 @@ def manage_todos(
         description="Details for the project. For CREATE: requires project_name, project_description. "
         "For UPDATE: requires only new_status.",
         llm_type_desc=dict(
-            type="string",
+            type="object",
             properties=dict(
                 project_name=dict(type="string", description="Name of the project"),
                 project_description=dict(
@@ -133,7 +135,7 @@ def manage_projects(
     action: str,
     bot_id: str,
     project_id: str=None,
-    project_details: str=None,
+    project_details: Dict=None,
     thread_id: str=None
 ):
     """
@@ -248,7 +250,7 @@ def manage_todo_dependencies(
         name="asset_details",
         description="Details for the asset (required for CREATE and UPDATE actions)",
         llm_type_desc=dict(
-            type="string",
+            type="object",
             properties=dict(
                 description=dict(
                     type="string", description="Description of what the asset is for"
@@ -269,7 +271,7 @@ def manage_project_assets(
     bot_id: str,
     project_id: str,
     asset_id: str=None,
-    asset_details: str=None,
+    asset_details: Dict=None,
     thread_id: str=None,
 ):
     """

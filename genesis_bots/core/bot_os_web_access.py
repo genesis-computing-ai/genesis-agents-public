@@ -188,11 +188,12 @@ def _crawl_url(
     return web_access.crawl_url(url, **(crawler_params or {}))
 
 # List of all web access tool functions
-_all_web_access_functions = (
+_all_web_access_functions = [
     _search_google,
     _scrape_url,
     # _crawl_url,
-)
+    ]
+
 
 def get_web_access_functions():
     """Return all registered web access tool functions"""

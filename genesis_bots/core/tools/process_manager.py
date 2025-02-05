@@ -77,7 +77,7 @@ def manage_processes(
     process_name: str = None,
     process_config: str = None,
     hidden: bool = False,
-) -> None:
+) -> dict:
     """
     Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
 
@@ -443,7 +443,7 @@ def manage_processes(
                     DELETE FROM PROCESSES
                     WHERE process_id = %s
                 """
-                cursor.execute(delete_query, (process_id))
+                cursor.execute(delete_query, (process_id,))
 
                 delete_task_queries = f"""
                     DELETE FROM {db_adapter.schema}.TASKS

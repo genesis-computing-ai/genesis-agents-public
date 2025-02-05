@@ -79,7 +79,8 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
             return jsonify({"status": "I'm ready (from get /healthcheck:3978)"})
 
         def start_flask_app():
-            app.run(host="0.0.0.0", port=3978)
+            # app.run(host="0.0.0.0", port=3978)
+            pass
 
         t = threading.Thread(target=start_flask_app)
         t.start()

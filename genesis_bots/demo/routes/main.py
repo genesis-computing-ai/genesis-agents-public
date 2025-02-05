@@ -6,18 +6,30 @@ import requests
 
 main_routes = Blueprint('main_routes', __name__)
 
-@main_routes.get("/relay")
-def relay_8080_to_3978():
-    logger.info("Flask: /relay probe received")
-    url = "http://0.0.0.0:3978/healthcheck"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        logger.info(f"Relay successful - Status: {response.status_code}")
-        return response.text
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Relay failed: {str(e)}")
-        return make_response({"error": str(e)}, 500)
+@main_routes.post("/api/messages")
+def api_message():
+    logger.info(f"Flask: /api/messages: {request.json()}")
+    r = {
+        "type": "message",
+        "from": {
+            "id": "28:c9e8c047-2a34-40a1-b28a-b162d5f5327c",
+            "name": "Teams TestBot"
+        },
+        "conversation": {
+            "id": "a:17I0kl8EkpE1O9PH5TWrzrLNwnWWcfrU7QZjKR0WSfOpzbfcAg2IaydGElSo10tVr4C7Fc6GtieTJX663WuJCc1uA83n4CSrHSgGBj5XNYLcVlJAs2ZX8DbYBPck201w-",
+            "name": "Convo1"
+        },
+        "recipient": {
+                "id": "29:1XJKJMvc5GBtc2JwZq0oj8tHZmzrQgFmB25ATiQWA85gQtHieVkKilBZ9XHoq9j7Zaqt7CZ-NJWi7me2kHTL3Bw",
+                "name": "Megan Bowen"
+            },
+        "text": "My bot's reply",
+        "replyToId": "1632474074231"
+    }
+
+    return r.json()
+
+
 
 @main_routes.get("/healthcheck")
 def readiness_probe():

@@ -1,0 +1,256 @@
+pitching:
+  asset_type: table
+  columns:
+    cg:
+      description: Complete games.
+      type: INTEGER
+    er:
+      description: Earned runs allowed.
+      type: INTEGER
+    g:
+      description: Games played.
+      type: INTEGER
+    gs:
+      description: Games started.
+      type: INTEGER
+    h:
+      description: Hits allowed.
+      type: INTEGER
+    hr:
+      description: Home runs allowed.
+      type: INTEGER
+    ipouts:
+      description: Innings pitched (outs).
+      type: NUMERIC
+    l:
+      description: Losses.
+      type: INTEGER
+    league_id:
+      description: Identifier of the league.
+      type: TEXT
+    player_id:
+      description: Unique player identifier (linked to player table).
+      relationship: Foreign key referencing player(player_id).
+      type: null
+    sho:
+      description: Shutouts.
+      type: INTEGER
+    stint:
+      description: null
+      type: INTEGER
+    sv:
+      description: Saves.
+      type: INTEGER
+    team_id:
+      description: Unique identifier of the team.
+      type: TEXT
+    w:
+      description: Wins.
+      type: INTEGER
+    year:
+      description: Year of the season.
+      type: INTEGER
+  table_description: null
+player:
+  asset_type: table
+  columns:
+    bats:
+      description: Batting hand.
+      type: TEXT
+    birth_country:
+      description: Country of birth.
+      type: TEXT
+    birth_day:
+      description: Day of birth.
+      type: NUMERIC
+    birth_month:
+      description: Month of birth.
+      type: NUMERIC
+    birth_year:
+      description: Year of birth.
+      type: NUMERIC
+    death_country:
+      description: Country of death.
+      type: TEXT
+    death_day:
+      description: Day of death.
+      type: NUMERIC
+    death_month:
+      description: Month of death.
+      type: NUMERIC
+    death_year:
+      description: Year of death.
+      type: NUMERIC
+    height:
+      description: Player's height.
+      type: NUMERIC
+    name_first:
+      description: First name.
+      type: TEXT
+    name_last:
+      description: Last name.
+      type: TEXT
+    player_id:
+      description: unknown.
+      relationship: --
+      type: TEXT
+    throws:
+      description: Throwing hand.
+      type: TEXT
+    throws_old:
+      description: Throwing hand in old format.
+      type: TEXT
+    weight:
+      description: Player's weight.
+      type: NUMERIC
+  table_description: Comprehensive details about players, including personal and career-specific
+    attributes.
+team:
+  asset_type: table
+  columns:
+    ab:
+      description: Total number of at-bats.
+      type: INTEGER
+    attendance:
+      description: Total attendance at home games.
+      type: NUMERIC
+    bb:
+      description: Total number of walks.
+      type: INTEGER
+    bba:
+      description: Total walks allowed.
+      type: INTEGER
+    bpf:
+      description: Batting park factor.
+      type: INTEGER
+    cg:
+      description: Total number of complete games.
+      type: INTEGER
+    cs:
+      description: Total number of caught stealing.
+      type: NUMERIC
+    div_id:
+      description: Division identifier.
+      type: TEXT
+    div_win:
+      description: Indicates division win (binary).
+      type: TEXT
+    double:
+      description: Total number of doubles.
+      type: INTEGER
+    dp:
+      description: Total double plays.
+      type: NUMERIC
+    e:
+      description: Total errors.
+      type: INTEGER
+    er:
+      description: Total number of earned runs allowed.
+      type: INTEGER
+    era:
+      description: Earned run average.
+      type: NUMERIC
+    fp:
+      description: Fielding percentage.
+      type: NUMERIC
+    franchise_id:
+      description: Links the team to its franchise history.
+      type: TEXT
+    g:
+      description: Total number of games played.
+      type: INTEGER
+    ghome:
+      description: Number of home games.
+      type: NUMERIC
+    h:
+      description: Total number of hits.
+      type: INTEGER
+    ha:
+      description: Total hits allowed.
+      type: INTEGER
+    hbp:
+      description: Total number of hit by pitches.
+      type: NUMERIC
+    hr:
+      description: Total number of home runs.
+      type: INTEGER
+    hra:
+      description: Total home runs allowed.
+      type: INTEGER
+    ipouts:
+      description: Total outs pitched.
+      type: INTEGER
+    l:
+      description: Total number of losses.
+      type: INTEGER
+    league_id:
+      description: Identifier for the league in which the team played.
+      type: TEXT
+    lg_win:
+      description: Indicates league win (binary).
+      type: TEXT
+    name:
+      description: Name of the team.
+      type: TEXT
+    park:
+      description: Home ballpark/stadium.
+      type: TEXT
+    ppf:
+      description: Pitching park factor.
+      type: INTEGER
+    r:
+      description: Total number of runs scored.
+      type: INTEGER
+    ra:
+      description: Total number of runs allowed.
+      type: INTEGER
+    rank:
+      description: Team's rank within its division at the end of the season.
+      type: INTEGER
+    sb:
+      description: Total number of stolen bases.
+      type: NUMERIC
+    sf:
+      description: Total number of sacrifice flies.
+      type: NUMERIC
+    sho:
+      description: Total number of shutouts.
+      type: INTEGER
+    so:
+      description: Total number of strikeouts.
+      type: NUMERIC
+    soa:
+      description: Total strikeouts by pitchers.
+      type: INTEGER
+    sv:
+      description: Total number of saves.
+      type: INTEGER
+    team_id:
+      description: Unique identifier for the team.
+      relationship: Foreign key in other tables like player, pitching, etc.
+      type: TEXT
+    team_id_br:
+      description: Baseball-Reference database identifier.
+      type: TEXT
+    team_id_lahman45:
+      description: Lahman database identifier.
+      type: TEXT
+    team_id_retro:
+      description: Retrosheet database identifier.
+      type: TEXT
+    triple:
+      description: Total number of triples.
+      type: INTEGER
+    w:
+      description: Total number of wins.
+      type: INTEGER
+    wc_win:
+      description: Indicates wild card win (binary).
+      type: TEXT
+    ws_win:
+      description: Indicates World Series win (binary).
+      type: TEXT
+    year:
+      description: The year in which the season took place.
+      type: INTEGER
+  table_description: Statistics and identifiers for teams over various seasons.

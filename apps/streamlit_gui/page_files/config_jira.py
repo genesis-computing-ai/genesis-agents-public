@@ -1,8 +1,10 @@
 import json
 import streamlit as st
 from utils import (check_eai_status, get_references, get_session, set_metadata, upgrade_services)
+from .components import config_page_header
 
 def config_jira():
+    config_page_header("Setup Jira API Params")
     # Initialize session state variables
     if "jira_eai_available" not in st.session_state:
         st.session_state.jira_eai_available = False

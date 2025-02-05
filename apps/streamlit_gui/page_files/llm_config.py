@@ -8,8 +8,12 @@ from utils import (
     check_eai_status,
     upgrade_services,
 )
+from .components import config_page_header
 
 def llm_config():
+    # Add the header with back button
+    config_page_header("LLM Model & Key")
+
     # Initialize session state variables with defaults
     session_defaults = {
         "openai_eai_available": not st.session_state.get("NativeMode", False),

@@ -6,6 +6,7 @@ from utils import (
     upgrade_services,
 )
 import json
+from .components import config_page_header
 
 def assign_eai_to_genesis():
     eai_type = 'CUSTOM'
@@ -21,6 +22,7 @@ def assign_eai_to_genesis():
 
 
 def config_custom_eai():
+    config_page_header("Setup Custom Endpoints")
     st.title('Custom Endpoints Management')
 
     # Initialize session state

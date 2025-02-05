@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 from utils import ( get_metadata)
 import json
+from .components import config_page_header
 
 def db_harvester():
+    config_page_header("Harvester Status")
     harvest_control = get_metadata("harvest_control")
     harvest_summary = get_metadata("harvest_summary")
 

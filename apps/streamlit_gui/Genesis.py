@@ -384,6 +384,7 @@ if st.session_state.data:
         st.session_state.data_source = "snowflake"
 
     pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
+    pages.add_page('configuration', 'Configuration', 'configuration', 'configuration')
     pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')
     if st.session_state.data_source == "snowflake": pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
     pages.add_page('setup_slack', 'Setup Slack Connection', 'setup_slack', 'setup_slack')
@@ -477,157 +478,70 @@ if st.session_state.data:
                 background-color: transparent !important;
                 width: 100% !important;
                 margin: 0 !important;
-                color: rgb(49, 51, 63) !important;
+                color: var(--text-color, #FFFFFF) !important;
                 height: 2.5rem !important;
                 line-height: 2.5rem !important;
                 box-sizing: border-box !important;
+                opacity: 0.85 !important;
             }
+            
             div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button:hover {
-                background-color: rgba(255, 255, 255, 0.1) !important;
+                background-color: var(--hover-color, rgba(255, 255, 255, 0.1)) !important;
                 border-radius: 0.3rem !important;
+                opacity: 1 !important;
             }
+            
             /* Selected button styling */
             div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button.selected {
-                background-color: rgba(255, 255, 255, 0.9) !important;
+                background-color: var(--hover-color, rgba(255, 255, 255, 0.1)) !important;
                 border-radius: 0.3rem !important;
-                color: rgb(49, 51, 63) !important;
+                color: var(--text-color, #FFFFFF) !important;
                 font-weight: 600 !important;
                 border-left: 4px solid #ff4b4b !important;
-                box-shadow: 0 0 0 1px rgba(49,51,63,0.2) !important;
+                box-shadow: 0 0 0 1px var(--border-color, rgba(255,255,255,0.2)) !important;
                 position: relative !important;
                 margin: 0 !important;
                 height: 2.5rem !important;
                 line-height: 2.5rem !important;
                 box-sizing: border-box !important;
+                opacity: 1 !important;
             }
             </style>
         """, unsafe_allow_html=True)
-
-        # Pre-categorize pages into standalone and configuration
-        chat_pages = []
-        support_pages = []
-        config_pages = []
-        for page_id, page in pages.all.items():
-            if page.display_name.lower() == "chat with bots":
-                chat_pages.append((page_id, page))
-            elif page.display_name.lower() == "support and community":
-                support_pages.append((page_id, page))
-            else:
-                config_pages.append((page_id, page))
-
-        # Render standalone pages (Chat with Bots)
-        for page_id, page in chat_pages:
-            is_selected = page_id == selected_page_id
-            button_key = f"nav_{page_id}"
-            if is_selected:
-                st.markdown(f'''
-                <div style="
-                    background-color: rgba(255, 255, 255, 0.9);
-                    border-left: 4px solid #ff4b4b;
-                    border: 1px solid rgba(49,51,63,0.2);
-                    border-radius: 0.3rem;
-                    padding: 0rem 1rem;
-                    font-weight: 600;
-                    color: rgb(49, 51, 63);
-                    text-align: left;
-                    margin: 0;
-                    height: 2.5rem;
-                    line-height: 2.5rem;
-                    box-sizing: border-box;
-                ">{page.display_name}</div>
-                ''', unsafe_allow_html=True)
-            else:
-                if st.button(
-                    page.display_name,
-                    key=button_key,
-                    use_container_width=True,
-                    help=f"Navigate to {page.display_name}",
-                    type="secondary",
-                ):
-                    st.session_state["selected_page_id"] = page_id
-                    st.session_state["radio"] = page.display_name
-                    st.session_state["previous_selection"] = page.display_name
-                    st.rerun()
-
-        # Render top-level "Configuration" toggle button with arrow indicator
-        config_expanded = st.session_state.get("config_expanded", False)
-        config_button_label = f"Configuration {'▼' if config_expanded else '►'}"
-        if st.button(config_button_label, key="nav_configuration", use_container_width=True, type="secondary", help="Toggle configuration links"):
-            st.session_state["config_expanded"] = not config_expanded
-            st.rerun()
-
-        # If the configuration toggle is expanded, display the configuration links (always use indentation)
-        if st.session_state.get("config_expanded", False):
-            for page_id, page in config_pages:
-                is_selected = page_id == selected_page_id
-                button_key = f"nav_{page_id}"
-                cols = st.columns([0.1, 1])
-                with cols[0]:
-                    st.write("")  # Indentation spacer.
-                with cols[1]:
-                    if is_selected:
-                        st.markdown(f'''
-                        <div style="
-                            background-color: rgba(255, 255, 255, 0.9);
-                            border-left: 4px solid #ff4b4b;
-                            border: 1px solid rgba(49,51,63,0.2);
-                            border-radius: 0.3rem;
-                            padding: 0rem 1rem;
-                            font-weight: 600;
-                            color: rgb(49, 51, 63);
-                            text-align: left;
-                            margin: 0;
-                            height: 2.5rem;
-                            line-height: 2.5rem;
-                            box-sizing: border-box;
-                        ">{page.display_name}</div>
-                        ''', unsafe_allow_html=True)
-                    else:
-                        if st.button(
-                            page.display_name,
-                            key=button_key,
-                            use_container_width=True,
-                            help=f"Navigate to {page.display_name}",
-                            type="secondary",
-                        ):
-                            st.session_state["selected_page_id"] = page_id
-                            st.session_state["radio"] = page.display_name
-                            st.session_state["previous_selection"] = page.display_name
-                            st.rerun()
-
-        # Render standalone pages (Support and Community)
-        for page_id, page in support_pages:
-            is_selected = page_id == selected_page_id
-            button_key = f"nav_{page_id}"
-            if is_selected:
-                st.markdown(f'''
-                <div style="
-                    background-color: rgba(255, 255, 255, 0.9);
-                    border-left: 4px solid #ff4b4b;
-                    border: 1px solid rgba(49,51,63,0.2);
-                    border-radius: 0.3rem;
-                    padding: 0rem 1rem;
-                    font-weight: 600;
-                    color: rgb(49, 51, 63);
-                    text-align: left;
-                    margin: 0;
-                    height: 2.5rem;
-                    line-height: 2.5rem;
-                    box-sizing: border-box;
-                ">{page.display_name}</div>
-                ''', unsafe_allow_html=True)
-            else:
-                if st.button(
-                    page.display_name,
-                    key=button_key,
-                    use_container_width=True,
-                    help=f"Navigate to {page.display_name}",
-                    type="secondary",
-                ):
-                    st.session_state["selected_page_id"] = page_id
-                    st.session_state["radio"] = page.display_name
-                    st.session_state["previous_selection"] = page.display_name
-                    st.rerun()
+        
+        # Instead of categorizing all pages into many groups, simply define
+        # the fixed sidebar order.
+        desired_sidebar = ["chat_page", "configuration", "support"]
+        
+        for key in desired_sidebar:
+            if key in pages.all:
+                page = pages.all[key]
+                # Determine selected page (default to chat_page if nothing selected)
+                is_selected = (selected_page_id == key) or (selected_page_id is None and key == "chat_page")
+                if is_selected:
+                    st.markdown(f'''
+                    <div style="
+                        background-color: rgba(255, 255, 255, 0.9);
+                        border-left: 4px solid #ff4b4b;
+                        border: 1px solid rgba(49,51,63,0.2);
+                        border-radius: 0.3rem;
+                        padding: 0rem 1rem;
+                        font-weight: 600;
+                        color: rgb(49, 51, 63);
+                        text-align: left;
+                        margin: 0;
+                        height: 2.5rem;
+                        line-height: 2.5rem;
+                        box-sizing: border-box;
+                    ">{page.display_name}</div>
+                    ''', unsafe_allow_html=True)
+                else:
+                    if st.button(page.display_name, key=f"nav_{key}", use_container_width=True,
+                                 help=f"Navigate to {page.display_name}", type="secondary"):
+                        st.session_state["selected_page_id"] = key
+                        st.session_state["radio"] = page.display_name
+                        st.session_state["previous_selection"] = page.display_name
+                        st.rerun()
 
     try:
         # Use page_id directly instead of looking up by display name

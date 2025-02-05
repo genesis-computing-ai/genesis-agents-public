@@ -73,7 +73,7 @@ def configuration():
         
         /* Back button styling */
         .back-button {
-            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
         }
         
         .back-button .stButton > button {
@@ -106,13 +106,22 @@ def configuration():
     """, unsafe_allow_html=True)
 
     # Just the subtitle
-    st.markdown('<div class="subtitle">Select an option to configure:</div>', unsafe_allow_html=True)
+
+    # Back button below subtitle
+    st.markdown('<div class="back-button">', unsafe_allow_html=True)
+ 
+    if st.button("← Back to Chat", key="back_to_chat", use_container_width=True):
+        st.session_state["selected_page_id"] = "chat_page"
+        st.session_state["radio"] = "Chat with Bots"
+        st.session_state['hide_chat_elements'] = False  # Clear the flag when going back
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Build configuration options list
     config_options = [
         ("llm_config", "LLM Model & Key"),
         ("setup_slack", "Setup Slack Connection"),
-        ("grant_data", "Grant Data Access"),
+   
     ]
     
     # Conditionally add options based on state
@@ -124,6 +133,7 @@ def configuration():
             ("config_wh", "Setup Custom Warehouse"),
             ("config_custom_eai", "Setup Custom Endpoints"),
             ("config_cortex_search", "Setup Cortex Search"),
+            ("grant_data", "Grant Data Access"),
             ("start_stop", "Server Stop-Start"),
             ("show_server_logs", "Server Logs"),
         ])
@@ -142,15 +152,6 @@ def configuration():
             st.session_state["selected_page_id"] = page_id
             st.session_state["radio"] = display_name
             st.rerun()
-
-    # Back button
-    st.markdown('<div class="back-button">', unsafe_allow_html=True)
-    if st.button("← Back to Chat", key="back_to_chat", use_container_width=True):
-        st.session_state["selected_page_id"] = "chat_page"
-        st.session_state["radio"] = "Chat with Bots"
-        st.session_state['hide_chat_elements'] = False  # Clear the flag when going back
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     configuration() 

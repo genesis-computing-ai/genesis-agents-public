@@ -20,9 +20,24 @@ def db_harvester():
         harvest_control_df["schema_exclusions"] = harvest_control_df[
             "schema_exclusions"
         ].apply(lambda x: ["None"] if not x else x)
+        
+        # Add safe JSON parsing for schema_inclusions
+        def safe_parse_inclusions(x):
+            if isinstance(x, list):
+                return x
+            if not x:
+                return ["All"]
+            if isinstance(x, str):
+                try:
+                    parsed = json.loads(x)
+                    return parsed if isinstance(parsed, list) else ["All"]
+                except json.JSONDecodeError:
+                    return ["All"]
+            return ["All"]
+            
         harvest_control_df["schema_inclusions"] = harvest_control_df[
             "schema_inclusions"
-        ].apply(lambda x: ["All"] if not x else x)
+        ].apply(safe_parse_inclusions)
     else:
         harvest_control_df = pd.DataFrame(
             columns=[
@@ -76,16 +91,8 @@ def db_harvester():
         "Note: It may take 2-5 minutes for newly-granted data to appear here, and 5-10 minutes to be available to the bots"
     )
 
-    # Convert JSON strings in 'schema_inclusions' to Python lists, handling nulls and non-list values
+    # Display the DataFrame without additional JSON parsing
     if not harvest_control_df.empty:
-        harvest_control_df["schema_inclusions"] = harvest_control_df[
-            "schema_inclusions"
-        ].apply(
-            lambda x: (
-                json.loads(x) if isinstance(x, str) else (["All"] if x is None else x)
-            )
-        )
-        # Display the DataFrame in Streamlit
         st.dataframe(harvest_control_df, use_container_width=True)
 
     st.subheader("Database and Schema Harvest Status")

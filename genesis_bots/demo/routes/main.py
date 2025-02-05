@@ -5,7 +5,6 @@ from flask import request, make_response
 import requests
 
 main_routes = Blueprint('main_routes', __name__)
-
 @main_routes.post("/api/messages")
 def api_message():
     logger.info(f"Flask: /api/messages: {request.json}")
@@ -27,7 +26,9 @@ def api_message():
         "replyToId": "1632474074231"
     }
 
-    return jsonify(r)
+    response = make_response(r)
+    response.headers["Content-type"] = "application/json"
+    return response
 
 
 

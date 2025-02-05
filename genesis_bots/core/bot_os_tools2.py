@@ -363,7 +363,7 @@ class ToolFuncDescriptor:
 
 
     @property
-    def groups(self) -> List[ToolFuncGroup]:
+    def groups(self) -> Iterable[ToolFuncGroup]:
         return self._groups
 
 

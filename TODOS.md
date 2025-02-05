@@ -2,51 +2,50 @@
 GENESIS BOT TODOS
 =================
 
-add databricks support
-better way to collect NGROK_TOKEN and reporting when its not set 
+claude/cortex: catch when token window is exceeded and compress the history
+(test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
+x waive 20 tool call per thread limit for claude threads
 next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
-(pr) email collector / telemetry on local vers
-make sure ngrok key is in place when in local mode before activating slack 
+email collector / telemetry on local vers
+better way to collect NGROK_TOKEN and reporting when its not set
+make sure ngrok key is in place when in local mode before activating slack
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
-(test) harvester snowflake, oracle, mysql, sqlite, redshift, bigquery, databricks
+x (aviv) test gxs with completion mode (w/git etc)
+(aviv) make connection, harvest, search metadata, and query database work directly via api
+(test) harvester on standalone snowflake connection
+(test) harvester on oracle
+test/fix redshift, bigquery, databricks
+(test) axure openai, cortex on local runner via snowflake creds?
 dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed
 (test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
+gxs: comment handler test it out
 
 Later:
 add an external api for email sending?
 make knowledge server and task server part of main service like harvester now is
-make config querys conf file generate if not existing 
+make config querys conf file generate if not existing
 is search metadata returning the type of database?  would be useful ...  (it would need to be added to the metadata table)
 when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
-have search metadata return the list of any data connections as well that may not be harvested 
+have search metadata return the list of any data connections as well that may not be harvested
 harvest control, if database not found, return list of connections
+trigger immediate harvest on adding something to the harvester
+add an option on add connection to add to harvest and immediately harvest
 save connection id along with sql notes
 streamlit page to show project project
 add a database connections page to streamlit to see database connections
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 add code interpreter via a dedicated assistant session
 related: generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
-(later) make sqlite sample data load from csv files vs binary
 x (reza) files out for generate image
+(later) make sqlite sample data load from csv files vs binary
 
 DONE:
-x add an option on add connection to add to harvest and immediately harvest
-x trigger immediate harvest on adding something to the harvester
-x gxs: comment handler test it out 
-n (off for now) claude/cortex: catch when token window is exceeded and compress the history
-x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots 
-x waive 20 tool call per thread limit for claude threads
-x (aviv) test gxs with completion mode (w/git etc)
-x (aviv) make connection, harvest, search metadata, and query database work directly via api 
-x add redshift
-x add bigquery
-x axure openai, cortex on local runner via snowflake creds?
 x make snowpark python work when you just have a regular connection to snowflake
 x trigger immediate harvest on adding something to the harvester
-x (test) harvester on mysql 
-x (test) harvester on postgres, sqlite 
+x (test) harvester on mysql
+x (test) harvester on postgres, sqlite
 x make sure openai key is set when starting server in local mode
 x (test) on add connection, make sure to suggest harvesting the new connection
 x (test) setting harvest control again with sqlite and snowflake (make sure using correct connection id)
@@ -54,7 +53,7 @@ x (test) harvester on sqlite again
 x ddl_short not working, fix then reharvest then save new json
 x make harvester autostart with main service, make it part of main service?
 x make harvester on non-snowflake also get views
-x test - (reza) links from web search results dont show right in streamlit 
+x test - (reza) links from web search results dont show right in streamlit
 n (later) add bot level param for completion vs assistant mode
 x add a way for Eve to write a serper key to the db
 x check tool call messages in slack
@@ -65,28 +64,28 @@ x give bots a workspace in sqlite
 x project manager tools, give to eve
 x a way to make a new sqlite database to sqlite/db connector
 x change default to sqlite mode and to non-assistant mode
-x after tool calls, the first few new chars get missed sometimes in the output 
-x remove files from bot creation/ remove add files, etc 
+x after tool calls, the first few new chars get missed sometimes in the output
+x remove files from bot creation/ remove add files, etc
 x allow search_metadata_detailed and search_metadata to specify a source_name
 x preharvest for baseball and f1
 x make database and schema params work when not snowflake on find_memory
 x make get_full_Table_details work with sqlite etc
 n remove file uploads to openai when none needed
 x TEST-make sure clean sqlite works with new schema removal logic
-x add baseball and f1 connections by default to eve 
+x add baseball and f1 connections by default to eve
 x check that adding a tool via streamlit doesnt mess up the thread with that bot (e.g. data connector tools)
 x speed up startup
 x make sure harvester works ok in snowflake mode still (get schemas, get tables)
 x (test) test various tools (git for example)
 x make adding/removing tools on the fly work
-x make changing instructions work on the fly 
+x make changing instructions work on the fly
 x test in snowflake metadata mode
 x test again in assistant mode
 x files in for image analyze
 n cancel run checks that stay in progress for more than 10 min with no response
-x make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc ) 
-x give git & web access by default to eve 
-x give eve a suggestion on tools that all bots may want when making bots 
+x make grants to yourself for tools work without disrupting the thread (keep more arrays in the state.. pending threads etc )
+x give git & web access by default to eve
+x give eve a suggestion on tools that all bots may want when making bots
 x tool calling with cortex (mrs eliza on cortex?)
 x JD-json file with credentials needs to be created properly?
 x (in progress) speed up bot responses
@@ -100,8 +99,8 @@ x streamlit repeating first message
 x oracle support, test harvest (Add to harvest, then harvest, them search metadata)
 x add a way to store metadata queries in a local file to ease support for new databases, and support them for override of existing metadata queries in harvester
 x (no) does local harvester need to signal when it has done new harvesting so cached annoy indexes are updated?
-x (no, defaulting to non-assistant mode) (test with files) dont give files search tool when no files 
-n make assigning bots files possible in sqlite mode 
+x (no, defaulting to non-assistant mode) (test with files) dont give files search tool when no files
+n make assigning bots files possible in sqlite mode
 x add checking of repeated tool call failures in openai
 x figure out why all results have the same score in search metadata vector lookup search
 x test search metadata in sqlite mode more, its not returning the right results ?
@@ -115,7 +114,7 @@ x route search metadata through data connector tools
 OLD TODOS:
 do bots have task id ok to check history?
 ADD DEFAULT HEADER ON SEND_EMAILS
-MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending 
+MR-cross region enablement for LLM (if not us-east/us-west), data granting (maybe we mention this here too), email sending
 streamlit axios error
 why cant it send slack in a process for janice joke 2.0 (startswith..?)
 RV-streamlit files in
@@ -126,7 +125,7 @@ check get file from stage when file doesnt exist, also check to see if file it l
 have add file to stage see if the file is there before saying to return it
 wrapper for graphs for cortex
 cortex suppress tool call gen better (dangling fn close tags sometimes)
-give processs ids in list of processes when not found on run, especially on get next step... 
+give processs ids in list of processes when not found on run, especially on get next step...
 openai error retries on slack dont seem to respond back
 Janice is talking about files a lot... fix prompting for that
 need handler for long cortex threads
@@ -135,11 +134,11 @@ need handler for long cortex threads
 (test) have a cut off for cortex on tool calls without stopping to talk to the user or the process supervisor after 10 tool calls in one run...
 (test) clean up logging and cust data in logs and run_query
 (test) matts issue with scheduled processes make sure it works without thread_id ok with the cache
-(test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call 
+(test) see if task sender of emails will add the process id etc and see if you can paste that into the bot chat to talk about it.. maybe make it a get history procedure call
 (test) check search metadata with database and schema options
 (test) MR-get mini bot avatars into streamlit / check bot images on Dev streamlit
-(test) check new janice auto insertion code 
-(test) MR-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional), 
+(test) check new janice auto insertion code
+(test) MR-add streamlit startup popup (maybe via links to our docs) for :log enablement (highly encouraged), warehouse grant existing (optional), EAI for openai and slack (optional),
 
 done:
 x (test) security review pass
@@ -147,8 +146,8 @@ x MR-updated streamlit launch wizard, new WH logic
 x RV-get knowledge system to work again
 x RV-images and files return to Streamlit
 x test default email on CALL in email setup instructions
-x use that as default email for process scheduling and for send email 
-n JD-make outrigger processes (harvest, knowledge, task) wake up at the top of the hour 
+x use that as default email for process scheduling and for send email
+n JD-make outrigger processes (harvest, knowledge, task) wake up at the top of the hour
 x unicode quotes for fn call cortex?
 x fix cortex using process scheduler... lots of issues, changes dont stick, etc.
 x bots not stopping tasks that are done because ts is required
@@ -160,7 +159,7 @@ x RV-make knowledge server work properly, consolidate on email address
 x check one time and recurring cortex task completion, properly updating schedule table
 x make sure scheduled tasks finishes are caught, or if no response, ping them
 x add dyanmic sql tables for processes to APP1 metadata
-n change Janice 2.0 to Janice 
+n change Janice 2.0 to Janice
 x unicode quotes for fn call cortex?
 x fix cortex using process scheduler... lots of issues, changes dont stick, etc.
 x (test) check !fast off on alpha cortex after upgrade
@@ -184,7 +183,7 @@ n (test) cortex different way of calling a python run
 x need a place to gather and test the email integrations, add a step for email to the welcome wizard
 x change  !NO_RESPONSE_REQUIRED if its in bot instrucctions when pulling them
 x eve stops talking if repeating instructions 5 times
-x files and graphs out of snowpark 
+x files and graphs out of snowpark
 x add a place for run_python to provide the libraries it needs
 x check !fast off for cortex on alpha
 x test baby bot with new bot id logic
@@ -192,19 +191,19 @@ x undo codeblocker and remove all <authorized role> mentions, and resubmit to ex
 x streamlit default fast mode off for openai bots (and hide control?)
 x Janice 2.0 posting to slack     caught exception 'builtin_function_or_method' object has no attribute 'startswith' trying to run _send_slack_channel_message
 x tell bots proces slist may not be up to date / exhaustive
-x make no response logic less agressive 
-x add retry on openai fail 
-x if tool call drags keey streamlit responsibe on input box.. or add stop button 
+x make no response logic less agressive
+x add retry on openai fail
+x if tool call drags keey streamlit responsibe on input box.. or add stop button
 x try mini again
-x search metadata not working on dev 
+x search metadata not working on dev
 x smarter / faster toggle in streamlit
 x (test) switch to  "OPENAI_MODEL_NAME": "gpt-4o-2024-08-06", see how we like it
-x make sure session switcher still works with 🤖 emoojii instead of chat with 
+x make sure session switcher still works with 🤖 emoojii instead of chat with
 x is streamlit sending correct user id on sis
 x make !model with work streamlit
 x highlight the current chat session in the list so you know which one you're on
 x check baseball data in the morning on alpha
-n link to direct streamlit app via web not sis at bottom 
+n link to direct streamlit app via web not sis at bottom
 x try calling http endpoints from sis
 x deploy new streamlit
 n "assistant found" on key insertion, is it naming based on bot id which arent unique anymore, is that ok... could confuse things.
@@ -215,23 +214,23 @@ n kevins thread re runs
 n sanders feedback in general
 x test openai key insertion on new install
 x test openai key switch with metadata re: embeddings on natapp
-x remove eliza as a default bot 
-n make eliza talk about abseball more cleanly 
+x remove eliza as a default bot
+n make eliza talk about abseball more cleanly
 x test rezas cortex knowledge logging
 x make hybrid table fallback to regular for llm results
 x test new streamlit on sis
-x add cross region calls to sis 
+x add cross region calls to sis
 x test cortex tps
 x see how it works in 70b
 x fix !model in cortex
 x JD-make system processes non-editable so we can upgrade them but suggest the user makes a copy if they want to change it
-x warehouse test button seems to say success even if not 
+x warehouse test button seems to say success even if not
 x broken link shows on config step pages
 x turn on knowledge on Alpha
 n make user knowledge message nicer "[Reviewing our past interactions...]"
 x use cortex 8b for the welcome message?
 x streamlit takes a long time before submitting welcome job for each bot.. loading avatars?
-x add bot details caching to new streamlit 
+x add bot details caching to new streamlit
 
 next version:
 cortex leaves hanging speech bubble when doing tools like list processes, etc.
@@ -263,7 +262,7 @@ fast mode also give link to direct streamlit gui
 have manage process store who created a process
 move to a yaml structure for the built in processes
 make various EAIs for openai , slack, both
-add a link to the email to get back into a convo with that user 
+add a link to the email to get back into a convo with that user
 make knowledge based on email address so its consistent between slack and streamlit
 add reference request for warehouse
 add compute pools creation request
@@ -277,7 +276,7 @@ test the password process to make sure it doesnt skip steps on concise
 
 before republishing on natapp:
 add the cross region stuff to the readme
-x make streamlit show tool calls better 
+x make streamlit show tool calls better
 add logging to the openai finalizer and the slack finalizer to see who is zapping the history in the messages.. seems to just be on single ..
 message threads... it's actually doing it on the message 1 /2 separation step it looks like
 processes clearing out their history during slack output during finalization (maybe when it ends with a function call?)
@@ -297,20 +296,20 @@ put in a check to not allow repetitive tools calls more than n times
 x figure out the query calling issue on cortex
 x make send slack message suggest that maybe check the process again for the slack name
 x also in process runner add hint to make sure to send to the right channels
-x make cortex tool calls not stream when function definitions are being sent out 
+x make cortex tool calls not stream when function definitions are being sent out
 n make the process tidy-er aware of the bots tools so it doesnt suggest other ways of doing things
 x keep tool calls in the slack messages even upon finalization
 x (test) make send email more robust if addresses are not in an array (cortex does this)
 x if LLM_RESULTS cant be created as a hybrid table, try as a regular table
-  
+
 soon-jl:
 x (test) make workspace schema names safe even if have dots in them (sandy 0.1 is causing probs)
 x (seems ok) give more hints to the process tidy thing
 test openai stop during a process kickoff
 update sqllite manage process and schedule process
 x make sure openai running process eliza random numbers is !stop-able
-(in progress) process scheduler and task server, test with cortex bots 
-x comment out semantic tools 
+(in progress) process scheduler and task server, test with cortex bots
+x comment out semantic tools
 x test an openai bot eve updating instructions and adding and removing tools for a cortex bot
 x make file add tools give error back for cortex bots
 x update janice , remove semantic, tasks, add process tools
@@ -322,7 +321,7 @@ x re-test with small changes made friday 11am, commented out semantics fully fro
 n Test cortex COMPLETE mode more with tool calling
 Eve is talking a lot about the uploaded files.  No vector store unless needed?  And some prompt notes?
 x make !stop work on OpenAI
-x make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled 
+x make stop work better on cortex .. try on run process, keeps going.. make sure run is fully cancelled
 if a process is stuck on a step after three tries, have it cancel the process
 x have !stop on openai just cancel the run on the thread directly
 x make process list not return instructions to avoid cheating, make that SHOW
@@ -338,8 +337,8 @@ make python interpreter work
 x (not seen recently) try for error on submit: Failed to connect to Cortex API. Status code: 422 Response: {"message":"required field 'content' is zero value.","request_id":"f88c2e5a-6747-4a4e-a132-79273c1067ad"}
 x trying to run a query with run_query with a single quoted string goofs up the tool call, omits the string
 x Make add tools to bot and change instructions work for Cortex mode bots
-x Streaming mode 
-x adding to a thread in progress, the system message isn't included 
+x Streaming mode
+x adding to a thread in progress, the system message isn't included
 x add a test cortex function
 x default system to cortex on startup unless openai key is present
 MR (test) allow adding of openai key via streamlit after startup
@@ -347,41 +346,41 @@ x (test on new install) have initial bots be on cortex if thats whats active
 x fix/test on the fly bot engine changing w/relaunch
 x MR - harvester system, make it work with cortex
 n (refactoring it) - task system, make it get the right llm keys for cortex like multibot does now, and the right instructions for cortex
-(test) streamlit screen update for llm key not needed cortex 
+(test) streamlit screen update for llm key not needed cortex
 (test/fix) allow it to update openai key via streamlit in general
-(test) switching to openai and relaunching bots on it 
+(test) switching to openai and relaunching bots on it
 (test) default all bots to no specified llm
 x make task system relaunch when something in a bot chanes (like the llm, instructions, etc.)
-x MR - make system start without an openai key, the annoy lookup thing needs one now 
+x MR - make system start without an openai key, the annoy lookup thing needs one now
 x make update_bot_instructions work ok with cortext bots
 x make update_files etc not fail if run on cortex bots (check first)
 x if cortex api not pupr, default back to complete()
 handle > 128k tokens
-x make add bot tools to cortex 
+x make add bot tools to cortex
 x work on tweaking prompt for suggesting to run tools vs actually running them
 x (not needed-aug pupr for REST API) if going with COMPLETE, make it send the structure of the array properly not just string dumped
 
 
 processes:
-update manage_processes in sql_lite connector and test processes on sql_list creating and running and scheduling 
+update manage_processes in sql_lite connector and test processes on sql_list creating and running and scheduling
 test if update process works
 x? make the globals thread id mapped
 x fix list processes
 (in process) make the task system just a scheduler, use processes for the actual work
-make sure that DMs sent from processes can be responded to and bot will know context 
-x make it start a new run for each process step and/or when it gets close to 10 min 
+make sure that DMs sent from processes can be responded to and bot will know context
+x make it start a new run for each process step and/or when it gets close to 10 min
 X make get_next_step make sure process is already kicked off to avoid + error Nonetype and int
 make sure the same bot doesnt run the same process at the same time (or make it possible for it to do so, track threads better?)
 
 July:
-x Eves stuff test 
+x Eves stuff test
 x JL-Have task server only reuse/reference existing assistant, not recreate/update it on startup
 JL-Why are bots doing other bots tasks?
 JL-Why is it losing tools after running for a while? (keep expected tools, and if not there, reload them?)
 add error trapping on fail to find or call functions
 x test last message of a multi-part message
 x returning images
-returning images and files on long messages 
+returning images and files on long messages
 tic tax toe not fulid on mini, bot dont respond enough.. perhaps in advice prompt add, or in multi-chain ignore from other bots?
 
 SOON:
@@ -394,17 +393,17 @@ task server have it refresh sessions if bot is updated (keep a timestamp for whe
 x streamlit last 2 characters of bots messages sometimes get cut off
 generate files cant get added to stage
 n Allow files to be uploaded to stage without downloading them to slack
-Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted) 
+Only upload a file to vector store if its not already there (and is the same.. using md5, track last md5 submitted)
 Add request for imported privs on snowflake db to manifest (now available in EXT patch 85 for pfizer)
 Add Janice as default bot - including way to add default files.
 x Fix sis streaming on Dev
 x Test uploading lots of files to a folder (botos docs)
 x Move available_functions (all_functions) to a central object and log it and monitor it
 x (added logging on output submission) when calling a single tool like search metadata they dont respond
-x JL-Folder of files upload 
+x JL-Folder of files upload
 x RV-(couple fixes) Add USERS field to messages log table to keep track of the users involved in a thread or dm
 n MG-Do stripe setup for monitized listing
-x Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot  
+x Give the bots the PDFs on the docs to Eve so she can answer stuff on them, with multipdf uploader to stage and grant of folder to bot
 x JL-Give Kevin's docs to Jenny and see if she can answer q's based on them
 x JF-add a way to remove tools from bot
 JL-Mistral harvester
@@ -420,29 +419,29 @@ JL- Add a way for user to provide new refresh key when making new bot
 (later) MR - harvest - formula1 doesnt come back if you delete the harvest rows
 MR-Add a service start/stop/restart buttons to SiS
 Files in and out of streamlit
-catch missing files from stage at startup, and let the bot know they are missing 
-JL-Have DMs also get history if they are not threadded, give the past n DMs too 
+catch missing files from stage at startup, and let the bot know they are missing
+JL-Have DMs also get history if they are not threadded, give the past n DMs too
 x (automatically replicates with LAF) MR-add the bot images table and view to the copy program to other regions
-analyzing data that is added first 
-(soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?) 
+analyzing data that is added first
+(soon) add the ability for send_direct and _channel messages to have created files in them (works for images, not for graphs/pdfs - maybe a tool to save file locally and retrigger thread...?)
 (soon) Add undeploy from Slack button on bot config
 JL-(test more on spcs) Something blocks the thinking messages or bolt app when doing image analysis and/or file generation/upload to Slack
-RV-Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge. 
+RV-Learnings service, learns from each thread once its done about data, schema, tables, general stuff, people, etc. Stores and updates background knowledge.
 RV-Injector to inject the right kind of knowledge into thread on these topics
 RV-User understanding system of what bot has done with the user recently (with summaries?)
 Ability to load whole stage folder to files for a bot
 bots that needs them
-(later) Try harvester with mistral or yak model to save costs 
-(later) add tab to see chat logs from messages table in SiS 
+(later) Try harvester with mistral or yak model to save costs
+(later) add tab to see chat logs from messages table in SiS
 (soon) Harvest semantic models and return in get_metadata dynamically
 (soon) Give semantic index modify a way to add and modify multiple things at the same time
 (later) add instructions to when you get bot key on how to add the images too and provide the images
 (later) Autogenerate images for new bots, add instructions to the user to apply them when getting the tokens
 (later) Consider other uses of class level variables--the snowflake session for example, the annoy index, etc.
-(later) eventually remove full message metadata save on input and output openai 
+(later) eventually remove full message metadata save on input and output openai
 (later) Give them 100 OpenAI turns a day or someting using our key, then have it switch to their own key
 (later) make a metadata backup and recovery script so we have it ready
-(later) block metadata app1 from user query 
+(later) block metadata app1 from user query
 (later) add a place in Streamlit to see the files in stage add a file, remove a file
 (later) Make the queries in bot_os_memory.py parameterized
 (later) app deploy tokens are user specific, how to add a collaborator so another user can configure it?
@@ -453,7 +452,7 @@ MR- (later) Add logo to streamlit GUI
 (later) Give a way for local streamlit to upload and download files from the botos server
 n (later) Go back to snowflake secure mode for harvester too if it works
 n (later) Allow user to turn off sample data
-n (later) Make thread map save to local database to survive container restart 
+n (later) Make thread map save to local database to survive container restart
 n (later) Encrypt all secrete and change col names
 
 PERSISTANCY TOPIC:
@@ -466,7 +465,7 @@ Haves bots reach out to you to see if you need help
 BIG THINGS:
 x Semantic CoPilot tools, Semantic model creation and maintenance, related demos, add to Elsa flows and to metadata search results
 TRV-Memory system: revamp and improve (go beyond simple RAG, back to KB?, post-chat capture, ongoing refinement, local indexing)
-More advanced tool generation and testing system, and with Zapier hooks via Zapier API 
+More advanced tool generation and testing system, and with Zapier hooks via Zapier API
 Data engineering use case: define it and make it really work and be robust, with Iceberg migration as a core real-world-needed example
 Reflect/Validation: revamp and rework to allow bots to review/revise/critique their work autonomously before presenting to the user (maybe spawn critique threads)
 RV-Allow a bot session to reason over all of its threads (e.g., should be able to ask Eve on Streamlit about what she is doing in one of her Slack threads)
@@ -488,10 +487,9 @@ SMALL THINGS:
 (later) Make the file downloader more indepenent of the Slackbot, right now it assumes files come from Slackbot, but they could come from Email as well, for example
 (test) Test Asynch tool calling: for long tunning database queries for example
 Make all queries use bind variables to prevent SQL injection
-Streamlit: move the bot selector somewhere easier to find after it scrolls off (left nav for example when on the chat tab) 
-Have the bot authorization redirect provide a pretty webpage confirming the bot has been installed, and telling you how to 
+Streamlit: move the bot selector somewhere easier to find after it scrolls off (left nav for example when on the chat tab)
+Have the bot authorization redirect provide a pretty webpage confirming the bot has been installed, and telling you how to
 Add remove tool tool
-Make available_tools table rows runner-dependent
 allow for a mode without slack API keys where users get a manifest and they create the bots themselves
 Add links to docs in setup/config steps (e.g. Setup Slack Connection)
 Handle openai citations
@@ -517,13 +515,13 @@ Add a mechanism for license control based on current_account()... share a table 
 DONE:
 x (soon) When you send a message to a thread that's already running, queue it up and don't submit another, then consolidate all of them when its ready and send them all at once once the run is done.
 x (soon) stop bot back and forth with other bots after a few turns
-n (soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest 
+n (soon) have Eliza more proactively suggest analyzing baseball data if there is no other data, once there is change her prompt to suggest
 x (soon) Add a regular checkin task to check in with the person who DMs them, talk back to able (make sure you can stop it)
-n (later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any 
+n (later) make sure endpoint is not the empty message, if so wait until its provisioned before updating any callback URLS, if there are any
 x JD-Combine bot instructions logic from multibot and task services into a common script
 x Task server logs emiting a lot of whitespace when annoy index updates
-x JL-Have on the fly bot instruction updates append the extra stuff:  
-x put use and bot names in messages next to tags, so the bots know who is who 
+x JL-Have on the fly bot instruction updates append the extra stuff:
+x put use and bot names in messages next to tags, so the bots know who is who
 x add check to only add an event message to a thread once, once its been successfully accepted
 x Work more on bots talking to eachother cleanly in streaming mode
 x allow bots using streaming mode to talk to eachother
@@ -535,8 +533,8 @@ x for streaming get files out to work
 x test read file from stage with streaming (error about empty run_id)
 x generating 3 images in parallel only 2 displayed
 x make streamlit work with streaming mode, and show tool calls
-x make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something 
-x add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until 
+x make streaming mode not happen when using task system to run jobs, set a global for interactive mode or something
+x add a spinner or other indicator generation is still in progress on a message and have other bots ignore it until
 on task creation clarify if the task is recurring or one-time, asked to send a joke in 5 min and it started sending every 5 min
 x cache access check results for some amount of time, flush if changed
 LAF support and test (June 19)
@@ -549,18 +547,18 @@ x 3. give it a tool to find stuff its working on and the status
 x Tasks to database, json describing the task (let it decide its own structure for this json, give ideas like todo, current status, etc.).. let it decide the structure
 x Have next check time in the database, and prompt it to work on it more at that time
 x Add some knowledge of past or parallel tasks
-n Have Eve suggest making tools 
+n Have Eve suggest making tools
 x Planning: tasks/reminders allowing bots to have long running projects
 x Harvester: robustness and improvements
 x Add initial message, tasks and reminders to make genbots proactive
 x (later) figure out cortex runner why its costs are nuts
 x Have ability to control who a bot is willing to talk to and take direction from to do things on Slack & via SiS
 x Have baby bot check to make sure same name bot doesnt already exist in genesis
-n When deploying to Slack, check for existing active bot names of the same name and if its there, review it 
+n When deploying to Slack, check for existing active bot names of the same name and if its there, review it
 n Initial memory system using vector search on message history?
 x (test) -> Harvester: Have harvester only get sample data for known simple data types (data_harvest table tripps it up for example), and add x (test)  SiS - don't crash sis app if you submit another line while its thinking
 x (test) Harvester add error handling and logging
-x (test) Harvester test it in various ways 
+x (test) Harvester test it in various ways
 x JL- add note to baseball harvest that its till 2015 , in select * from genesisapp_master.harvest_share.harvest_results;
 x (test) JL-Does Task Service update its Annoy index when needed?
 x (test) Why does "NEURALIFT_DEMO"."DATA"."ACTIVATION_TABLE" not show as available after harvesting?
@@ -568,7 +566,7 @@ x (test) JL-test infoschema cache in harvest
 x changing openAI key via streamlit when running gives an error: (bots conflicts with existing job--
 x Dont allow Bots with same name to be created
 x (test) check error handling for stage tools (added to list, check others)
-x (test) Add error checking for missing data or grants to harvester so it doesnt crash on that 
+x (test) Add error checking for missing data or grants to harvester so it doesnt crash on that
 x MR-(test) harvester dont crash if cant access schemas for a database listed in control file
 x MR-(test) Make sure harvester works ok with mixed case table and database and schema names (and system in general)
 x (test Eliza new message is she proactive on baseball and knows its only till 2015?)
@@ -578,7 +576,7 @@ x MR-Add a message to the top of the SisChat page suggesting activating via slac
 x ADD CHECKING FOR ACCESS IN SLACK
 x Add to baby bot selection of all access or no access on slack
 x Add slack allow list handling info on make baby bot (add ask for make it open or closed?)
-x JL- sander feedback on doc 
+x JL- sander feedback on doc
 x (test) Clean up logs (check queries )
 n Add a note to Eliza to not just dump data in non-DMs
 x (test) adding stage tools to a bot with baby_bot_tools and see if instructions are updated with internal stage location
@@ -586,10 +584,10 @@ x new install - (test) on first DM with a user, add some introduction of yoursel
 x (test Eliza new message is she proactive on baseball and knows its only till 2015?)
 x new install - (test) GENESIS_LOCAL_DB.ELIZA_WORKSPACE Create sample workspace by default for Eliza for Eliza.. update her prompt
 x (test) Check this function execute_function - _get_visible_tables - {"database":"my_data","schema":"public"}
-x (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type 
+x (test) fix add_new_tools_to_bots, 2024-05-10 23:32:09,104 - ERROR - callback_closure - _submit_tool_outputs - caught exception: argument of type
 x (test) JL-files issue Chris and Robert are seeing -- use new logging to debug
 n (include grants on future objects to <authorized role>)
-x (test) Harvester log make it less explicit on data 
+x (test) Harvester log make it less explicit on data
 x (test) deploy bot flow, make sure new message shows up
 x (test) adding tools again, adding autonomouss tasks via eve didn't seem to work without restarts
 x (test) eve coudlnt update eliza's full instruction string The error occurred due to an unexpected keyword argument bot_instructions in the update_bot_instructions function. It appears that the function does not expect this parameter as provided.
@@ -606,10 +604,10 @@ x task server log to sis app, add log calls for it to the start/stop info tab ex
 x reword button page on refresh to press this button after first step of bot config
 x Add update message back to slack thread if tools are still running for more than a minute or if the run is still thinking.. (update her Thinking message)
 x add a 60 second delay on task server startup
-x (added message) add another last step to bot deploy that tells you what to do once you have done the link 
-x When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages 
+x (added message) add another last step to bot deploy that tells you what to do once you have done the link
+x When activating a bot to pay attention to a new thread, include the original message starting the thread, and the last n messages
 x Add to the thing that checks whether to respond to a thread, see if the same bot was the original poster (from a task for example) and if so respons
-x (havent seen) Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean? 
+x (havent seen) Do our services / pools suspend after 3600 sec, and auto restart?  Is restart clean?
 x good enough - JL-(soon) fix wait spinner on api key page when putting in API key on a new install
 x on first message in a thread, briefly say what you can do
 x threads adds- have past context messages
@@ -619,28 +617,28 @@ x make sure express harvest embeddings get replaced with real ones in runner onc
 x add task server as a server to native app and deploy for testing
 x (did express harvest instead) Give the bots info on the harvest status, in case they cant find something (a list of tables being harvested, etc.)
 x Tell Eliza about how access works , GRANT TO APPLICATION instead GRANT TO PUBLIC
-x Chris Jones information schema and data access 
-x Tell Eliza to convey specific error messages to users instead of not 
+x Chris Jones information schema and data access
+x Tell Eliza to convey specific error messages to users instead of not
 x When a bot can't access something from run_query, have her suggest that you need to grant access to it (grant all)
 n cache bot responses for some time and pre-run the intro prompts
 x MR - Add bot custom welcome messages on new chats in Streamlit
 x Added image generation
-x Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now        
+x Ask Eve to make a line chart and it sends back ImageFileContentBlock(image_file=ImageFile(file_id='file-kfWyFfbLNRk8R2lfnMhQwPEn'), type='image_file') which we dont handle right now
 x JL - test - after putting in openai key on new install, do you get sent to chat screen via button?
-x JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button 
+x JL- (test w/new sis) Streamlit after entry of openai key doesnt show Talk to Bots button
 x Snow Sec questionairre
 x JL - fix and test API key spinner and reload button in SiS
-x push new version 
+x push new version
 x (test docker) Remove code generator
 x (test) Eve deploy on fresh install complained about file types for null files, make sure deploy button works
 x (test) make deploy to slack button in SiS app tell you to setup slack tokens first if not yet set up
-x JL- test bots while harvester is running 
+x JL- test bots while harvester is running
 x JL- (text) FIGURE OUT slowdown of whole system when harvester runs.. make it single threaded, with delays?
 x MR - If app is restarting (pools etc) have Sis give a message and spinner saying that vs a blank screen
-x JL- (check for appoval) Share on East2, see if its working in the AM, then share to Chris 
-x (test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app 
+x JL- (check for appoval) Share on East2, see if its working in the AM, then share to Chris
+x (test) MR-Add SNOWFLAKE harvest account usage etc to the pre-harvest feed into the app
 x (test) MR - Recreate services if they are missing during a START_APP_INSTANCE call
-x  move annoy index 180sec check to the outer server loop vs per bot 
+x  move annoy index 180sec check to the outer server loop vs per bot
 x Make the thinking message go away when a bot decides not to respond
 x Change to Slack's new approach for file uploading
 x redo vision chat analysis with new vision API and move the function
@@ -649,15 +647,15 @@ x add instructions to data granting on how to grant from a shared database
 x Bot_upgrade instructions make it work
 x why doesn't eliza respond when youre in a thread with her if shes not tagged?
 x updating bot instructions via eve is not working
-x (test/fix) Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve 
+x (test/fix) Updating bot instrucrions when wrong / invialid botid provided not sending error back to Eve
 x Add llm that its using to bot_config on streamlit
-x Add a semantic YAML steward tool... the AI feeds it piece by piece, asks it whats missing, and fills it in until its complete ...& make stuart bot and demo 
+x Add a semantic YAML steward tool... the AI feeds it piece by piece, asks it whats missing, and fills it in until its complete ...& make stuart bot and demo
 x Make sure deploy button before slack keys activated tells you what to do (e.g. put in slack config keys first)
 x Images/docs: Add/test document retreival for documents that the AI produces (images and non images) so they show up in Slack
 x (is this done?) Images/docs: Add image analysis and image production using openai vision mode, need to add as a separate tool
-x (test in NA, and add a grant example w/imported privs) Test new harvester ddl on a shared database 
+x (test in NA, and add a grant example w/imported privs) Test new harvester ddl on a shared database
 x  Fix vision-chat-analysis, add to available_tools, give to eliza and stuart by default
-x  Figure out why chat_vision_analysis isn't seeing the files provided via slack upload 
+x  Figure out why chat_vision_analysis isn't seeing the files provided via slack upload
 x Have harvester not harvest the app database
 x (removed endpoint calls) Change endpoints query to the framework version
 x llm config page -  clarify page that you dont need to do this again
@@ -668,9 +666,9 @@ n Expose harvest tables to app public so user can read write backup and restore
 x (soon) Spider data loader, fix nil and '' numeric loading to get full baseball data in (or go back to strings)
 x (soon) Harvest all spider data once nil/'' fix is in / Make harvester work on all Spider tables
 x (soon) Test Upgrades & backup (made manual version) Add a backup and restore metadata function to SiS
-x (soon) Make harvester fall back to "describe table" if get_ddl doesn't work (for shared objects) then test on weather data 
+x (soon) Make harvester fall back to "describe table" if get_ddl doesn't work (for shared objects) then test on weather data
 x Have Stuart put semantic stages to a standard place and CREATE STAGE my_int_stage ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
-x Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user 
+x Trap openai errors during execute_run such as out of credits, rate limit exceeded, and provide a message back to the user
 x (ready to test) Native app, Streamlit, & onboarding: make it seamless and easy
 x Store thread_id as metadata in slack messages so we can recover on restarts
 x Don't let it update the same semantic model in multiple threads at the same time
@@ -679,7 +677,7 @@ x Long messages sent to Eve via Streamlit don't seem to work (like updatig Stuar
 x dont add file_search tool onto attachments that are unsupported (PNG)
 x Put LLM keys into a table at the runner level, with a default llm, put llm choice and keys into bot_serving table to override default llm
 n Native app needs create table permissions to make its harvester tracking stuff
-n Native app share view of harvesting table to app_public 
+n Native app share view of harvesting table to app_public
 n Try this search system: https://community.openai.com/t/new-assistants-browse-with-bing-ability/479383/5
 x Make sure documents uploaded to openai are durable day to day if not store them in database and re-upload them for each assistant session run?
 n Add support for ngrok static domains, and don't update Slack when it hasn't changed
@@ -693,18 +691,18 @@ x (havent seen in a while) Handle TPM rate limit errors on job responses from Op
 x Metadata search tool: give the metadata search tool the ability to specify a database and schema optionally
 x (try April 15-16) -> Sis - check consumer loading streamlit
 x Add an eve bootstrapper to insert an Eve row on startup if no bots at all
-x (test) test the deploy button in Sis with fresh install 
-x (later) send new versions for review today 
-x Give each eve a unique bot_id on creation so they dont share assistants if keys are shared 
+x (test) test the deploy button in Sis with fresh install
+x (later) send new versions for review today
+x Give each eve a unique bot_id on creation so they dont share assistants if keys are shared
 x Make URLs displayed in SiS (on bots page and in messages from Eve) non-clickable as they dont work if clicked in Slack
 x make eliza start right away too like eve on install
 x (removed harvester tools for now) Remove the harvester edit tools for now, remove the available data to harvest page in SiS for now
 x (change to my key, test in sis_test, change back) test SiS deploy to slack process in SiS in Natapp (added fn?)
 x Make bot configuration SiS page's deploy to slack button work again
 x fixed respond only when talked to in Slack
-x make sure adding database tools to a new bot works in sockets 
+x make sure adding database tools to a new bot works in sockets
 x test natapp, enable slack, make bot with db tools, then give stage tools, see if stage tools work
-x test if eve can be deployed to slack 
+x test if eve can be deployed to slack
 x finish up files: on add new file, teach it how ot get the new file right away, and on load of system
 x Fix adding new bot with files, see if it works with and without files, immediately and on restart
 x Fix adding docs to bots function, and check files inclusion in make baby bot
@@ -716,9 +714,9 @@ x why are threads getting reset
 x put files in and out in directories based on thread_id
 x MAKE IT WORK WITH LATEST VERSION OF OPENAI API... SOMETHING IS IN WRONG LOCATION, NOW BEING VALIDATED
 x update for Assistants API 2.0
-x (no need?) Make clean set of instructions for mounting and activating container in SPCS w/o Natapp 
+x (no need?) Make clean set of instructions for mounting and activating container in SPCS w/o Natapp
 x (test) Is it running some functions twice?
-x (testing as we go...) Test socket mode more fully 
+x (testing as we go...) Test socket mode more fully
 x test in nat app
 x update readme and submit new version for sec review
 x SiS app - Remove NGROK entry tab when running in SiS
@@ -732,7 +730,7 @@ x fix grant data script (app name dynamic, $$'s use ::: trick)
 x Fix activating first bot on slack
 x Put in new streamlit, rebuild app
 x Make Submit slack tokens in snowmode handle response properly
-x Make sure external Streamlit still works with new changes 
+x Make sure external Streamlit still works with new changes
 x Merge Matt's new code
 x Use snowflake token inside native app
 x Have the instance creator sproc specify the instance schema as the GENESIS_INTERNAL DB location
@@ -740,7 +738,7 @@ x Have the system create and populate all the metadata tables if they are not cr
 x Test fresh deployment of all into consumer account
 x Test/fix service startup before OpenAI and Ngrok secrets provided
 x (seems ok.. monitor) Snowflake token refresh needed on timeout errors?
-x Native app consumer SiS onboarding (warehouse?, pool, eai) 
+x Native app consumer SiS onboarding (warehouse?, pool, eai)
 x Test streamlit with manually created app and hard-wired function names while waiting for 8.15
 x Fix rest of streamlit GUI
 x Test/fix Eve creating bots when deployed inside a native app to slack
@@ -755,35 +753,35 @@ x Make SiS harvester tab say "no data harvested yet" vs error when no data in co
 x Add instructions to grant data to application to SiS
 x Have harvester include first 20 columns as a separate field
 x Add a flag for database, schema limits for search, and for all fields vs top fields
-x now n/a Make ngrok update turn green at the tops 
+x now n/a Make ngrok update turn green at the tops
 x Streamlit - harvest status page, harvest manager page
-x Add Azure openai caller to spcs harness w/assistant api 
+x Add Azure openai caller to spcs harness w/assistant api
 x (csv, but needs recrawl) 7. Harvester: express sample data more compactly (csv, spaces, etc)
 x Harvester: crawling refresh automatically trigger on a schedule
-x SiS app, multiple bot tabs, multiple chats, 
+x SiS app, multiple bot tabs, multiple chats,
 x Harvester: manually upgrade the existing table with ddl_hash, test new tables, test ddl change, then crawl more with it
 x Harvester: crawl the FEC stuff
 x Harvester: test summaries using gpt-4-turbo vs gpt-3.5
 x Harvester: have it be a separate container
 x Harvester: have a flag on the control table for how often to check for new/changed tables (0=Off)
 x Harvester control: allow eve to set up the harvester for Elsa
-x Harvester Elsa see its status and add things to it that it has access to, 
+x Harvester Elsa see its status and add things to it that it has access to,
 x Harvester functions to kick off and remove things from the crawl (cause just sql access is too hard / risky)
 x Add "Source name" for the metadata as well, Bigquery, Snowflake, etc. to allow for cross-source querying
 x rebuild local vector index for newly-crawled stuff on the fly
 x Log all convos into database
-x Give Eve control over harvester, and Elsa ability to add things to harvester and insight into its status 
+x Give Eve control over harvester, and Elsa ability to add things to harvester and insight into its status
 x Update baby_bot creater and multi-bot system to not be dependent on BQ, move queries into BQ connector
 x Give Eve ability to list current bots, pause them, remove them, add tools to them, change them
 Zapier - offical platform integration with proactive instant hook calls, so Eve can wrap any tool from Zapier
 Make Semantic YAMLs automatically / smartly
 x Auto rotate slack app config tokens every hour, otherwise only rotate when expired (check age before rotating, and store age in database)
-x Fix/complete activation of new bots on UDF before they are autorized in Slack, and set Slack_active to N until they are authorized and activated 
-x    .. need to have them light up sessions and set the map on the server before the slack-auth is done (decouple these) 
+x Fix/complete activation of new bots on UDF before they are autorized in Slack, and set Slack_active to N until they are authorized and activated
+x    .. need to have them light up sessions and set the map on the server before the slack-auth is done (decouple these)
 x    .. have the get all bots function in main look for missing udf adapters and then start sessions and adapters for them
 x    .. and have the slack activator not start sessions and udf adapters for bots if they are already active
     .. and return the fact that there is a newly activated bot so the streamlit can alert the user and offer to take them to is
-x STREAMLIT - ADD A BOTS PAGE WITH A NEW BUTTON THAT GOES TO EVE, ADD AN API KEYS PAGE for llm, ngrok, and slack, 
+x STREAMLIT - ADD A BOTS PAGE WITH A NEW BUTTON THAT GOES TO EVE, ADD AN API KEYS PAGE for llm, ngrok, and slack,
 x Add a new chat button on streamlit GUI
 x Add add file to bot tool
 x MR-add a few doublechecks before going to the initiall install screen in Sis

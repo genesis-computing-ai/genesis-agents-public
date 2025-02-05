@@ -1,12 +1,15 @@
 import streamlit as st
 
 def configuration():
+    # Set flag to hide chat elements in sidebar
+    st.session_state['hide_chat_elements'] = True
+    
     # Custom CSS for dark mode styling
     st.markdown("""
         <style>
         /* Page layout and spacing */
         .block-container {
-            padding: 2rem 1rem 1rem !important;
+            padding: 8rem 1rem 1rem !important;
             max-width: 46rem !important;
         }
         
@@ -14,7 +17,7 @@ def configuration():
         .subtitle {
             color: var(--text-color);
             font-size: 1.2em;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             opacity: 0.9;
             font-weight: 500;
         }
@@ -27,8 +30,8 @@ def configuration():
             color: var(--text-color) !important;
             background-color: var(--secondary-background-color) !important;
             border: 1px solid var(--primary-border-color) !important;
-            padding: 1rem !important;
-            margin: 0 0 0.75rem 0 !important;
+            padding: 0.6rem 1rem !important;
+            margin: 0 0 0.3rem 0 !important;
             border-radius: 0.5rem !important;
             transition: all 0.2s ease;
             font-size: 1.1em !important;
@@ -70,7 +73,7 @@ def configuration():
         
         /* Back button styling */
         .back-button {
-            margin-top: 2rem;
+            margin-top: 1.5rem;
         }
         
         .back-button .stButton > button {
@@ -145,6 +148,7 @@ def configuration():
     if st.button("← Back to Chat", key="back_to_chat", use_container_width=True):
         st.session_state["selected_page_id"] = "chat_page"
         st.session_state["radio"] = "Chat with Bots"
+        st.session_state['hide_chat_elements'] = False  # Clear the flag when going back
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 

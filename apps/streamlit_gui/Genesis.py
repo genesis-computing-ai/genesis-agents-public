@@ -532,210 +532,241 @@ if st.session_state.data:
             unsafe_allow_html=True,
         )
         
-        # Show New Chat button first with custom styling (light orange background)
-        if "chat_page" in pages.all:
-            page = pages.all["chat_page"]
-            st.markdown("""
-                <style>
-                div[data-testid="stHorizontalBlock"] button[kind="primary"],
-                .new-chat-btn-container button[kind="primary"] {
-                    background-color: #FFA500 !important;
-                    border-color: #FFA500 !important;
-                    color: #000000 !important;
-                }
-                div[data-testid="stHorizontalBlock"] button[kind="primary"]:hover,
-                .new-chat-btn-container button[kind="primary"]:hover {
-                    background-color: #FF8C00 !important;
-                    border-color: #FF8C00 !important;
-                }
-                /* Override any Streamlit default primary button styles */
-                button[kind="primary"] {
-                    background-color: #FFA500 !important;
-                    border-color: #FFA500 !important;
-                }
-                button[kind="primary"]:hover {
-                    background-color: #FF8C00 !important;
-                    border-color: #FF8C00 !important;
-                }
-                </style>
-            """, unsafe_allow_html=True)
-            st.markdown('<div class="new-chat-btn-container">', unsafe_allow_html=True)
-            if st.button("New Chat", type="primary", key="new_chat_main"):
-                st.session_state["show_new_chat_selector"] = True
-                st.experimental_rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Show chat elements only if not hidden
+        if not st.session_state.get('hide_chat_elements', False):
+            # Show New Chat button first with custom styling (light orange background)
+            if "chat_page" in pages.all:
+                page = pages.all["chat_page"]
+                st.markdown("""
+                    <style>
+                    div[data-testid="stHorizontalBlock"] button[kind="primary"],
+                    .new-chat-btn-container button[kind="primary"] {
+                        background-color: #FFA500 !important;
+                        border-color: #FFA500 !important;
+                        color: #000000 !important;
+                        width: 100% !important;
+                    }
+                    
+                    /* Target the button's inner structure */
+                    .new-chat-btn-container button[kind="primary"] > div {
+                        display: flex !important;
+                        justify-content: center !important;
+                        width: 100% !important;
+                    }
+                    
+                    .new-chat-btn-container button[kind="primary"] > div > p {
+                        text-align: center !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                    }
+                    
+                    div[data-testid="stHorizontalBlock"] button[kind="primary"]:hover,
+                    .new-chat-btn-container button[kind="primary"]:hover {
+                        background-color: #FF8C00 !important;
+                        border-color: #FF8C00 !important;
+                    }
+                    
+                    /* Override any Streamlit default primary button styles */
+                    button[kind="primary"] {
+                        background-color: #FFA500 !important;
+                        border-color: #FFA500 !important;
+                        width: 100% !important;
+                    }
+                    
+                    button[kind="primary"] > div {
+                        display: flex !important;
+                        justify-content: center !important;
+                        width: 100% !important;
+                    }
+                    
+                    button[kind="primary"] > div > p {
+                        text-align: center !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                    }
+                    
+                    button[kind="primary"]:hover {
+                        background-color: #FF8C00 !important;
+                        border-color: #FF8C00 !important;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+                st.markdown('<div class="new-chat-btn-container">', unsafe_allow_html=True)
+                if st.button(" ⚡  New Chat", type="primary", key="new_chat_main"):
+                    st.session_state["show_new_chat_selector"] = True
+                    st.experimental_rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
 
-        if st.session_state.get("show_new_chat_selector", False):
-            with st.expander("Select a bot to chat with:", expanded=True):
-                try:
-                    from utils import get_bot_details
-                    bot_details = get_bot_details()
-                    bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
-                    available_bots = [bot["bot_name"] for bot in bot_details]
-                except Exception as e:
-                    available_bots = []
-                selected_bot = st.selectbox("Select Bot", available_bots, key="new_chat_select")
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    if st.button("Start Chat", type="primary", key="start_new_chat"):
-                        new_thread_id = str(uuid.uuid4())
-                        new_session = f"🤖 {selected_bot} ({new_thread_id[:8]})"
-                        # Initialize active_sessions if needed
-                        if 'active_sessions' not in st.session_state:
-                            st.session_state.active_sessions = []
-                        # Always add the new session
-                        st.session_state.active_sessions = [new_session] + [
-                            s for s in st.session_state.active_sessions 
-                            if s != new_session
-                        ]
-                        st.session_state["current_thread_id"] = new_thread_id
-                        st.session_state["current_bot"] = selected_bot
-                        st.session_state["current_session"] = new_session
-                        st.session_state[f"messages_{new_thread_id}"] = []
-                        st.session_state["show_new_chat_selector"] = False
-                        st.session_state["active_chat_started"] = True  # Flag to indicate active chat
-                        st.experimental_rerun()
-                with col2:
-                    if st.button("⨂", key="cancel_new_chat"):
-                        st.session_state["show_new_chat_selector"] = False
-                        st.experimental_rerun()
+            if st.session_state.get("show_new_chat_selector", False):
+                with st.expander("Select a bot to chat with:", expanded=True):
+                    try:
+                        from utils import get_bot_details
+                        bot_details = get_bot_details()
+                        bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
+                        available_bots = [bot["bot_name"] for bot in bot_details]
+                    except Exception as e:
+                        available_bots = []
+                    selected_bot = st.selectbox("Select Bot", available_bots, key="new_chat_select")
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        if st.button("Start Chat", type="primary", key="start_new_chat"):
+                            new_thread_id = str(uuid.uuid4())
+                            new_session = f"🤖 {selected_bot} ({new_thread_id[:8]})"
+                            # Initialize active_sessions if needed
+                            if 'active_sessions' not in st.session_state:
+                                st.session_state.active_sessions = []
+                            # Always add the new session
+                            st.session_state.active_sessions = [new_session] + [
+                                s for s in st.session_state.active_sessions 
+                                if s != new_session
+                            ]
+                            st.session_state["current_thread_id"] = new_thread_id
+                            st.session_state["current_bot"] = selected_bot
+                            st.session_state["current_session"] = new_session
+                            st.session_state[f"messages_{new_thread_id}"] = []
+                            st.session_state["show_new_chat_selector"] = False
+                            st.session_state["active_chat_started"] = True  # Flag to indicate active chat
+                            st.experimental_rerun()
+                    with col2:
+                        if st.button("⨂", key="cancel_new_chat"):
+                            st.session_state["show_new_chat_selector"] = False
+                            st.experimental_rerun()
 
-        # Show active chat sessions
-        st.markdown("#### Active Chat Sessions:")
-        if 'active_sessions' not in st.session_state:
-            st.session_state.active_sessions = []
-        
-        # Show active sessions if we have any or if a chat has been started
-        if st.session_state.active_sessions or st.session_state.get("active_chat_started"):
-            st.markdown(
-                """
-                <style>
-                .element-container:has(style){
-                    display: none;
-                }
-                #button-after {
-                    display: none;
-                }
-                .element-container:has(#button-after) {
-                    display: none;
-                }
-                .element-container:has(#button-after) + div button {
-                    background: #fff;
-                    border: 1px solid #ccc;
-                    padding: 0.5em 1em;
-                    font: inherit;
-                    cursor: pointer;
-                    outline: inherit;
-                    color: inherit;
-                    text-align: left;
-                    margin: 5px 0;
-                    font-weight: normal;
-                    font-size: 0.8em;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True,
-            )
+            # Show active chat sessions
+            st.markdown("#### Active Chat Sessions:")
+            if 'active_sessions' not in st.session_state:
+                st.session_state.active_sessions = []
+            
+            # Show active sessions if we have any or if a chat has been started
+            if st.session_state.active_sessions or st.session_state.get("active_chat_started"):
+                st.markdown(
+                    """
+                    <style>
+                    .element-container:has(style){
+                        display: none;
+                    }
+                    #button-after {
+                        display: none;
+                    }
+                    .element-container:has(#button-after) {
+                        display: none;
+                    }
+                    .element-container:has(#button-after) + div button {
+                        background: #fff;
+                        border: 1px solid #ccc;
+                        padding: 0.5em 1em;
+                        font: inherit;
+                        cursor: pointer;
+                        outline: inherit;
+                        color: inherit;
+                        text-align: left;
+                        margin: 5px 0;
+                        font-weight: normal;
+                        font-size: 0.8em;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-            # Add global CSS for session buttons at the top of the sidebar
-            st.markdown(
-                """
-                <style>
-                .session-button {
-                    width: 100%;
-                    padding: 0.5rem;
-                    margin: 0.25rem 0;
-                    border: 1px solid #cccccc;
-                    background-color: transparent;
-                    cursor: pointer;
-                    text-align: left;
-                    border-radius: 4px;
-                }
-                .session-button:hover {
-                    background-color: #f0f0f0;
-                    border: 1px solid #cccccc;
-                }
-                .session-button-active {
-                    background-color: #FFA500 !important;
-                    border: 1px solid #FFA500 !important;
-                }
-                .session-button-active:hover {
-                    background-color: #FF8C00 !important;
-                    border: 1px solid #FF8C00 !important;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
+                # Add global CSS for session buttons at the top of the sidebar
+                st.markdown(
+                    """
+                    <style>
+                    .session-button {
+                        width: 100%;
+                        padding: 0.5rem;
+                        margin: 0.25rem 0;
+                        border: 1px solid #cccccc;
+                        background-color: transparent;
+                        cursor: pointer;
+                        text-align: left;
+                        border-radius: 4px;
+                    }
+                    .session-button:hover {
+                        background-color: #f0f0f0;
+                        border: 1px solid #cccccc;
+                    }
+                    .session-button-active {
+                        background-color: #FFA500 !important;
+                        border: 1px solid #FFA500 !important;
+                    }
+                    .session-button-active:hover {
+                        background-color: #FF8C00 !important;
+                        border: 1px solid #FF8C00 !important;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-            # Add a session counter to session state if it doesn't exist
-            if 'session_numbers' not in st.session_state:
-                st.session_state.session_numbers = {}
+                # Add a session counter to session state if it doesn't exist
+                if 'session_numbers' not in st.session_state:
+                    st.session_state.session_numbers = {}
 
-            # Number sessions that don't have a number yet
-            for session in st.session_state.active_sessions:
-                if session not in st.session_state.session_numbers:
-                    next_num = len(st.session_state.session_numbers) + 1
-                    st.session_state.session_numbers[session] = next_num
+                # Number sessions that don't have a number yet
+                for session in st.session_state.active_sessions:
+                    if session not in st.session_state.session_numbers:
+                        next_num = len(st.session_state.session_numbers) + 1
+                        st.session_state.session_numbers[session] = next_num
 
-            # Sort sessions by their number
-            sorted_sessions = sorted(
-                st.session_state.active_sessions,
-                key=lambda x: st.session_state.session_numbers.get(x, float('inf'))
-            )
+                # Sort sessions by their number
+                sorted_sessions = sorted(
+                    st.session_state.active_sessions,
+                    key=lambda x: st.session_state.session_numbers.get(x, float('inf'))
+                )
 
-            for session in sorted_sessions:
-                bot_name, thread_id = session.split(' (')
-                bot_name = bot_name.split('🤖 ')[1]
-                thread_id = thread_id[:-1]  # Remove the closing parenthesis
-                full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
-                
-                # Get the session number
-                session_num = st.session_state.session_numbers[session]
-                
-                # Check if this is the current session
-                is_current = session == st.session_state.get('current_session', '')
-                
-                # Create columns
-                col1, col2 = st.columns([4, 1])
-                with col1:
-                    if st.button(f"⚡ {session_num}: {bot_name}", 
-                               key=f"session_btn_{full_thread_id}",
-                               use_container_width=True,
-                               type="secondary" if not is_current else "primary"):
-                        st.session_state.current_bot = bot_name
-                        st.session_state.selected_session = {
-                            'bot_name': bot_name,
-                            'thread_id': full_thread_id
-                        }
-                        st.session_state.current_session = session
-                        st.session_state.current_thread_id = full_thread_id
-                        st.session_state.load_history = True
-                        st.rerun()
-                with col2:
-                    if st.button("⨂", key=f"remove_btn_{full_thread_id}"):
-                        # Remove the session number when removing the session
-                        if session in st.session_state.session_numbers:
-                            del st.session_state.session_numbers[session]
-                        st.session_state.active_sessions.remove(session)
-                        if f"messages_{full_thread_id}" in st.session_state:
-                            del st.session_state[f"messages_{full_thread_id}"]
-                        if st.session_state.get('current_session') == session:
-                            st.session_state.pop('current_session', None)
-                        st.rerun()
-        else:
-            st.info("No active chat sessions.")
+                for session in sorted_sessions:
+                    bot_name, thread_id = session.split(' (')
+                    bot_name = bot_name.split('🤖 ')[1]
+                    thread_id = thread_id[:-1]  # Remove the closing parenthesis
+                    full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
+                    
+                    # Get the session number
+                    session_num = st.session_state.session_numbers[session]
+                    
+                    # Check if this is the current session
+                    is_current = session == st.session_state.get('current_session', '')
+                    
+                    # Create columns
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        if st.button(f"⚡ {session_num}: {bot_name}", 
+                                   key=f"session_btn_{full_thread_id}",
+                                   use_container_width=True,
+                                   type="secondary" if not is_current else "primary"):
+                            st.session_state.current_bot = bot_name
+                            st.session_state.selected_session = {
+                                'bot_name': bot_name,
+                                'thread_id': full_thread_id
+                            }
+                            st.session_state.current_session = session
+                            st.session_state.current_thread_id = full_thread_id
+                            st.session_state.load_history = True
+                            st.rerun()
+                    with col2:
+                        if st.button("⨂", key=f"remove_btn_{full_thread_id}"):
+                            # Remove the session number when removing the session
+                            if session in st.session_state.session_numbers:
+                                del st.session_state.session_numbers[session]
+                            st.session_state.active_sessions.remove(session)
+                            if f"messages_{full_thread_id}" in st.session_state:
+                                del st.session_state[f"messages_{full_thread_id}"]
+                            if st.session_state.get('current_session') == session:
+                                st.session_state.pop('current_session', None)
+                            st.rerun()
+            else:
+                st.info("No active chat sessions.")
 
-        # Add divider after active sessions
-        st.markdown("---")
+            # Add divider after active sessions
+            st.markdown("---")
 
-        # Add a conditional file uploader section.
-        # Always show the expander, but collapsed by default
-        with st.expander("Upload File", expanded=False):
-            uploaded_file = st.file_uploader("FILE UPLOADER", key="main_file_uploader")
-            st.session_state["uploaded_file_main"] = uploaded_file
+            # Add the file uploader section
+            with st.expander("Upload File", expanded=False):
+                uploaded_file = st.file_uploader("FILE UPLOADER", key="main_file_uploader")
+                st.session_state["uploaded_file_main"] = uploaded_file
 
-        # Add Configuration and Support buttons at the bottom
+        # Always show configuration and support buttons
         st.markdown("---")  # Add a visual separator
         desired_sidebar = ["configuration", "support"]
         for key in desired_sidebar:

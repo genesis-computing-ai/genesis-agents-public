@@ -8,7 +8,7 @@ main_routes = Blueprint('main_routes', __name__)
 
 @main_routes.post("/api/messages")
 def api_message():
-    logger.info(f"Flask: /api/messages: {request.json()}")
+    logger.info(f"Flask: /api/messages: {request.json}")
     r = {
         "type": "message",
         "from": {

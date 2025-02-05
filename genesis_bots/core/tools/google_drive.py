@@ -251,7 +251,7 @@ def google_drive(
 
     elif action == "CREATE_SHEET":
         response = create_g_sheet_v4(
-            g_sheet_values, g_sheet_name, None, db_adapter.user
+            g_sheet_values, g_file_name, None, db_adapter.user
         )
         return response
 

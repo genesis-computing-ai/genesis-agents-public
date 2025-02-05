@@ -700,38 +700,3 @@ def chat_page():
         st.success("new session added??")
         st.rerun()
 
-    st.markdown("""
-        <style>
-        /* Updated primary button styling to use more muted orange colors */
-        div[data-testid="stHorizontalBlock"] button[kind="primary"],
-        .new-chat-btn-container button[kind="primary"],
-        button[kind="primary"] {
-            background-color: #FFD7A0 !important;
-            border-color: #FFD7A0 !important;
-            width: 100% !important;
-        }
-
-        div[data-testid="stHorizontalBlock"] button[kind="primary"]:hover,
-        .new-chat-btn-container button[kind="primary"]:hover,
-        button[kind="primary"]:hover {
-            background-color: #FFC288 !important;
-            border-color: #FFC288 !important;
-        }
-
-        /* Ensure button inner contents are centered */
-        .new-chat-btn-container button[kind="primary"] > div,
-        button[kind="primary"] > div {
-            display: flex !important;
-            justify-content: center !important;
-            width: 100% !important;
-        }
-
-        .new-chat-btn-container button[kind="primary"] > div > p,
-        button[kind="primary"] > div > p {
-            text-align: center !important;
-            width: 100% !important;
-            margin: 0 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-

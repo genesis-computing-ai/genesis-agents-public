@@ -560,7 +560,7 @@ if st.session_state.data:
                     
                     div[data-testid="stHorizontalBlock"] button[kind="primary"]:hover,
                     .new-chat-btn-container button[kind="primary"]:hover {
-                        background-color: #FF8C00 !important;
+                        background-color: #E67300 !important;
                         border-color: #FF8C00 !important;
                     }
                     
@@ -584,7 +584,7 @@ if st.session_state.data:
                     }
                     
                     button[kind="primary"]:hover {
-                        background-color: #FF8C00 !important;
+                        background-color: #E67300 !important;
                         border-color: #FF8C00 !important;
                     }
                     </style>
@@ -686,12 +686,12 @@ if st.session_state.data:
                         border: 1px solid #cccccc;
                     }
                     .session-button-active {
-                        background-color: #FFA500 !important;
-                        border: 1px solid #FFA500 !important;
+                        background-color: #E67300 !important;
+                        border: 1px solid #E67300 !important;
                     }
                     .session-button-active:hover {
-                        background-color: #FF8C00 !important;
-                        border: 1px solid #FF8C00 !important;
+                        background-color: #E67300 !important;
+                        border: 1px solid #E67300 !important;
                     }
                     </style>
                     """,

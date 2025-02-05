@@ -14,7 +14,7 @@ def config_jira():
         st.session_state.NativeMode = False  # Or set this based on your environment
 
     # Page Title
-    st.title("Configure Jira API settings")
+    #st.title("Configure Jira API settings")
 
     # Custom styles
     st.markdown("""

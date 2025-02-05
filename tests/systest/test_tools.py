@@ -21,9 +21,6 @@ from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
-
-
-
 class TestTools(unittest.TestCase):
 
     @classmethod
@@ -114,6 +111,17 @@ class TestTools(unittest.TestCase):
 
         response = manage_processes(action='DELETE_CONFIRMED', bot_id=bot_id, process_id=process_id)
         self.assertTrue(response['Success'])
+
+    def test_process_manager_agent(self):
+        bot_id = self.eve_id
+        process_name = 'test_process'
+        process_instructions = 'Run test_process each day'
+
+        prompt = f'Create a process named {process_name} with the following instructions: {process_instructions}'
+        thread_id = str(uuid4())
+        request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
+        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+        self.assertTrue('_ManageProcesses_' in response)
 
     def test_list_of_bots_agent(self):
         thread_id = str(uuid4())

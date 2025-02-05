@@ -1197,6 +1197,7 @@ def make_baby_bot(
 
             bot_avatar_image = get_default_avatar()
 
+        slack_active = None
         if not api_bot_update:
             slack_active = test_slack_config_token()
             if slack_active == 'token_expired':

@@ -58,7 +58,7 @@ google_drive_tools = ToolFuncGroup(
     g_folder_id="The unique identifier of a folder stored on Google Drive.",
     g_file_id="The unique identifier of a file stored on Google Drive.",
     g_sheet_cell="Cell in a Google Sheet to edit/update.",
-    g_sheet_value="Value to update the cell in a Google Sheet or update a comment.",
+    g_sheet_values="Value(s) to create or update cell(s) in a Google Sheet or update a comment.",
     g_file_comment_id="The unique identifier of a comment stored on Google Drive.",
     g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
     g_sheet_query="Query string to run and save the results to a Google Sheet.",
@@ -73,7 +73,7 @@ def google_drive(
     g_folder_id: str = None,
     g_file_id: str = None,
     g_sheet_cell: str = None,
-    g_sheet_value: str = None,
+    g_sheet_values: str = None,
     g_file_comment_id: str = None,
     g_file_name: str = None,
     g_sheet_query: str = None,
@@ -177,7 +177,7 @@ def google_drive(
     elif action == "ADD_COMMENT":
         try:
             result = add_g_file_comment(
-                g_file_id, g_sheet_value, None, db_adapter.user
+                g_file_id, g_sheet_values, None, db_adapter.user
             )
             return {"Success": True, "Result": result}
         except Exception as e:
@@ -186,7 +186,7 @@ def google_drive(
     elif action == "ADD_REPLY_TO_COMMENT":
         try:
             result = add_reply_to_g_file_comment(
-                g_file_id, g_file_comment_id, g_sheet_value, g_file_comment_id, None, db_adapter.user
+                g_file_id, g_file_comment_id, g_sheet_values, g_file_comment_id, None, db_adapter.user
             )
             return {"Success": True, "Result": result}
         except Exception as e:
@@ -204,16 +204,16 @@ def google_drive(
         # cell_range = verify_single_cell(g_sheet_cell)
 
         print(
-            f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}\n"
+            f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_values}\n"
         )
 
         write_g_sheet_cell_v4(
-            g_file_id, g_sheet_cell, g_sheet_value, None, db_adapter.user
+            g_file_id, g_sheet_cell, g_sheet_values, None, db_adapter.user
         )
 
         return {
             "Success": True,
-            "Message": f"g_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_value}",
+            "Message": f"g_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_values}",
         }
 
     elif action == "GET_SHEET" or action == "READ_SHEET":
@@ -251,7 +251,7 @@ def google_drive(
 
     elif action == "CREATE_SHEET":
         response = create_g_sheet_v4(
-            g_file_id, g_sheet_value, None, db_adapter.user
+            g_sheet_values, g_sheet_name, None, db_adapter.user
         )
         return response
 

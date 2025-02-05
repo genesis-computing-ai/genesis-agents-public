@@ -1007,7 +1007,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         print(f"An error occurred: {error}")
         return error
 
-def create_g_sheet_v4(g_file_id, g_sheet_values, creds=None, user=None):
+def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None, user=None):
     """
     Create a Google Sheet with the given values.
     Load pre-authorized user credentials from the environment.
@@ -1029,7 +1029,7 @@ def create_g_sheet_v4(g_file_id, g_sheet_values, creds=None, user=None):
         service = build("sheets", "v4", credentials=creds)
 
         # Create the Google Sheet
-        spreadsheet = {"properties": {"title": g_file_id}}
+        spreadsheet = {"properties": {"title": g_sheet_name}}
         spreadsheet = (
             service.spreadsheets()
             .create(body=spreadsheet, fields="spreadsheetId")

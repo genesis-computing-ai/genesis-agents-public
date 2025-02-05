@@ -27,7 +27,7 @@ def api_message():
         "replyToId": "1632474074231"
     }
 
-    return r.json()
+    return jsonify(r)
 
 
 

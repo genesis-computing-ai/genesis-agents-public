@@ -464,7 +464,6 @@ if st.session_state.data:
             <style>
             div.stButton > button {
                 text-align: left !important;
-                color: #000000 !important;
                 width: 100% !important;
                 justify-content: flex-start !important;
                 display: flex !important;
@@ -541,9 +540,8 @@ if st.session_state.data:
                     <style>
                     div[data-testid="stHorizontalBlock"] button[kind="primary"],
                     .new-chat-btn-container button[kind="primary"] {
-                        background-color: #FFA500 !important;
+                        background-color: #E67300 !important;
                         border-color: #FFA500 !important;
-                        color: #000000 !important;
                         width: 100% !important;
                     }
                     
@@ -568,7 +566,7 @@ if st.session_state.data:
                     
                     /* Override any Streamlit default primary button styles */
                     button[kind="primary"] {
-                        background-color: #FFA500 !important;
+                        background-color: #E67300 !important;
                         border-color: #FFA500 !important;
                         width: 100% !important;
                     }
@@ -745,7 +743,7 @@ if st.session_state.data:
                             st.session_state.load_history = True
                             st.rerun()
                     with col2:
-                        if st.button("⨂", key=f"remove_btn_{full_thread_id}"):
+                        if st.button("⨂", type="secondary", key=f"remove_btn_{full_thread_id}"):
                             # Remove the session number when removing the session
                             if session in st.session_state.session_numbers:
                                 del st.session_state.session_numbers[session]

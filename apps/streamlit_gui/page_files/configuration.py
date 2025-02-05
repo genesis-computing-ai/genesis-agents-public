@@ -10,7 +10,7 @@ def hide_sidebar():
         [data-testid="stSidebar"][aria-expanded="false"]{
             display: none;
         }
-        </style>
+        </style> 
     """, unsafe_allow_html=True)
 
 def configuration():

@@ -29,7 +29,7 @@ class TestTools(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Setup shared resources for all test methods."""
-        server_proxy = build_server_proxy('embedded', None)
+        server_proxy = build_server_proxy('embedded')
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bots = get_available_bots(cls.client)
         cls.eve_id = cls.available_bots[0]
@@ -61,9 +61,18 @@ class TestTools(unittest.TestCase):
         response = process_scheduler(action='LIST', bot_id=bot_id)
         self.assertTrue(response['Success'])
         self.assertTrue(len(response['Scheduled Processes']) == 1)
+        task_id = response['Scheduled Processes'][0]['task_id']
 
         response = process_scheduler(action='HISTORY', bot_id=bot_id, task_id=task_id)
         self.assertTrue(response['Success'])
+
+        response = process_scheduler(action='DELETE_CONFIRMED', bot_id=bot_id, task_id=task_id)
+        self.assertTrue(response['Success'])
+
+        response = process_scheduler(action='LIST', bot_id=bot_id)
+        self.assertTrue(response['Success'])
+        self.assertTrue(len(response['Scheduled Processes']) == 0)
+
 
     def test_data_connections_functions(self):
         bot_id = self.eve_id
@@ -99,6 +108,11 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
 
         response = manage_processes(action='LIST', bot_id=bot_id)
+        self.assertTrue(response['Success'])
+        self.assertTrue(response['processes'][-1]['process_name'] == 'test_process')
+        process_id = response['processes'][-1]['process_id']
+
+        response = manage_processes(action='DELETE_CONFIRMED', bot_id=bot_id, process_id=process_id)
         self.assertTrue(response['Success'])
 
     def test_list_of_bots_agent(self):

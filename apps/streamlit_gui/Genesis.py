@@ -8,6 +8,8 @@ import base64
 from streamlit import config
 from collections import namedtuple
 from textwrap import dedent
+import uuid
+import random
 
 PageDesc = namedtuple('_PageEntry', ['page_id', 'display_name', 'module_name', 'entry_func_name'])
 
@@ -80,6 +82,10 @@ if 'data_source' not in st.session_state:
 
 if "wh_name" not in st.session_state:
     st.session_state["wh_name"] = "XSMALL" # TODO fix warehouse name
+
+# Initialize uploader key if it doesn't exist
+if 'uploader_key' not in st.session_state:
+    st.session_state['uploader_key'] = random.randint(0, 1 << 32)
 
 # Main content of the app
 def is_running_from_package():
@@ -249,62 +255,19 @@ def hide_modal():
 def show_modal():
     with st.expander("Enable Cool Genesis features:", expanded=True):
 
-        st.markdown(
-            """
-            <style>
-            .element-container:has(style){
-                display: none;
-            }
-            #button-after {
-                display: none;
-            }
-            .element-container:has(#button-after) {
-                display: none;
-            }
-            .element-container:has(#button-after) + div button {
-                background: none;
-                border: none;
-                padding: 0;
-                font: inherit;
-                cursor: pointer;
-                outline: inherit;
-                color: inherit;
-                text-align: left;
-                margin: 0;
-                font-weight: normal;
-                font-size: 0.7em;
-            }
-            button:hover {
-                color: #FFB3B3 !important;
-            }
-            .element-container:has(#button-after) + div button {
-                line-height: 0.4 !important;
-                margin-top: -30px !important;
-                margin-bottom: 0px !important;
-            }
-            </style>
-
-            """,
-            unsafe_allow_html=True,
-        )
-
-
         if st.session_state.show_email_config == True and  st.session_state.NativeMode:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 📧 Let your Genbots Email you"):
+            if st.button(" 📧 Let your Genbots Email you", key="modal_email_btn"):
                 st.session_state["radio"] = "Setup Email Integration"
 
         if st.session_state.show_slack_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 💬 Connect your bots to Slack"):
+            if st.button(" 💬 Connect your bots to Slack", key="modal_slack_btn"):
                 st.session_state["radio"] = "Setup Slack Connection"
 
         if st.session_state.show_openai_config == True:
-            st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-            if st.button(" 🧠 Enable OpenAI LLM with your Key"):
+            if st.button(" 🧠 Enable OpenAI LLM with your Key", key="modal_openai_btn"):
                 st.session_state["radio"] = "LLM Model & Key"
 
-        if st.checkbox("Ignore this message for the rest of the session"):
+        if st.checkbox("Ignore this message for the rest of the session", key="modal_ignore_checkbox"):
             hide_modal()
             st.rerun()
 
@@ -446,7 +409,7 @@ if st.session_state.data:
                         3.Using the artifact's metadata, describe its original purpose and the time it was generated.
                         Refer to this artifact as the 'item'. DO NOT mention the artifact ID unless requested explicitly, as it is mosly used for internal references.
                         4. Render the artifact's content by using its markdown notation and offer to help further explore this item.
-                        5. If the metadata indicates that this artifct contains other artifact, offer the user to explore the contained artifact.
+                        5. If the metadata indicates that this artifact contains other artifact, offer the user to explore the contained artifact.
                         ''')
                 )
             else:
@@ -465,79 +428,324 @@ if st.session_state.data:
             selected_page_id = "chat_page" if "chat_page" in pages.all else list(pages.all.keys())[0]
     assert selected_page_id is not None
 
+    # --- NEW: Initialize default chat session for chat_page if not already initialized ---
+    if selected_page_id == "chat_page" and ('current_bot' not in st.session_state or 'current_thread_id' not in st.session_state):
+        try:
+            from utils import get_bot_details
+            bot_details = get_bot_details()
+            if isinstance(bot_details, list) and bot_details:
+                # Sort bot details to choose the first based on your criteria (e.g. "Eve" appears first if present)
+                bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
+                bot_names = [bot["bot_name"] for bot in bot_details]
+                initial_bot_name = bot_names[0]
+            else:
+                initial_bot_name = "ChatBot"
+        except Exception:
+            initial_bot_name = "ChatBot"
+        import uuid
+        new_thread_id = str(uuid.uuid4())
+        st.session_state.current_bot = initial_bot_name
+        st.session_state.current_thread_id = new_thread_id
+        new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
+        st.session_state.current_session = new_session
+        if "active_sessions" not in st.session_state:
+            st.session_state.active_sessions = []
+        if new_session not in st.session_state.active_sessions:
+            st.session_state.active_sessions.append(new_session)
+        st.session_state.active_chat_started = True
+        st.session_state[f"messages_{new_thread_id}"] = []
+    # --- END NEW ---
+
     # Create a vertical navigation bar in the sidebar with grouping:
     with st.sidebar:
-        # Add custom CSS for navigation styling
-        st.markdown("""
+        # Minimal CSS to left-align sidebar buttons (using default styling otherwise)
+        st.markdown(
+            """
             <style>
-            div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button {
+            div.stButton > button {
                 text-align: left !important;
-                font-weight: 400 !important;
-                padding: 0rem 1rem !important;
-                border: none !important;
-                background-color: transparent !important;
+                color: #000000 !important;
                 width: 100% !important;
-                margin: 0 !important;
-                color: var(--text-color, #FFFFFF) !important;
-                height: 2.5rem !important;
-                line-height: 2.5rem !important;
-                box-sizing: border-box !important;
-                opacity: 0.85 !important;
+                justify-content: flex-start !important;
+                display: flex !important;
+                align-items: center !important;
+                padding: 0.3em !important;
             }
-            
-            div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button:hover {
-                background-color: var(--hover-color, rgba(255, 255, 255, 0.1)) !important;
-                border-radius: 0.3rem !important;
-                opacity: 1 !important;
-            }
-            
-            /* Selected button styling */
-            div[data-testid="stVerticalBlock"] div[data-testid="stButton"] button.selected {
-                background-color: var(--hover-color, rgba(255, 255, 255, 0.1)) !important;
-                border-radius: 0.3rem !important;
-                color: var(--text-color, #FFFFFF) !important;
-                font-weight: 600 !important;
-                border-left: 4px solid #ff4b4b !important;
-                box-shadow: 0 0 0 1px var(--border-color, rgba(255,255,255,0.2)) !important;
-                position: relative !important;
+            /* Target Streamlit's inner button elements */
+            div.stButton > button > div {
+                display: flex !important;
+                justify-content: flex-start !important;
+                width: 100% !important;
+                text-align: left !important;
                 margin: 0 !important;
-                height: 2.5rem !important;
-                line-height: 2.5rem !important;
-                box-sizing: border-box !important;
-                opacity: 1 !important;
+            }
+            /* Target the actual text container */
+            div.stButton > button > div > p {
+                text-align: left !important;
+                margin-left: 0 !important;
+                padding-left: 0 !important;
+                margin: 0 !important;
+            }
+            /* Reduce spacing around horizontal rules */
+            hr {
+                margin: 0.2em 0 !important;
+            }
+            /* Adjust spacing for Upload File button and container */
+            [data-testid="stButton"] {
+                margin: 0.1em 0 !important;
+            }
+            .element-container {
+                margin: 0.1em 0 !important;
+                padding: 0 !important;
+            }
+            /* Remove extra padding from expander */
+            .streamlit-expanderHeader {
+                padding: 0.2em !important;
+            }
+            /* Reduce spacing in headings */
+            .sidebar .markdown-text-container {
+                margin: 0 !important;
+                padding: 0.1em 0 !important;
+            }
+            /* Adjust info message spacing */
+            .stAlert {
+                padding: 0.2em !important;
+                margin: 0.1em 0 !important;
+            }
+            /* Reduce spacing in columns */
+            [data-testid="column"] {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            /* Reduce spacing in stMarkdown */
+            .stMarkdown {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            /* Adjust heading margins */
+            h4 {
+                margin: 0.2em 0 !important;
+                padding: 0 !important;
             }
             </style>
-        """, unsafe_allow_html=True)
+            """,
+            unsafe_allow_html=True,
+        )
         
-        # Instead of categorizing all pages into many groups, simply define
-        # the fixed sidebar order.
-        desired_sidebar = ["chat_page", "configuration", "support"]
+        # Show New Chat button first with custom styling (light orange background)
+        if "chat_page" in pages.all:
+            page = pages.all["chat_page"]
+            st.markdown("""
+                <style>
+                div[data-testid="stHorizontalBlock"] button[kind="primary"],
+                .new-chat-btn-container button[kind="primary"] {
+                    background-color: #FFA500 !important;
+                    border-color: #FFA500 !important;
+                    color: #000000 !important;
+                }
+                div[data-testid="stHorizontalBlock"] button[kind="primary"]:hover,
+                .new-chat-btn-container button[kind="primary"]:hover {
+                    background-color: #FF8C00 !important;
+                    border-color: #FF8C00 !important;
+                }
+                /* Override any Streamlit default primary button styles */
+                button[kind="primary"] {
+                    background-color: #FFA500 !important;
+                    border-color: #FFA500 !important;
+                }
+                button[kind="primary"]:hover {
+                    background-color: #FF8C00 !important;
+                    border-color: #FF8C00 !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            st.markdown('<div class="new-chat-btn-container">', unsafe_allow_html=True)
+            if st.button("New Chat", type="primary", key="new_chat_main"):
+                st.session_state["show_new_chat_selector"] = True
+                st.experimental_rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        if st.session_state.get("show_new_chat_selector", False):
+            with st.expander("Select a bot to chat with:", expanded=True):
+                try:
+                    from utils import get_bot_details
+                    bot_details = get_bot_details()
+                    bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
+                    available_bots = [bot["bot_name"] for bot in bot_details]
+                except Exception as e:
+                    available_bots = []
+                selected_bot = st.selectbox("Select Bot", available_bots, key="new_chat_select")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    if st.button("Start Chat", type="primary", key="start_new_chat"):
+                        new_thread_id = str(uuid.uuid4())
+                        new_session = f"🤖 {selected_bot} ({new_thread_id[:8]})"
+                        # Initialize active_sessions if needed
+                        if 'active_sessions' not in st.session_state:
+                            st.session_state.active_sessions = []
+                        # Always add the new session
+                        st.session_state.active_sessions = [new_session] + [
+                            s for s in st.session_state.active_sessions 
+                            if s != new_session
+                        ]
+                        st.session_state["current_thread_id"] = new_thread_id
+                        st.session_state["current_bot"] = selected_bot
+                        st.session_state["current_session"] = new_session
+                        st.session_state[f"messages_{new_thread_id}"] = []
+                        st.session_state["show_new_chat_selector"] = False
+                        st.session_state["active_chat_started"] = True  # Flag to indicate active chat
+                        st.experimental_rerun()
+                with col2:
+                    if st.button("⨂", key="cancel_new_chat"):
+                        st.session_state["show_new_chat_selector"] = False
+                        st.experimental_rerun()
+
+        # Show active chat sessions
+        st.markdown("#### Active Chat Sessions:")
+        if 'active_sessions' not in st.session_state:
+            st.session_state.active_sessions = []
         
+        # Show active sessions if we have any or if a chat has been started
+        if st.session_state.active_sessions or st.session_state.get("active_chat_started"):
+            st.markdown(
+                """
+                <style>
+                .element-container:has(style){
+                    display: none;
+                }
+                #button-after {
+                    display: none;
+                }
+                .element-container:has(#button-after) {
+                    display: none;
+                }
+                .element-container:has(#button-after) + div button {
+                    background: #fff;
+                    border: 1px solid #ccc;
+                    padding: 0.5em 1em;
+                    font: inherit;
+                    cursor: pointer;
+                    outline: inherit;
+                    color: inherit;
+                    text-align: left;
+                    margin: 5px 0;
+                    font-weight: normal;
+                    font-size: 0.8em;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Add global CSS for session buttons at the top of the sidebar
+            st.markdown(
+                """
+                <style>
+                .session-button {
+                    width: 100%;
+                    padding: 0.5rem;
+                    margin: 0.25rem 0;
+                    border: 1px solid #cccccc;
+                    background-color: transparent;
+                    cursor: pointer;
+                    text-align: left;
+                    border-radius: 4px;
+                }
+                .session-button:hover {
+                    background-color: #f0f0f0;
+                    border: 1px solid #cccccc;
+                }
+                .session-button-active {
+                    background-color: #FFA500 !important;
+                    border: 1px solid #FFA500 !important;
+                }
+                .session-button-active:hover {
+                    background-color: #FF8C00 !important;
+                    border: 1px solid #FF8C00 !important;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # Add a session counter to session state if it doesn't exist
+            if 'session_numbers' not in st.session_state:
+                st.session_state.session_numbers = {}
+
+            # Number sessions that don't have a number yet
+            for session in st.session_state.active_sessions:
+                if session not in st.session_state.session_numbers:
+                    next_num = len(st.session_state.session_numbers) + 1
+                    st.session_state.session_numbers[session] = next_num
+
+            # Sort sessions by their number
+            sorted_sessions = sorted(
+                st.session_state.active_sessions,
+                key=lambda x: st.session_state.session_numbers.get(x, float('inf'))
+            )
+
+            for session in sorted_sessions:
+                bot_name, thread_id = session.split(' (')
+                bot_name = bot_name.split('🤖 ')[1]
+                thread_id = thread_id[:-1]  # Remove the closing parenthesis
+                full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
+                
+                # Get the session number
+                session_num = st.session_state.session_numbers[session]
+                
+                # Check if this is the current session
+                is_current = session == st.session_state.get('current_session', '')
+                
+                # Create columns
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    if st.button(f"⚡ {session_num}: {bot_name}", 
+                               key=f"session_btn_{full_thread_id}",
+                               use_container_width=True,
+                               type="secondary" if not is_current else "primary"):
+                        st.session_state.current_bot = bot_name
+                        st.session_state.selected_session = {
+                            'bot_name': bot_name,
+                            'thread_id': full_thread_id
+                        }
+                        st.session_state.current_session = session
+                        st.session_state.current_thread_id = full_thread_id
+                        st.session_state.load_history = True
+                        st.rerun()
+                with col2:
+                    if st.button("⨂", key=f"remove_btn_{full_thread_id}"):
+                        # Remove the session number when removing the session
+                        if session in st.session_state.session_numbers:
+                            del st.session_state.session_numbers[session]
+                        st.session_state.active_sessions.remove(session)
+                        if f"messages_{full_thread_id}" in st.session_state:
+                            del st.session_state[f"messages_{full_thread_id}"]
+                        if st.session_state.get('current_session') == session:
+                            st.session_state.pop('current_session', None)
+                        st.rerun()
+        else:
+            st.info("No active chat sessions.")
+
+        # Add divider after active sessions
+        st.markdown("---")
+
+        # Add a conditional file uploader section.
+        # Always show the expander, but collapsed by default
+        with st.expander("Upload File", expanded=False):
+            uploaded_file = st.file_uploader("FILE UPLOADER", key="main_file_uploader")
+            st.session_state["uploaded_file_main"] = uploaded_file
+
+        # Add Configuration and Support buttons at the bottom
+        st.markdown("---")  # Add a visual separator
+        desired_sidebar = ["configuration", "support"]
         for key in desired_sidebar:
             if key in pages.all:
                 page = pages.all[key]
                 # Determine selected page (default to chat_page if nothing selected)
                 is_selected = (selected_page_id == key) or (selected_page_id is None and key == "chat_page")
-                if is_selected:
-                    st.markdown(f'''
-                    <div style="
-                        background-color: rgba(255, 255, 255, 0.9);
-                        border-left: 4px solid #ff4b4b;
-                        border: 1px solid rgba(49,51,63,0.2);
-                        border-radius: 0.3rem;
-                        padding: 0rem 1rem;
-                        font-weight: 600;
-                        color: rgb(49, 51, 63);
-                        text-align: left;
-                        margin: 0;
-                        height: 2.5rem;
-                        line-height: 2.5rem;
-                        box-sizing: border-box;
-                    ">{page.display_name}</div>
-                    ''', unsafe_allow_html=True)
-                else:
-                    if st.button(page.display_name, key=f"nav_{key}", use_container_width=True,
-                                 help=f"Navigate to {page.display_name}", type="secondary"):
+                if not is_selected:
+                    if st.button(page.display_name, key=f"nav_bottom_{key}", use_container_width=True,
+                                help=f"Navigate to {page.display_name}", type="secondary"):
                         st.session_state["selected_page_id"] = key
                         st.session_state["radio"] = page.display_name
                         st.session_state["previous_selection"] = page.display_name

@@ -120,12 +120,6 @@ def set_initial_chat_sesssion_data(bot_name, initial_prompt, initial_message):
                                                       initial_prompt=initial_prompt,
                                                       initial_message=initial_message)
 
-def toggle_horizontal_panel():
-    if 'horizontal_panel_collapsed' not in st.session_state:
-        st.session_state.horizontal_panel_collapsed = False
-
-    st.session_state.horizontal_panel_collapsed = not st.session_state.horizontal_panel_collapsed
-
 
 def chat_page():
 
@@ -596,258 +590,104 @@ def chat_page():
                 # Initialize chat history for the new thread
                 st.session_state[f"messages_{new_thread_id}"] =  [initial_bot_message] if initial_bot_message else []
 
-            # Sidebar content
-            # -------------------------------------------
-            with st.container():
-                if 'horizontal_panel_collapsed' not in st.session_state or not st.session_state.horizontal_panel_collapsed:
-                    colA, colB = st.columns([1, 2])
-                    show_chat_options = True
+            # (File uploader and active chat session UI are provided by Genesis.py.)
+            # Retrieve the file uploader value from the main sidebar (set in Genesis.py)
+            uploaded_file = st.session_state.get("uploaded_file_main", None)
+
+            # Ensure selected_bot_name and selected_thread_id are defined from session state
+            selected_bot_name = st.session_state.get("current_bot", "")
+            selected_thread_id = st.session_state.get("current_thread_id", None)
+
+            # Define selected_bot_id based on the available bot details.
+            try:
+                # Assume bot_names and bot_ids are defined earlier from get_bot_details()
+                if selected_bot_name in bot_names:
+                    selected_bot_index = bot_names.index(selected_bot_name)
+                    selected_bot_id = bot_ids[selected_bot_index]
                 else:
-                    colB = colA = st.container()
-                    show_chat_options = False
-                    
-                if show_chat_options:
-                    with colA:
-                        _, b2 = st.columns([4,1])
-                        with b2:
-                            st.button("X", on_click=toggle_horizontal_panel, key="toggle_chat_options")
-                        if len(bot_names) > 0:
-                        #      st.markdown("### Start a New Chat")
-                            with st.form(key='new_chat_form'):
-                                selected_bot = st.selectbox("Start new chat with:", available_bots)
-                                st.write('   ')
-                                col1, col2 = st.columns([2, 1])
-                                with col1:
-                                    st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-                                    start_chat = st.form_submit_button(" ⚡ Start New Chat")
-                                with col2:
-                                    st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-                                    refresh = st.form_submit_button("🔄 Bots")
-                            if refresh:
-                                get_bot_details.clear()
-                                get_llm_configuration.clear()
-                                st.rerun()
-                            if start_chat:
-                                # Create a new chat session for the selected bot
-                                new_thread_id = str(uuid.uuid4())
-                                new_session = f"🤖 {selected_bot} ({new_thread_id[:8]})"
+                    selected_bot_index = 0
+                    selected_bot_id = bot_ids[0] if bot_ids and len(bot_ids) > 0 else None
+            except Exception as e:
+                selected_bot_id = None
 
-                                # Add the new session to active_sessions
-                                if 'active_sessions' not in st.session_state:
-                                    st.session_state.active_sessions = []
-                                if new_session not in st.session_state.active_sessions:
-                                    st.session_state.active_sessions.append(new_session)
-                                    st.session_state.new_session_added = True
-
-                                # Update the current thread ID and bot
-                                st.session_state["current_thread_id"] = new_thread_id
-                                st.session_state["current_bot"] = selected_bot
-
-                                st.session_state.current_session = new_session
-
-                                # Initialize chat history for the new thread
-                                st.session_state[f"messages_{new_thread_id}"] = []
-
-                                # Set the flag to trigger a rerun in main.py
-                                st.session_state.new_session_added = True
-
-                                # Trigger a rerun to update the UI
-                                st.rerun()
-                    
-                    #with colB:
-                        if not st.session_state.NativeMode:
-                            uploaded_file = st.file_uploader("FILE UPLOADER", key=st.session_state['uploader_key'])
-                        else:
-                            uploaded_file = None
-
-                    #with colC:
-                        st.markdown("#### Active Chat Sessions:")
-
-                        # Initialize active_sessions in session state if it doesn't exist
-                        if 'active_sessions' not in st.session_state:
-                            st.session_state.active_sessions = []
-
-                        # Display active sessions as clickable links
-                        if st.session_state.active_sessions:
-
-                            st.markdown(
-                                """
-                                <style>
-                                .element-container:has(style){
-                                    display: none;
-                                }
-                                #button-after {
-                                    display: none;
-                                }
-                                .element-container:has(#button-after) {
-                                    display: none;
-                                }
-                                .element-container:has(#button-after) + div button {
-                                    background: none;
-                                    border: none;
-                                    padding: 0;
-                                    font: inherit;
-                                    cursor: pointer;
-                                    outline: inherit;
-                                    color: inherit;
-                                    text-align: left;
-                                    margin: 0;
-                                    font-weight: normal;
-                                    font-size: 0.8em;
-                                    }
-                                .element-container:has(#button-after) + div button {
-                                    line-height: 0.5;
-                                    margin-top: -30px;
-                                    margin-bottom: 0px;
-                                }
-
-                                </style>
-
-                                """,
-                                unsafe_allow_html=True,
-                            )
-
-
-                            for session in st.session_state.active_sessions:
-                                bot_name, thread_id = session.split(' (')
-                                bot_name = bot_name.split('🤖 ')[1]
-                                thread_id = thread_id[:-1]  # Remove the closing parenthesis
-                                full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
-                                col1, col2 = st.columns([4, 1])
-                                with col1:
-                                #    st.write("session ", session, ' current session ',  st.session_state.get('current_session'))
-                                    session_display = f"&nbsp;&nbsp;&nbsp;⚡ {session[2:]}" if session == st.session_state.get('current_session') else f"&nbsp;&nbsp;&nbsp;{session}"
-                                    st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-                                    # Handle switching an active chat session
-                                    if st.button(session_display, key=f"btn_{thread_id}"):
-                                        st.session_state.current_bot = bot_name
-                                        st.session_state.selected_session = {
-                                            'bot_name': bot_name,
-                                            'thread_id': full_thread_id
-                                        }
-                                        st.session_state.current_session = session
-                                        st.session_state.load_history = True #unused?
-                                        st.rerun()
-                                with col2:
-                                    st.markdown('<span id="button-after"></span>', unsafe_allow_html=True)
-                                    # Handle deletion of an existing chat session
-                                    if st.button("⨂", key=f"remove_{thread_id}"):
-                                        st.session_state.active_sessions.remove(session)
-                                        if f"messages_{full_thread_id}" in st.session_state:
-                                            del st.session_state[f"messages_{full_thread_id}"]
-                                        if st.session_state.get('current_session') == session:
-                                            st.session_state.pop('current_session', None)
-                                        st.rerun()
-                        else:
-                            st.info("No active chat sessions.")
-
-                    # Ensure only one mode is active at a time
-                    # Add toggle for fast mode
-                    # Initialize fast_mode in session state if it doesn't exist
-                
-                # Check if a session is selected from the sidebar
-                if 'selected_session' in st.session_state:
-                    selected_session = st.session_state.selected_session
-                    selected_bot_name = selected_session['bot_name']
-                    selected_thread_id = selected_session['thread_id']
-                    st.session_state.current_bot = selected_bot_name
-                    st.session_state.current_thread_id = selected_thread_id
-                    del st.session_state.selected_session
-                else:
-                    selected_bot_name = st.session_state.current_bot
-                    selected_thread_id = st.session_state.get("current_thread_id")
-
-                selected_bot_index = bot_names.index(selected_bot_name)
-                selected_bot_id = bot_ids[selected_bot_index]
-
-                selected_bot_intro_prompt = (bot_intro_prompts_map[selected_bot_name]
-                                            or 'Briefly introduce yourself and suggest a next step to the user.')
-
-                llm_configuration = get_llm_configuration(selected_bot_id)
-
-                if llm_configuration != 'openai':
-                # Create the toggle and update session state when changed
-                    fast_mode = st.toggle("Fast Mode", value=False, key='fast_mode')
-
-                    if fast_mode:
-                        st.info("Using faster LLM")
-
+            # Define selected_bot_intro_prompt using the bot_intro_prompts_map if available,
+            # otherwise use a default prompt.
+            try:
+                selected_bot_intro_prompt = bot_intro_prompts_map.get(selected_bot_name,
+                    'Briefly introduce yourself and suggest a next step to the user.')
+            except Exception:
+                selected_bot_intro_prompt = 'Briefly introduce yourself and suggest a next step to the user.'
 
             # Main chat content area
             # --------------------------------------------
-            with colB:
-                if not show_chat_options:
-                    b1, _ = st.columns([1,5])
-                    with b1:
-                        st.button("⚙️", on_click=toggle_horizontal_panel, key="toggle_chat_options")
-
-                encoded_bot_avatar_image_array = None
+            encoded_bot_avatar_image_array = None
+            bot_avatar_image_url = None
+            if len(bot_names) > 0:
+                # get avatar images
                 bot_avatar_image_url = None
-                if len(bot_names) > 0:
+                if len(bot_images) > 0:
+                    selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
+                    if selected_bot_image_index >= 0:
+                        # Use the default G logo image for all bots
+                        encoded_bot_avatar_image = bot_avatar_images[0]
+                        if encoded_bot_avatar_image:
+                            encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
+                            bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
 
-                    # get avatar images
-                    bot_avatar_image_url = None
-                    if len(bot_images) > 0:
-                        selected_bot_image_index = bot_names.index(selected_bot_name) if selected_bot_name in bot_names else -1
-                        if selected_bot_image_index >= 0:
-                            # Use the default G logo image for all bots
-                            encoded_bot_avatar_image = bot_avatar_images[0]
-                            if encoded_bot_avatar_image:
-                                encoded_bot_avatar_image_bytes = base64.b64decode(encoded_bot_avatar_image)
-                                bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
+            if selected_thread_id:
+                # Initialize chat history if it doesn't exist for the current thread
+                if f"messages_{selected_thread_id}" not in st.session_state:
+                    st.session_state[f"messages_{selected_thread_id}"] = []
 
-                    if selected_thread_id:
-                        # Initialize chat history if it doesn't exist for the current thread
-                        if f"messages_{selected_thread_id}" not in st.session_state:
-                            st.session_state[f"messages_{selected_thread_id}"] = []
+                # Display chat messages from history
+                messages = st.session_state[f"messages_{selected_thread_id}"]
+                for i, message in enumerate(messages):
+                    # Skip intro prompts
+                    if message.is_intro_prompt:
+                        continue
 
-                        # Display chat messages from history
-                        messages = st.session_state[f"messages_{selected_thread_id}"]
-                        for i, message in enumerate(messages):
-                            # Skip intro prompts
-                            if message.is_intro_prompt:
-                                continue
+                    # Skip the last message if there's a pending request OR if it's a duplicate intro message
+                    if (i == len(messages)-1 and
+                        (selected_thread_id in st.session_state.session_message_uuids or
+                         (i > 0 and message.content == messages[i-1].content))):  # Check for duplicate content
+                        continue
 
-                            # Skip the last message if there's a pending request OR if it's a duplicate intro message
-                            if (i == len(messages)-1 and
-                                (selected_thread_id in st.session_state.session_message_uuids or
-                                (i > 0 and message.content == messages[i-1].content))):  # Check for duplicate content
-                                continue
+                    if message.role == "assistant" and bot_avatar_image_url is not None:
+                        with st.chat_message(message.role, avatar=bot_avatar_image_url):
+                            st.markdown(message.content, unsafe_allow_html=True)
+                    else:
+                        with st.chat_message(message.role):
+                            st.markdown(message.content, unsafe_allow_html=True)
 
-                            if message.role == "assistant" and bot_avatar_image_url is not None:
-                                with st.chat_message(message.role, avatar=bot_avatar_image_url):
-                                    st.markdown(message.content, unsafe_allow_html=True)
-                            else:
-                                with st.chat_message(message.role):
-                                    st.markdown(message.content, unsafe_allow_html=True)
+                # Check if there's a pending request for the current session
+                if selected_thread_id in st.session_state.session_message_uuids:
+                    pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
+                    handle_pending_request(selected_thread_id, pending_request_id)
 
-                        # Check if there's a pending request for the current session
-                        if selected_thread_id in st.session_state.session_message_uuids:
-                            pending_request_id = st.session_state.session_message_uuids[selected_thread_id]
-                            handle_pending_request(selected_thread_id, pending_request_id)
+                # (File uploader has been moved to the sidebar)
 
-                        # React to user input (this will append to `messages`)
-                        if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
-                            file = {}
-                            if uploaded_file:
-                                bytes_data = base64.b64encode(uploaded_file.read()).decode()
-                                st.session_state['uploader_key'] = random.randint(0, 1 << 32)
-                                file = {'filename': uploaded_file.name, 'content': bytes_data}
-                            submit_button(prompt,
-                                        st.chat_message("user"),
-                                        intro_prompt=False,
-                                        file=file)
+                # React to user input (this will append to `messages`)
+                if prompt := st.chat_input("What is up?", key=f"chat_input_{selected_thread_id}"):
+                    file = {}
+                    if uploaded_file:
+                        bytes_data = base64.b64encode(uploaded_file.read()).decode()
+                        st.session_state['uploader_key'] = random.randint(0, 1 << 32)
+                        file = {'filename': uploaded_file.name, 'content': bytes_data}
+                    submit_button(prompt,
+                                  st.chat_message("user"),
+                                  intro_prompt=False,
+                                  file=file)
 
-                        # Generate initial message and bot introduction only for sessions without an initial user prompts.
-                        intro_prompt_used = any(m.is_intro_prompt for m in messages[:4]) # dont bother checking beyond the first few messages
-                        if not intro_prompt_used:
-                            submit_button(selected_bot_intro_prompt,
-                                        st.empty(),
-                                        intro_prompt=True)
+                # Generate initial message and bot introduction only for sessions without an initial user prompts.
+                intro_prompt_used = any(m.is_intro_prompt for m in messages[:4]) # dont bother checking beyond the first few messages
+                if not intro_prompt_used:
+                    submit_button(selected_bot_intro_prompt,
+                                  st.empty(),
+                                  intro_prompt=True)
 
-      #          email_popup()
+          #          email_popup()
 
-                # Check if 'popup' exists in session state, if not, initialize it to False
+            # Check if 'popup' exists in session state, if not, initialize it to False
 
         except Exception as e:
             st.error(f"Error running Genesis GUI: {e}")

@@ -9,8 +9,10 @@ from utils import (
     upgrade_services,
 )
 from .components import config_page_header
+from .configuration import hide_sidebar
 
 def llm_config():
+    hide_sidebar()
     # Add the header with back button
     config_page_header("LLM Model & Key")
 

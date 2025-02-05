@@ -1,8 +1,24 @@
 import streamlit as st
 
+def hide_sidebar():
+    """Helper function to hide the sidebar"""
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"][aria-expanded="true"]{
+            display: none;
+        }
+        [data-testid="stSidebar"][aria-expanded="false"]{
+            display: none;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
 def configuration():
     # Set flag to hide chat elements in sidebar
     st.session_state['hide_chat_elements'] = True
+    
+    # Hide sidebar
+    hide_sidebar()
     
     # Custom CSS for dark mode styling
     st.markdown("""

@@ -7,34 +7,20 @@ def config_page_header(title: str):
     Args:
         title (str): The title of the configuration page
     """
+    # Hide sidebar on configuration pages
     st.markdown("""
         <style>
-        .config-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 2rem;
+        [data-testid="stSidebar"][aria-expanded="true"]{
+            display: none;
         }
-        
-        /* Back button styling */
-        [data-testid="baseButton-secondary"] {
-            text-align: left !important;
-            justify-content: flex-start !important;
-            padding-left: 0.5rem !important;
-            color: #FF4B4B !important;
-            font-weight: 600 !important;
-            background-color: transparent !important;
-            border: none !important;
-        }
-        
-        [data-testid="baseButton-secondary"]:hover {
-            background-color: rgba(255, 75, 75, 0.1) !important;
-            border-color: transparent !important;
+        [data-testid="stSidebar"][aria-expanded="false"]{
+            display: none;
         }
         </style>
     """, unsafe_allow_html=True)
 
     # Back button using Streamlit's button
-    if st.button("← Back to Configuration", key="back_to_config", type="secondary"):
+    if st.button("← Back to Configuration", use_container_width=True):
         st.session_state["selected_page_id"] = "configuration"
         st.session_state["radio"] = "Configuration"
         st.rerun()

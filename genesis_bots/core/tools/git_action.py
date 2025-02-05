@@ -170,8 +170,9 @@ def git_action(
     params = {k: v for k, v in params.items() if v is not None}
     return git_manager.git_action(action, **params)
 
+# Define as a list explicitly
 git_action_functions = [git_action]
 
-# Called from bot_os_tools.py to update the global list of functions
+# And make the getter function explicitly return a list
 def get_git_action_functions():
-    return git_action_functions
+    return list(git_action_functions)  # Explicitly convert to list before returning

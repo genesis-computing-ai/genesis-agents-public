@@ -69,7 +69,7 @@ def manage_artifact(
     elif action == "DELETE":
         raise NotImplementedError()  # TODO: implement this
 
-manage_artifact_functions = [manage_artifact]
+manage_artifact_functions = [manage_artifact,]
 
 
 # Called from bot_os_tools.py to update the global list of functions

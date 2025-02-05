@@ -649,7 +649,7 @@ def run_process(
         logger.info("No action specified.")
         return {"success": False, "message": "No action specified."}
 
-_run_process_functions = [run_process]
+_run_process_functions = [run_process,]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_run_process_functions():

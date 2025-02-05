@@ -242,7 +242,7 @@ def _image_analysis(
             "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}",
         }
 
-image_functions = [image_generation, _image_analysis]
+image_functions = [image_generation, _image_analysis,]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_image_functions():

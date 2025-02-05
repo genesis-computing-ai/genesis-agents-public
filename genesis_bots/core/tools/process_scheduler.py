@@ -362,7 +362,7 @@ def _get_current_time_with_timezone():
     return current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
 
-process_scheduler_functions = [process_scheduler]
+process_scheduler_functions = [process_scheduler,]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_process_scheduler_functions():

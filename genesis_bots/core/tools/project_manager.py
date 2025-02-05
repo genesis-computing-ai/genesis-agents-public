@@ -291,7 +291,7 @@ project_manager_functions = [manage_todos,
     get_project_todos,
     get_todo_dependencies,
     manage_todo_dependencies,
-    manage_project_assets]
+    manage_project_assets,]
 
 
 # Called from bot_os_tools.py to update the global list of functions

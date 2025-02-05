@@ -1488,56 +1488,58 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
        #        self.active_runs.append(thread_id)
             self.add_message(BotOsInputMessage(thread_id=thread_id, msg='Tool call completed, results', metadata=metadata), reuse_run_id=run_id)   # self.completions_runs[run_id].usage = usage
 
-         return
-        # raise('not implemented')
+            # tool_outputs and meta are needed for adding row to message_log table
+            tool_outputs = [{'tool_call_id': key, 'output': str(self.tool_completion_status[run_id][key])} for key in pending_tool_call_ids]
+            meta = metadata
+            
+      else: # self.use_assistants is True
+         run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = run_id)
+         function_details = _get_function_details(run)
 
-      run = self.client.beta.threads.runs.retrieve(thread_id = thread_id, run_id = run_id)
-      function_details = _get_function_details(run)
+         if run.status == 'requires_action':
+            parallel_tool_call_ids = [f[2] for f in function_details]
 
-      if run.status == 'requires_action':
-         parallel_tool_call_ids = [f[2] for f in function_details]
+            #  check to see if any expected tool calls are missing from completion_status
+            missing_tool_call_ids = [tool_call_id for tool_call_id in parallel_tool_call_ids if tool_call_id not in self.tool_completion_status[run.id]]
+            if missing_tool_call_ids:
+               logger.info('Error: a parallel tool call is missing form the completion status map.  Probably need to fail the run.')
+               return
 
-         #  check to see if any expected tool calls are missing from completion_status
-         missing_tool_call_ids = [tool_call_id for tool_call_id in parallel_tool_call_ids if tool_call_id not in self.tool_completion_status[run.id]]
-         if missing_tool_call_ids:
-            logger.info('Error: a parallel tool call is missing form the completion status map.  Probably need to fail the run.')
-            return
-
-         if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
-            tool_outputs = [{'tool_call_id': key, 'output': str(self.tool_completion_status[run.id][key])} for key in parallel_tool_call_ids]
+            if all(self.tool_completion_status[run.id][key] is not None for key in parallel_tool_call_ids):
+               tool_outputs = [{'tool_call_id': key, 'output': str(self.tool_completion_status[run.id][key])} for key in parallel_tool_call_ids]
+            else:
+               logger.info(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id}, not submitted, waiting for parallel tool calls")
+               return
          else:
-            logger.info(f"_submit_tool_outputs - {thread_id} {run_id} {tool_call_id}, not submitted, waiting for parallel tool calls")
+            logger.info('No tool response needed for this run, status is now ',run.status)
             return
-      else:
-         logger.info('No tool response needed for this run, status is now ',run.status)
-         return
 
     #  if any(value is None for value in self.tool_completion_status[run_id].values()):
     #     return
 
       # now package up the responses together
 
-      tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
+         tool_outputs = [{'tool_call_id': k, 'output': str(v)} for k, v in self.tool_completion_status[run_id].items()]
 
-      # Limit the output of each tool to length 800000
-      tool_outputs_limited = []
-      for tool_output in tool_outputs:
-         output_limited = tool_output['output'][:400000]
-         if len(output_limited) == 400000:
-            output_limited = output_limited + '\n!!WARNING!! LONG TOOL OUTPUT TRUNCATED.  CONSIDER CALLING WITH TOOL PARAMATERS THAT PRODUCE LESS RAW DATA.' # Truncate the output if it exceeds 400000 characters
-         tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
-      tool_outputs = tool_outputs_limited
-      # Check if the total size of tool_outputs exceeds the limit
-      total_size = sum(len(output['output']) for output in tool_outputs)
-      if total_size > 510000:
-          # If it does, alter all the tool_outputs to the error message
-          tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
-      try:
-         if BotOsAssistantOpenAI.stream_mode == True:
+         # Limit the output of each tool to length 800000
+         tool_outputs_limited = []
+         for tool_output in tool_outputs:
+            output_limited = tool_output['output'][:400000]
+            if len(output_limited) == 400000:
+               output_limited = output_limited + '\n!!WARNING!! LONG TOOL OUTPUT TRUNCATED.  CONSIDER CALLING WITH TOOL PARAMATERS THAT PRODUCE LESS RAW DATA.' # Truncate the output if it exceeds 400000 characters
+            tool_outputs_limited.append({'tool_call_id': tool_output['tool_call_id'], 'output': output_limited})
+         tool_outputs = tool_outputs_limited
+         # Check if the total size of tool_outputs exceeds the limit
+         total_size = sum(len(output['output']) for output in tool_outputs)
+         if total_size > 510000:
+            # If it does, alter all the tool_outputs to the error message
+            tool_outputs = [{'tool_call_id': output['tool_call_id'], 'output': 'Error! Total size of tool outputs too large to return to OpenAI, consider using tool paramaters that produce less raw data.'} for output in tool_outputs]
+         try:
+            if BotOsAssistantOpenAI.stream_mode == True:
 
-            meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
-            logger.info(f'{self.bot_name} openai submit_tool_outputs submitting tool outputs len={len(tool_outputs)} ')
-            run_id_to_update = run_id
+               meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
+               logger.info(f'{self.bot_name} openai submit_tool_outputs submitting tool outputs len={len(tool_outputs)} ')
+               run_id_to_update = run_id
     #        import random
     #        if random.random() < 0.33:
     #            run_id_to_update = "Zowzers!"
@@ -1549,12 +1551,12 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
      #       else:
      #          model = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 
-            with self.client.beta.threads.runs.submit_tool_outputs_stream(
-                   thread_id=thread_id,
-                   run_id=run_id_to_update,
-                   tool_outputs=tool_outputs,
-   #                model=model,
-                   event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
+               with self.client.beta.threads.runs.submit_tool_outputs_stream(
+                      thread_id=thread_id,
+                      run_id=run_id_to_update,
+                      tool_outputs=tool_outputs,
+                           #                model=model,
+                      event_handler=StreamingEventHandler(self.client, thread_id,   StreamingEventHandler.run_id_to_bot_assist[run_id],  meta, self)
                ) as stream:
              #     logger.info('.. (not) sleeping 0.0 seconds before requeing run after submit_tool_outputs...')
                 #  time.sleep(0.2)
@@ -1563,33 +1565,36 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if thread_id not in self.active_runs:
                      self.active_runs.append(thread_id)
                   stream.until_done()
-         else:
-            updated_run = self.client.beta.threads.runs.submit_tool_outputs(
-               thread_id=thread_id,
-               run_id=run_id,
-               tool_outputs=tool_outputs # type: ignore
-            )
-            logger.debug(f"_submit_tool_outputs - {updated_run}")
-            meta = updated_run.metadata
-            logger.info('...sleeping 0.1 seconds before requeing run after submit_tool_outputs...')
-            time.sleep(0.1)
-            if thread_id in self.processing_runs:
-               self.processing_runs.remove(thread_id)
-            if thread_id not in self.active_runs:
-               self.active_runs.append(thread_id)
+            else:
+               updated_run = self.client.beta.threads.runs.submit_tool_outputs(
+                  thread_id=thread_id,
+                  run_id=run_id,
+                  tool_outputs=tool_outputs # type: ignore
+               )
+               logger.debug(f"_submit_tool_outputs - {updated_run}")
+               meta = updated_run.metadata
+               logger.info('...sleeping 0.1 seconds before requeing run after submit_tool_outputs...')
+               time.sleep(0.1)
+               if thread_id in self.processing_runs:
+                  self.processing_runs.remove(thread_id)
+               if thread_id not in self.active_runs:
+                  self.active_runs.append(thread_id)
        #  if thread_id in self.processing_runs:
        #     self.processing_runs.remove(thread_id)
-         primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'),
+
+         except Exception as e:
+            logger.error(f"submit_tool_outputs - caught exception: {e}")
+            return
+
+      primary_user = json.dumps({'user_id': meta.get('user_id', 'unknown_id'),
                      'user_name': meta.get('user_name', 'unknown_name'),
                      'user_email': meta.get('user_email', 'unknown_email')})
-         for tool_output in tool_outputs:
-            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
-                                                          message_type='Tool Output', message_payload=tool_output['output'],
-                                                          message_metadata={'tool_call_id':tool_output['tool_call_id']},
-                                                          channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
-                                                          primary_user=primary_user)
-      except Exception as e:
-         logger.error(f"submit_tool_outputs - caught exception: {e}")
+      for tool_output in tool_outputs:
+        self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_id=self.bot_id, bot_name=self.bot_name, thread_id=thread_id,
+                                                      message_type='Tool Output', message_payload=tool_output['output'],
+                                                      message_metadata={'tool_call_id':tool_output['tool_call_id']},
+                                                      channel_type=meta.get("channel_type", None), channel_name=meta.get("channel", None),
+                                                      primary_user=primary_user)
 
    def _generate_callback_closure(self, run, thread, tool_call_id, function_details, metadata=None):
       def callback_closure(func_response):  # FixMe: need to break out as a generate closure so tool_call_id isn't copied

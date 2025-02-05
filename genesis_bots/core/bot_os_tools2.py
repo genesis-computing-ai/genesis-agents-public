@@ -838,8 +838,9 @@ def get_global_tools_registry():
                     module_name, func_name = import_location.rsplit('.', 1)
                     module = importlib.import_module(module_name, package="genesis_bots")
                     func = getattr(module, func_name)
-                    func_list = list(func())  # Explicitly convert to list
-
+                    result = func()
+                    # Convert result to list if it's a tuple
+                    func_list = list(result) if isinstance(result, tuple) else result
                     descs = [get_tool_func_descriptor(func) for func in func_list]
                     added_groups = {group.name for desc in descs for group in desc.groups}
                     logger.info(f"Registering {len(func_list)} tool functions for tool group(s) {added_groups} with the global tools registry")

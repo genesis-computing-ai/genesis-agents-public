@@ -56,3 +56,4 @@ snowflake-sqlalchemy
 spider-client
 openpyxl
 sqlalchemy-redshift
+sqlalchemy-bigquery

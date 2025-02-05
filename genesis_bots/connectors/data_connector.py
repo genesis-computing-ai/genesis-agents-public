@@ -1056,6 +1056,10 @@ class DatabaseConnector:
         if '://' not in conn_string:
             raise ValueError("Connection string must include protocol (e.g., postgresql://, mysql://, etc.)")
         
+        # Return unmodified connection string if not PostgreSQL
+        if not conn_string.startswith('postgresql'):
+            return conn_string
+ 
         prefix, rest = conn_string.split('://')
         if '@' in rest:
             auth, host_part = rest.split('@')

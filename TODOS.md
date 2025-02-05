@@ -2,26 +2,17 @@
 GENESIS BOT TODOS
 =================
 
-(off for now) claude/cortex: catch when token window is exceeded and compress the history
-x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots 
-x waive 20 tool call per thread limit for claude threads
+add databricks support
+better way to collect NGROK_TOKEN and reporting when its not set 
 next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
 (pr) email collector / telemetry on local vers
-better way to collect NGROK_TOKEN and reporting when its not set 
 make sure ngrok key is in place when in local mode before activating slack 
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
-x (aviv) test gxs with completion mode (w/git etc)
-x (aviv) make connection, harvest, search metadata, and query database work directly via api 
-(test) harvester on standalone snowflake connection
-(test) harvester on oracle
-x add redshift
-test/fix bigquery, databricks
-(test) axure openai, cortex on local runner via snowflake creds?
+(test) harvester snowflake, oracle, mysql, sqlite, redshift, bigquery, databricks
 dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed
 (test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
-gxs: comment handler test it out 
 
 Later:
 add an external api for email sending?
@@ -31,18 +22,27 @@ is search metadata returning the type of database?  would be useful ...  (it wou
 when nothing is harvested provide response for bot to list directly available tables, and explain that the data may not be set up to be harvested
 have search metadata return the list of any data connections as well that may not be harvested 
 harvest control, if database not found, return list of connections
-trigger immediate harvest on adding something to the harvester
-add an option on add connection to add to harvest and immediately harvest
 save connection id along with sql notes
 streamlit page to show project project
 add a database connections page to streamlit to see database connections
 test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 add code interpreter via a dedicated assistant session
 related: generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
-x (reza) files out for generate image
 (later) make sqlite sample data load from csv files vs binary
+x (reza) files out for generate image
 
 DONE:
+x add an option on add connection to add to harvest and immediately harvest
+x trigger immediate harvest on adding something to the harvester
+x gxs: comment handler test it out 
+n (off for now) claude/cortex: catch when token window is exceeded and compress the history
+x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots 
+x waive 20 tool call per thread limit for claude threads
+x (aviv) test gxs with completion mode (w/git etc)
+x (aviv) make connection, harvest, search metadata, and query database work directly via api 
+x add redshift
+x add bigquery
+x axure openai, cortex on local runner via snowflake creds?
 x make snowpark python work when you just have a regular connection to snowflake
 x trigger immediate harvest on adding something to the harvester
 x (test) harvester on mysql 

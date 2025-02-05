@@ -8,18 +8,24 @@ main_routes = Blueprint('main_routes', __name__)
 @main_routes.post("/api/messages")
 def api_message():
     logger.info(f"Flask: /api/messages: {request.json}")
+
+    msg_from = request.json["from"]["id"]
+    conv_id = request.json["conversation"]["id"]
+    msg_to = request.json["recipient"]["id"]
+    text = request.json["text"]
+
     r = {
         "type": "message",
         "from": {
-            "id": "28:c9e8c047-2a34-40a1-b28a-b162d5f5327c",
+            "id": msg_to,
             "name": "Teams TestBot"
         },
         "conversation": {
-            "id": "a:17I0kl8EkpE1O9PH5TWrzrLNwnWWcfrU7QZjKR0WSfOpzbfcAg2IaydGElSo10tVr4C7Fc6GtieTJX663WuJCc1uA83n4CSrHSgGBj5XNYLcVlJAs2ZX8DbYBPck201w-",
+            "id": conv_id,
             "name": "Convo1"
         },
         "recipient": {
-                "id": "29:1XJKJMvc5GBtc2JwZq0oj8tHZmzrQgFmB25ATiQWA85gQtHieVkKilBZ9XHoq9j7Zaqt7CZ-NJWi7me2kHTL3Bw",
+                "id": msg_from,
                 "name": "Megan Bowen"
             },
         "text": "My bot's reply",

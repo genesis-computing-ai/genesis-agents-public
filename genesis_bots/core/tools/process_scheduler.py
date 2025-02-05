@@ -89,7 +89,7 @@ def process_scheduler(
     task_details: dict = None,
     thread_id: str = None,
     history_rows: int = 10,
-) -> None:
+) -> dict:
     """
     Manages tasks in the TASKS table with actions to create, delete, or update a task."""
     import random

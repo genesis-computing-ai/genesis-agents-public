@@ -1188,7 +1188,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
     def eai_test(self, site):
         try:
-
+            azure_endpoint = "https://example.com"
             eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)

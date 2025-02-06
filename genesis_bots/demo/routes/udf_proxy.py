@@ -219,7 +219,14 @@ def get_metadata():
             result = genesis_app.db_adapter.send_test_email(email)
         elif metadata_type.startswith('get_email'):
             result = genesis_app.db_adapter.get_email()
-        elif metadata_type.startswith('check_eai_assigned'):
+        elif metadata_type.startswith('check_eai '):  # Check for site-specific EAI first
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 2:
+                site = metadata_parts[1].strip()
+            else:
+                logger.info("get_metadata - missing metadata")
+            result = genesis_app.db_adapter.eai_test(site=site)
+        elif metadata_type == 'check_eai_assigned':  # Then check for exact match
             result = genesis_app.db_adapter.check_eai_assigned()
         elif metadata_type.startswith('get_endpoints'):
             result = genesis_app.db_adapter.get_endpoints()
@@ -245,13 +252,6 @@ def get_metadata():
         elif metadata_type.startswith('logging_status'):
             status = genesis_app.db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}
-        elif metadata_type.startswith('check_eai '):
-            metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 2:
-                site = metadata_parts[1].strip()
-            else:
-                logger.info("missing metadata")
-            result = genesis_app.db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             logger.info('****get_metadata, file_name', file_name)
@@ -292,12 +292,12 @@ def get_metadata():
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 
     except Exception as e:
-        logger.info(f"***** error in metadata: {str(e)}")
+        logger.info(f"get_metadata - Error in metadata: {str(e)}")
         output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
 
     response = make_response({"data": output_rows})
     response.headers["Content-type"] = "application/json"
-    logger.debug(f"Sending response: {response.json}")
+    logger.info(f"get_metadata - Sending response: {response.json}")
     return response
 
 

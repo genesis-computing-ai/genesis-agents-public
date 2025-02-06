@@ -465,13 +465,13 @@ def check_eai_assigned(reference_name):
         st.error(f"Error checking eai assigned: {e}")
 
 def check_eai_status(site):
-    # session = get_session()
     result = False
     try:
         eai_result = get_metadata(f"check_eai {site}")
         if isinstance(eai_result, list) and len(eai_result) > 0:
-            if 'Success' in eai_result[0] and eai_result[0]['Success']==True:
-                result = True
+            # The response is a list containing a dictionary
+            # The dictionary has a 'Success' key that's a boolean
+            result = bool(eai_result[0].get('Success', False))
         return result
     except Exception as e:
         st.error(f"Error checking eai status: {e}")

@@ -1260,6 +1260,7 @@ def get_status(site):
     $$;
                 """
                 try:
+                    function_success = False
                     cursor = self.client.cursor()
                     cursor.execute(create_function_query)
 

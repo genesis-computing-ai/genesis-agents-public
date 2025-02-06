@@ -320,6 +320,10 @@ def set_metadata():
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
             result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
+        elif metadata_type.startswith('ngrok '):
+            ngrok_auth_key = metadata_type.split('ngrok ')[1].strip()
+            os.environ["NGROK_AUTH_TOKEN"] = ngrok_auth_key
+            result = {"Success": True, "Data": json.dumps({"Message": "NGROK auth token set successfully"})}
         elif metadata_type.startswith('api_config_params '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) > 3:

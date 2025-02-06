@@ -78,7 +78,7 @@ def launch_ngrok_and_update_bots(update_endpoints=False):
         ngrok_urls = start_ngrok()
 
         if update_endpoints and ngrok_urls is not False:
-            update_bot_endpoints(new_base_url=ngrok_urls[0])
+            update_bot_endpoints(new_base_url=ngrok_urls[0], runner_id=os.getenv('RUNNER_ID', 'jl-local-runner'))
 
         if ngrok_urls is not False:
             os.environ['NGROK_BASE_URL_8080'] = ngrok_urls[0]

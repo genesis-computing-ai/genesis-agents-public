@@ -6,9 +6,9 @@ claude/cortex: catch when token window is exceeded and compress the history
 (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
 x waive 20 tool call per thread limit for claude threads
 next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
-email collector / telemetry on local vers
-better way to collect NGROK_TOKEN and reporting when its not set
-make sure ngrok key is in place when in local mode before activating slack
+(pr) email collector / telemetry on local vers
+x better way to collect NGROK_TOKEN and reporting when its not set
+(mr) make sure ngrok key is in place when in local mode before activating slack
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
 x (aviv) test gxs with completion mode (w/git etc)
 (aviv) make connection, harvest, search metadata, and query database work directly via api

@@ -1148,7 +1148,7 @@ class SQLiteCursorWrapper:
             'LAST_QUERY_ID()': 'Last query ID',
             # Skip any queries involving encoded image data
             'ENCODED_IMAGE_DATA(?!.*SELECT)': 'Image data operation',
-            'APP_SHARE\.IMAGES(?!.*SELECT)': 'App share image query',
+            r'APP_SHARE\.IMAGES(?!.*SELECT)': 'App share image query',
        #     'BOT_AVATAR_IMAGE(?!.*SELECT)': 'Bot avatar update'
         }
 

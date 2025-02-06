@@ -334,7 +334,7 @@ class SchemaExplorer:
             try:
                 result_value = next(iter(completion_result[0].values()))
                 if result_value:
-                    result_value = str(result_value).replace("\`\`\`","'''")
+                    result_value = str(result_value).replace(r"\`\`\`","'''")
                     # logger.info(f"Result value: {result_value}")
             except:
                 logger.info('Cortext complete didnt work')

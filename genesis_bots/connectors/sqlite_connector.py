@@ -2763,7 +2763,7 @@ class SqliteConnector(DatabaseConnector):
 
             # Replace occurrences of triple backticks with triple single quotes in sample data
             sample_data = [
-                {key: (value.replace("```", "\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
+                {key: (value.replace("```", r"\`\`\`") if isinstance(value, str) else value) for key, value in row.items()}
                 for row in sample_data
             ]
         except Exception as e:
@@ -4161,7 +4161,7 @@ class SqliteConnector(DatabaseConnector):
         }
 
         # Use the provided query or a default one if not provided
-        prompt = query if query else "What’s in this image?"
+        prompt = query if query else "What's in this image?"
 
         openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 

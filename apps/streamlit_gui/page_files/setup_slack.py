@@ -8,6 +8,7 @@ from utils import (
     upgrade_services,
     get_metadata,
     set_metadata,
+    get_ngrok_tokens,
 )
 from .components import config_page_header
 
@@ -122,11 +123,14 @@ def setup_slack():
             st.write("2. Copy your auth token from the dashboard") 
             st.write("3. Paste it below and click Update")
             
-            ngrok_auth_key = st.text_input("Add NGROK Auth Key")
+            # Get existing ngrok tokens
+            existing_tokens = get_ngrok_tokens()
+            existing_key = existing_tokens.get('ngrok_auth_token', '') if isinstance(existing_tokens, dict) else ''
+            ngrok_auth_key = st.text_input("Add NGROK Auth Key", value=existing_key)
 
             if st.button("Update NGROK Auth Key"):
                 response = set_metadata(f"ngrok {ngrok_auth_key}")
-                if isinstance(response, dict) and response.get('Message') == "NGROK auth token set successfully":
-                    st.success("NGROK auth key updated successfully!")
+                if isinstance(response, dict) and 'NGROK auth token set successfully' in response.get('Message', ''):
+                    st.success(response.get('Message'))
                 else:
                     st.error(f"Failed to update NGROK auth key: {response}")

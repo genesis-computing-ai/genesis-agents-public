@@ -323,7 +323,22 @@ def set_metadata():
         elif metadata_type.startswith('ngrok '):
             ngrok_auth_key = metadata_type.split('ngrok ')[1].strip()
             os.environ["NGROK_AUTH_TOKEN"] = ngrok_auth_key
-            result = {"Success": True, "Data": json.dumps({"Message": "NGROK auth token set successfully"})}
+            
+            # Store the token in Snowflake using db_set_ngrok_auth_token
+            db_response = genesis_app.db_adapter.db_set_ngrok_auth_token(
+                ngrok_auth_token=ngrok_auth_key,
+                ngrok_use_domain='N',
+                ngrok_domain='',
+                project_id=genesis_app.db_adapter.genbot_internal_project_and_schema.split('.')[0],
+                dataset_name=genesis_app.db_adapter.genbot_internal_project_and_schema.split('.')[1]
+            )
+            if not db_response:
+                result = {"Success": False, "Data": json.dumps({"Message": "Failed to store NGROK token in database"})}
+            else:
+                # Start ngrok with the new token
+                ngrok_active = genesis_app.run_ngrok()
+                message = "NGROK auth token set successfully and ngrok " + ("activated" if ngrok_active else "failed to activate")
+                result = {"Success": True, "Data": json.dumps({"Message": message})}
         elif metadata_type.startswith('api_config_params '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) > 3:
@@ -459,7 +474,6 @@ def get_ngrok_tokens():
             "ngrok_auth_token": ngrok_auth_token_display,
             "ngrok_use_domain": ngrok_use_domain,
             "ngrok_domain": ngrok_domain,
-            "ngrok_active_flag": ngrok_active,
         }
     except Exception as e:
         response = {

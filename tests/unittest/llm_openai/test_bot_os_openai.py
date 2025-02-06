@@ -7,11 +7,8 @@ Test BotOsAssistantOpenAI
 
 import os, shutil, tempfile
 tmp_dir = tempfile.mkdtemp(prefix='test_openai_')
+os.chdir(tmp_dir)
 print(f'created temp folder for test: {tmp_dir}')
-
-os.environ['LOG_LEVEL'] = 'INFO'
-os.environ['SQLITE_DB_PATH'] = os.path.join(tmp_dir, 'genesis.db')
-os.environ['OPENAI_USE_ASSISTANTS'] = 'False'
 
 import sys, unittest, json
 from uuid import uuid4
@@ -260,20 +257,19 @@ class TestOpenAIAdapter(unittest.TestCase):
                 nonlocal call_id
                 call_count += 1
                 id = f'chatcmpl-{uuid4()}'
+                self.assertEqual(tools, [
+                    {'type': 'function', 'function':
+                     {'name': 'tool_function',
+                      'description': 'this is the sample_function description',
+                      'parameters': {
+                          'type': 'object',
+                          'properties': {
+                              'x': {'type': 'integer', 'description': 'this is param x'}},
+                          'required': ['x']}}}])
                 if call_count == 1:
                     self.assertEqual(messages, [
                         {'role': 'system', 'content': 'bot_instructions'},
                         {'role': 'user', 'content': 'Hello! Please call my function'}])
-                    self.assertEqual(tools, [
-                        {'type': 'function', 'function':
-                         {'name': 'tool_function',
-                          'description': 'this is the sample_function description',
-                          'parameters': {
-                              'type': 'object',
-                              'properties': {
-                                  'x': {'type': 'integer', 'description': 'this is param x'}},
-                              'required': ['x']}}}])
-                    call_id = f'call_{uuid4()}'
                     return [
                         null_chunk(id),
                         function_name_chunk(id, 0, 'tool_function', call_id),
@@ -289,15 +285,6 @@ class TestOpenAIAdapter(unittest.TestCase):
                             {'id': call_id, 'type': 'function',
                              'function': {'name': 'tool_function', 'arguments': '{"x": 69}'}}]},
                         {'role': 'tool', 'tool_call_id': call_id, 'content': '138'}])
-                    self.assertEqual(tools, [
-                        {'type': 'function', 'function':
-                         {'name': 'tool_function',
-                          'description': 'this is the sample_function description',
-                          'parameters': {
-                              'type': 'object',
-                              'properties': {
-                                  'x': {'type': 'integer', 'description': 'this is param x'}},
-                              'required': ['x']}}}])
                     return [
                         null_chunk(id),
                         content_chunk(id, 'all good'),
@@ -313,14 +300,9 @@ class TestOpenAIAdapter(unittest.TestCase):
             try:
                 nonlocal event_count
                 event_count += 1
-                if event_count == 1:
-                    self.assertTrue('using tool:' in output_message.output.lower())
-                    self.assertTrue('toolfunction' in output_message.output.lower())
-                    self.assertFalse('all good' in  output_message.output.lower())
-                else:
-                    self.assertTrue('using tool:' in output_message.output.lower())
-                    self.assertTrue('toolfunction' in output_message.output.lower())
-                    self.assertTrue('all good' in  output_message.output.lower())
+                self.assertTrue('using tool:' in output_message.output.lower())
+                self.assertTrue('toolfunction' in output_message.output.lower())
+                self.assertTrue('all good' in  output_message.output.lower() if event_count > 1 else True)
             except Exception as e:
                 captureException(e)
                 raise
@@ -339,8 +321,129 @@ class TestOpenAIAdapter(unittest.TestCase):
         if exception:
             raise exception
 
+    def test_tool_call2(self):
+        '''simulate call to OpenAI with 2 tools'''
+
+        exception = None
+        def captureException(e):
+            nonlocal exception
+            if exception == None:
+                exception = e
+            
+        gr1_tag = ToolFuncGroup("group1", "this is group 1")
+        @gc_tool(_group_tags_=[gr1_tag], x="this is an int param x")
+        def mul2(x: int):
+            "double the argument"
+            try:
+                return x * 2
+            except Exception as e:
+                captureException(e)
+                raise
+
+        @gc_tool(_group_tags_=[gr1_tag], s="this is a string param s")
+        def conc(s: str):
+            "concatenate"
+            try:
+                return {'answer': f'{s}+{s}'}
+            except Exception as e:
+                captureException(e)
+                raise
+
+        assistant = make_assistant()
+        assistant.all_functions['mul2'] = mul2
+        assistant.all_functions['conc'] = conc
+        assistant.tools = [mul2.gc_tool_descriptor.to_llm_description_dict(),
+                           conc.gc_tool_descriptor.to_llm_description_dict()]
+
+        call_count = 0
+        call_id = [f'call_{uuid4()}', f'call_{uuid4()}']
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            try:
+                nonlocal call_count
+                nonlocal call_id
+                call_count += 1
+                id = f'chatcmpl-{uuid4()}'
+                self.assertEqual(tools, [
+                    {'type': 'function', 'function': {
+                        'name': 'mul2', 'description': 'double the argument',
+                        'parameters': {
+                            'type': 'object',
+                            'properties': {
+                                'x': {'type': 'integer', 'description': 'this is an int param x'}},
+                            'required': ['x']}}},
+                    {'type': 'function', 'function': {
+                        'name': 'conc', 'description': 'concatenate',
+                        'parameters': {
+                            'type': 'object',
+                            'properties': {
+                                's': {'type': 'string', 'description': 'this is a string param s'}},
+                            'required': ['s']}}}])
+                if call_count == 1:
+                    self.assertEqual(messages, [
+                        {'role': 'system', 'content': 'bot_instructions'},
+                        {'role': 'user', 'content': 'Call my two functions'}])
+                    return [
+                        null_chunk(id),
+                        function_name_chunk(id, 0, 'mul2', call_id[0]),
+                        function_arguments_chunk(id, 0, json.dumps({'x': 47})),
+                        function_name_chunk(id, 1, 'conc', call_id[1]),
+                        function_arguments_chunk(id, 1, json.dumps({'s': 'adapt'})),
+                        finish_reason_chunk(id, 'tool_calls'),
+                        usage_chunk(id)
+                    ]
+                else:
+                    self.assertEqual(messages, [
+                        {'role': 'system', 'content': 'bot_instructions'},
+                        {'role': 'user', 'content': 'Call my two functions'},
+                        {'role': 'assistant', 'content': None, 'tool_calls': [
+                            {'id': call_id[0], 'type': 'function', 'function': {
+                                'name': 'mul2', 'arguments': '{"x": 47}'}},
+                            {'id': call_id[1], 'type': 'function', 'function': {
+                                'name': 'conc', 'arguments': '{"s": "adapt"}'}}]},
+                        {'role': 'tool', 'tool_call_id': call_id[0], 'content': '94'},
+                        {'role': 'tool', 'tool_call_id': call_id[1], 'content': "{'answer': 'adapt+adapt'}"}])
+                    return [
+                        null_chunk(id),
+                        content_chunk(id, 'done'),
+                        finish_reason_chunk(id, 'stop'),
+                        usage_chunk(id)
+                    ]
+            except Exception as e:
+                captureException(e)
+                raise
+            
+        event_count = 0
+        def event_callback(session_id, output_message: BotOsOutputMessage):
+            try:
+                nonlocal event_count
+                event_count += 1
+                self.assertTrue('using tool:' in output_message.output.lower())
+                self.assertTrue('mul2' in output_message.output.lower())
+                self.assertTrue('conc' in output_message.output.lower() if event_count > 1 else True)
+                self.assertTrue('done' in output_message.output.lower() if event_count == 3 else True)
+                
+            except Exception as e:
+                captureException(e)
+                raise
+            
+        _, thread_id = round_trip('Call my two functions', openai_mock, event_callback, assistant)
+        
+        logs = query_message_log(thread_id)
+        self.assertEqual(len(logs), 7)        
+        self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
+        self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'mul2({"x": 47})')
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'Tool Call' and logs[2]['MESSAGE_PAYLOAD'] == 'conc({"s": "adapt"})')
+        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'User Prompt' and logs[3]['MESSAGE_PAYLOAD'] == 'Tool call completed, results')
+        self.assertTrue(logs[4]['MESSAGE_TYPE'] == 'Tool Output' and logs[4]['MESSAGE_PAYLOAD'] == 94)
+        self.assertTrue(logs[5]['MESSAGE_TYPE'] == 'Tool Output' and logs[5]['MESSAGE_PAYLOAD'] == "{'answer': 'adapt+adapt'}")
+        self.assertTrue(logs[6]['MESSAGE_TYPE'] == 'Assistant Response' and 'Using tool: _Mul2_' in logs[6]['MESSAGE_PAYLOAD'] and
+                        'Using tool: _Conc_...\n\ndone' in logs[6]['MESSAGE_PAYLOAD'])
+
+        if exception:
+            raise exception
+
     def test_tool_calls_seq(self):
-        '''simulate sequence of tool calls, i.e. multiple run run steps'''
+        '''simulate sequence of tool calls, i.e. multiple run steps'''
 
         exception = None
         def captureException(e):

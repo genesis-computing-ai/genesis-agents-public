@@ -44,13 +44,13 @@ def start_ngrok():
             
             # If we don't have both tunnels, create new ones
             initial_tunnel = ngrok.connect(
-                addr="8080",
+                addr="http://localhost:8080",
                 proto="http",
                 name="web-tunnel"
             )
             
             listener_3978 = ngrok.connect(
-                addr="3978",
+                addr="http://localhost:3978",
                 proto="http",
                 name="bot-tunnel"
             )

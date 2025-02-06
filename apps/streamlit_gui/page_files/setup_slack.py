@@ -13,7 +13,11 @@ from .components import config_page_header
 
 def setup_slack():
     # Add the header with back button
-    config_page_header("Setup Slack Connection")
+    # Check if in native mode
+    if st.session_state.get("NativeMode", True):
+        config_page_header("Setup Slack Connection")
+    else:
+        config_page_header("Setup Slack and ngrok Connections")
 
     # Initialize session state variables
     st.session_state.setdefault("slack_eai_available", False)
@@ -51,7 +55,12 @@ def setup_slack():
         st.warning("Slack Connector is not active. Please complete the form below to activate it.")
 
     # Display page title and description
-    st.write("Configure your Slack integration settings below:")
+    if st.session_state.get("NativeMode", True):
+        st.write("Configure your Slack integration settings below:")
+    else:
+        st.write("Configure your Slack and ngrok integration settings below - Slack allows your bots to communicate through channels while ngrok creates the required secure tunnel for Slack to send messages to your bots.")
+
+    st.write("---")  # Add a visual separator
 
     if not st.session_state.slack_eai_available and st.session_state.get("NativeMode", False) == True:
         if st.button("Assign EAI to Genesis", key="assigneai"):
@@ -64,7 +73,12 @@ def setup_slack():
             else:
                 st.error("No EAI reference set.")
     else:
-        st.write("Go to [Slack Apps](https://api.slack.com/apps) and create an App Config Refresh Token. Paste it below and press **Update**.")
+        st.subheader("Slack Configuration")
+        st.write("1. Go to [Slack Apps API](https://api.slack.com/apps)")
+        st.write("2. Scroll down to \"Your App Configuration Tokens\"") 
+        st.write("3. Press \"Generate Token\" to create Slack tokens")
+        st.write("4. Press \"Copy\" on your \"Refresh Token\"")
+        st.write("5. Paste the token below and press **Update**")
 
         if tok == "...":
             tok = ""
@@ -101,7 +115,15 @@ def setup_slack():
         # NGROK section for non-NativeMode deployments
         if st.session_state.get("NativeMode", False) == False:
             st.write("---")  # Add a visual separator
+
+            st.subheader("NGROK Configuration")
+            st.write("Go to [NGROK Auth Token Page](https://dashboard.ngrok.com/get-started/your-authtoken) to get a free NGROK auth token. This token allows Slack to securely communicate with your local Genesis deployment for bot activation.")
+            st.write("1. Create a free NGROK account if you don't have one")
+            st.write("2. Copy your auth token from the dashboard") 
+            st.write("3. Paste it below and click Update")
+            
             ngrok_auth_key = st.text_input("Add NGROK Auth Key")
+
             if st.button("Update NGROK Auth Key"):
                 response = set_metadata(f"ngrok {ngrok_auth_key}")
                 if isinstance(response, dict) and response.get('Message') == "NGROK auth token set successfully":

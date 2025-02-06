@@ -1231,7 +1231,7 @@ def make_baby_bot(
 
                 ngrok_base_url = os.getenv('NGROK_BASE_URL')
                 if not ngrok_base_url and ep == None:
-                    raise ValueError("The NGROK_BASE_URL environment variable is missing or empty, and no Snowflake SCPS endpoing is available for routing activation requests.")
+                    return _make_retval(False, error_msg="NGROK is not configured. Please configure NGROK via the Genesis Configuration GUI on the Setup Slack Connection page before activating bots on Slack.")
 
                 if ep:
                     request_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}"

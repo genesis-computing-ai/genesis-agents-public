@@ -137,13 +137,21 @@ def configuration():
     config_options = [
         ("llm_config", "LLM Model & Key"),
         ("setup_slack", "Setup Slack Connection"),
+        ("bot_config", "Bot Configuration"),
    
     ]
     
+    config_options.extend([
+        ("db_harvester", "Harvester Status"),
+        ("config_jira", "Setup Jira API Params"),
+        ("config_web_access", "Setup WebAccess API Params"),
+        ("config_g_sheets", "Setup Google Workspace API"),
+    ])
+
     # Conditionally add options based on state
     if st.session_state.get("data_source") == "snowflake":
         config_options.append(("config_email", "Setup Email Integration"))
-    
+
     if st.session_state.get("NativeMode"):
         config_options.extend([
             ("config_wh", "Setup Custom Warehouse"),
@@ -154,13 +162,6 @@ def configuration():
             ("show_server_logs", "Server Logs"),
         ])
     
-    config_options.extend([
-        ("config_jira", "Setup Jira API Params"),
-        ("config_web_access", "Setup WebAccess API Params"),
-        ("config_g_sheets", "Setup Google Workspace API"),
-        ("db_harvester", "Harvester Status"),
-        ("bot_config", "Bot Configuration"),
-    ])
 
     # Display options
     for page_id, display_name in config_options:

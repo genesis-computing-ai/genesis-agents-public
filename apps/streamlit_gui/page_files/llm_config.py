@@ -106,12 +106,19 @@ def display_setup_messages(bot_details, active_llm_type, llm_types):
     elif active_llm_type:
         st.success(f"You already have an LLM active: **{active_llm_type}**. You can change it below.")
   #  st.header("LLM Model & API Key Setup")
-    st.write(
-        "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. "
-        "To add or update a key for these models, enter it below. If you have not yet assigned "
-        "the External Access Integration to Genesis, click the Assign EAI to Genesis button and "
-        "then you can enter your LLM Key."
-    )
+    if st.session_state.get("NativeMode", False) == False:
+        st.write(
+            "Genesis Bots use OpenAI LLM models to operate. Please choose your OpenAI provider "
+            "(OpenAI or Azure OpenAI) and API key. If you need an OpenAI API key, you can get one at "
+            "[OpenAI's website](https://platform.openai.com/api-keys)."
+        )
+    else:
+        st.write(
+            "Genesis Bots use LLM models to operate. You can choose between OpenAI, Azure OpenAI, "
+            "and Snowflake Cortex models. To add or update a key for OpenAI or Azure OpenAI, enter it below. "
+            "For Snowflake Cortex, you'll need to assign the External Access Integration (EAI) to Genesis "
+            "by clicking the 'Assign EAI to Genesis' button before entering your key."
+        )
     if llm_types:
         st.markdown("**Currently Stored LLMs**")
         st.markdown(

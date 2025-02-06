@@ -429,16 +429,22 @@ class SPCSServerProxy(GenesisServerProxyBase):
                           ) -> Response:
         if not endpoint_name.startswith('/'):
             endpoint_name = '/' + endpoint_name
-        # TODO: respect the content_type and extra_headers - add them to the UDF signature. For now we are not using extra headers and always use JSON as content_type.
         sql = f"select {self._genesis_db}.{self._genesis_schema}.ENDPOINT_ROUTER(:op_name, :endpoint_name, :payload)"
         try:
             with self._engine.connect() as conn:
-                rowset = conn.execute(sqla.text(sql), parameters={"op_name": op_name, "endpoint_name": endpoint_name, "payload": payload})
+                rowset = conn.execute(
+                    sqla.text(sql), 
+                    {
+                        "op_name": op_name,
+                        "endpoint_name": endpoint_name,
+                        "payload": payload
+                    }
+                )
                 row = rowset.fetchone()
             if row is None:
                 result = {} # empty response
             else:
-                result = list(row)[0] # the response is a single row with a single column (contains the JSON string response from the target endpoint)
+                result = list(row)[0]
         except Exception as e:
             raise RuntimeError(f"Failed to execute the ENDPOINT_ROUTER UDF: {str(e)}")
         resp = requests.Response()

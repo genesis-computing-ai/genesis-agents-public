@@ -57,6 +57,7 @@ def launch_ngrok_and_update_bots(update_endpoints=False):
 
         if ngrok_urls is not False:
             os.environ['NGROK_BASE_URL_8080'] = ngrok_urls[0]
+            os.environ['NGROK_BASE_URL'] = ngrok_urls[0]
             os.environ['NGROK_BASE_URL_3978'] = ngrok_urls[1]
 
         if ngrok_urls == False:

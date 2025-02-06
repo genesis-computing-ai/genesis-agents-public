@@ -106,19 +106,16 @@ def set_initial_chat_sesssion_data(bot_name, initial_prompt, initial_message):
 
     This function is used to initialize the chat session with a specific bot,
     an initial prompt, and an initial bot message.
-
-    Args:
-        bot_name (str): The name of the bot to start the session with.
-        initial_prompt (str): The initial prompt to be used in the session.
-        initial_message (str): The initial message to be displayed in the chat as a bot message.
     """
     if initial_message:
-        # convert this into our message structure
-        initial_message = ChatMessage(role="assistant", content=initial_message)
-
-    st.session_state.initial_chat_session_data = dict(bot_name=bot_name,
-                                                      initial_prompt=initial_prompt,
-                                                      initial_message=initial_message)
+        # Mark the initial welcome message as an intro prompt so
+        # that later the system knows an introductory message is already present.
+        initial_message = ChatMessage(role="assistant", content=initial_message, is_intro_prompt=True)
+    st.session_state.initial_chat_session_data = dict(
+        bot_name=bot_name,
+        initial_prompt=initial_prompt,
+        initial_message=initial_message
+    )
 
 
 def chat_page():
@@ -555,20 +552,16 @@ def chat_page():
                 initial_bot_message = None
                 initial_chat_session_data = st.session_state.get('initial_chat_session_data')
                 if initial_chat_session_data:
-                    # first, use the bot name in the initial session data, if it is valid
-                    # (initial session data is 'best effort' since name could have changed)
+                    # first, use the bot name in the initial session data (if valid)
                     initial_bot_name = initial_chat_session_data.get('bot_name')
-                    if initial_bot_name is None:
-                        # there was no initial bot name, or we used it already or we got an invalid initial bot name. Silently ignore
-                        pass
-                    else:
-                        # override the initial prompt, if provided
+                    if initial_bot_name is not None:
+                        # override the initial prompt if provided
                         intro_prompt = initial_chat_session_data.get('initial_prompt')
                         if intro_prompt:
                             bot_intro_prompts_map[initial_bot_name] = intro_prompt
-                        # set initial bot message, if provided
+                        # set initial bot message, if provided – and mark it as an intro
                         initial_bot_message = initial_chat_session_data.get('initial_message')
-                    st.session_state.initial_chat_session_data = None # This effectively marks this initial session data as 'visited' (don't inspect again)
+                    st.session_state.initial_chat_session_data = None  # mark as visited
                 if not initial_bot_name and available_bots:
                     initial_bot_name = bot_names[0]
                 assert initial_bot_name
@@ -578,17 +571,16 @@ def chat_page():
                 st.session_state.current_thread_id = new_thread_id
                 new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
 
-                # Initialize active_sessions if it doesn't exist
+                # Initialize active_sessions if needed, then add this one.
                 if 'active_sessions' not in st.session_state:
                     st.session_state.active_sessions = []
-                # Initialize current_session
                 st.session_state.current_session = new_session
-                # Add the new session to active_sessions
                 if new_session not in st.session_state.active_sessions:
                     st.session_state.active_sessions.append(new_session)
 
-                # Initialize chat history for the new thread
-                st.session_state[f"messages_{new_thread_id}"] =  [initial_bot_message] if initial_bot_message else []
+                # If an initial message exists, store it and mark that the intro was already sent.
+                st.session_state[f"messages_{new_thread_id}"] = [initial_bot_message] if initial_bot_message else []
+                st.session_state.intro_prompt_sent = bool(initial_bot_message)
 
             # (File uploader and active chat session UI are provided by Genesis.py.)
             # Retrieve the file uploader value from the main sidebar (set in Genesis.py)
@@ -678,12 +670,18 @@ def chat_page():
                                   intro_prompt=False,
                                   file=file)
 
-                # Generate initial message and bot introduction only for sessions without an initial user prompts.
-                intro_prompt_used = any(m.is_intro_prompt for m in messages[:4]) # dont bother checking beyond the first few messages
-                if not intro_prompt_used:
-                    submit_button(selected_bot_intro_prompt,
-                                  st.empty(),
-                                  intro_prompt=True)
+                # After rendering any existing messages
+                messages = get_chat_history(selected_thread_id)
+                # Only auto-submit the intro prompt if:
+                #   1. No user message exists ‒ meaning the user hasn't spoken yet.
+                #   2. No intro prompt (assistant message marked as intro) exists.
+                if not any(m.role == "user" for m in messages) and not any(m.is_intro_prompt for m in messages):
+                    # Use a session flag to ensure we only send it once.
+                    if "intro_prompt_sent" not in st.session_state:
+                        st.session_state.intro_prompt_sent = False
+                    if not st.session_state.intro_prompt_sent:
+                        submit_button(selected_bot_intro_prompt, st.empty(), intro_prompt=True)
+                        st.session_state.intro_prompt_sent = True
 
           #          email_popup()
 

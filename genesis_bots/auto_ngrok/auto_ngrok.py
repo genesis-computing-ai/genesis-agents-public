@@ -1,6 +1,6 @@
 import os
 # from ngrok import ngrok
-from genesis_bots.bot_genesis.make_baby_bot import update_bot_endpoints, get_ngrok_auth_token
+from genesis_bots.bot_genesis.make_baby_bot import update_bot_endpoints, get_ngrok_auth_token, set_ngrok_auth_token
 from genesis_bots.core.logging_config import logger
 
 ngrok_from_env = False
@@ -21,6 +21,11 @@ def start_ngrok():
     global ngrok_from_env
 
     NGROK_AUTH_TOKEN = os.environ.get('NGROK_AUTH_TOKEN',None)
+
+    if NGROK_AUTH_TOKEN:
+        stored_token, _, _ = get_ngrok_auth_token()
+        if stored_token != NGROK_AUTH_TOKEN or stored_token is None:
+            set_ngrok_auth_token(NGROK_AUTH_TOKEN)
 
     if not NGROK_AUTH_TOKEN:
         ngrok_token, ngrok_use_domain, ngrok_domain = get_ngrok_auth_token()

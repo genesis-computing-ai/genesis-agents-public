@@ -2870,33 +2870,43 @@ def get_status(site):
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
-        # Query to merge the ngrok tokens, inserting if the row doesn't exist
-        query = f"""
-            MERGE INTO {project_id}.{dataset_name}.ngrok_tokens USING (SELECT 1 AS one) ON (runner_id = %s)
-            WHEN MATCHED THEN
-                UPDATE SET ngrok_auth_token = %s,
-                           ngrok_use_domain = %s,
-                           ngrok_domain = %s
-            WHEN NOT MATCHED THEN
-                INSERT (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
-                VALUES (%s, %s, %s, %s)
+        # First check if row exists
+        check_query = f"""
+            SELECT COUNT(*)
+            FROM {project_id}.{dataset_name}.ngrok_tokens
+            WHERE runner_id = %s
         """
 
         try:
             cursor = self.connection.cursor()
-            cursor.execute(
-                query,
-                (
-                    runner_id,
-                    ngrok_auth_token,
-                    ngrok_use_domain,
-                    ngrok_domain,
-                    runner_id,
-                    ngrok_auth_token,
-                    ngrok_use_domain,
-                    ngrok_domain,
-                ),
-            )
+            cursor.execute(check_query, (runner_id,))
+            exists = cursor.fetchone()[0] > 0
+
+            if exists:
+                # Update existing row
+                update_query = f"""
+                    UPDATE {project_id}.{dataset_name}.ngrok_tokens
+                    SET ngrok_auth_token = %s,
+                        ngrok_use_domain = %s,
+                        ngrok_domain = %s
+                    WHERE runner_id = %s
+                """
+                cursor.execute(
+                    update_query,
+                    (ngrok_auth_token, ngrok_use_domain, ngrok_domain, runner_id)
+                )
+            else:
+                # Insert new row
+                insert_query = f"""
+                    INSERT INTO {project_id}.{dataset_name}.ngrok_tokens
+                    (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
+                    VALUES (%s, %s, %s, %s)
+                """
+                cursor.execute(
+                    insert_query,
+                    (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
+                )
+
             self.connection.commit()
             affected_rows = cursor.rowcount
             cursor.close()

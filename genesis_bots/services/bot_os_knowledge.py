@@ -6,7 +6,7 @@ import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from genesis_bots.connectors.bigquery_connector import BigQueryConnector
+#from genesis_bots.connectors.bigquery_connector import BigQueryConnector
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from genesis_bots.connectors.sqlite_connector import SqliteConnector
 from genesis_bots.knowledge.knowledge_server import KnowledgeServer
@@ -23,10 +23,7 @@ logger.info('Starting Knowledge Server... ')
 
 logger.info('Starting DB connection...')
 if genesis_source == 'BigQuery':
-    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    knowledge_db_connector = BigQueryConnector(connection_info,'BigQuery') # Initialize BigQuery client
+    raise NotImplementedError("BigQueryConnector is not implemented")
 elif genesis_source ==  'Sqlite':
     knowledge_db_connector = SqliteConnector(connection_name='Sqlite')
 elif genesis_source == 'Snowflake':
@@ -97,7 +94,6 @@ llm_key_struct = get_llm_api_key(knowledge_db_connector)
 ### END LLM KEY STUFF
 logger.info('Out of LLM section .. calling ensure_table_exists -- ')
 
-# Initialize the BigQueryConnector with your connection info
 knowledge_db_connector.ensure_table_exists()
 
 print("    ┌───────┐     ")

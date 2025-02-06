@@ -10,7 +10,7 @@ from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage,
 
 from genesis_bots.core.logging_config import logger
 
-from genesis_bots.connectors.bigquery_connector import BigQueryConnector
+#from genesis_bots.connectors.bigquery_connector import BigQueryConnector
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from genesis_bots.core.bot_os import BotOsSession
 from genesis_bots.core.bot_os_corpus import URLListFileCorpus
@@ -73,13 +73,7 @@ def make_session_for_dispatch(bot_config):
     genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
 
     if genesis_source == "BigQuery":
-        credentials_path = os.getenv(
-            "GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json"
-        )
-        with open(credentials_path) as f:
-            connection_info = json.load(f)
-        # Initialize BigQuery client
-        db_adapter = BigQueryConnector(connection_info, "BigQuery")
+        raise NotImplementedError("BigQueryConnector is not implemented")
     else:  # Initialize BigQuery client
         db_adapter = SnowflakeConnector(connection_name="Snowflake")
         connection_info = {"Connection_Type": "Snowflake"}

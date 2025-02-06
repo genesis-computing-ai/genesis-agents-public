@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from genesis_bots.connectors.bigquery_connector import BigQueryConnector
+#from genesis_bots.connectors.bigquery_connector import BigQueryConnector
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from genesis_bots.connectors.sqlite_connector import SqliteConnector
 from genesis_bots.schema_explorer import SchemaExplorer
@@ -26,11 +26,7 @@ logger.info('Starting harvester... ')
 
 logger.info('Starting DB connection...')
 if genesis_source == 'BigQuery':
-    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    # Initialize BigQuery client
-    harvester_db_connector = BigQueryConnector(connection_info,'BigQuery')
+    raise NotImplementedError("BigQueryConnector is not implemented")
 elif genesis_source ==  'Sqlite':
     harvester_db_connector = SqliteConnector(connection_name='Sqlite')
 elif genesis_source == 'Snowflake':    # Initialize BigQuery client

@@ -1,6 +1,6 @@
 from annoy import AnnoyIndex
 import csv, json
-from google.cloud import bigquery
+#from google.cloud import bigquery
 from google.oauth2 import service_account
 from genesis_bots.connectors import get_global_db_connector
 import tempfile
@@ -16,13 +16,6 @@ from genesis_bots.core.logging_config import logger
 from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
 
 index_file_path = './tmp/'
-def _get_bigquery_connection():
-    # Create a BigQuery client
-    credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-    with open(credentials_path) as f:
-        connection_info = json.load(f)
-    credentials = service_account.Credentials.from_service_account_info(connection_info)
-    return bigquery.Client(credentials=credentials, project=connection_info['project_id'])
 
 
 def fetch_embeddings_from_snow(table_id):
@@ -124,65 +117,6 @@ def fetch_embeddings_from_snow(table_id):
  #   logger.info('embeddings len ',len(embeddings))
     return table_names, embeddings
 
-def fetch_embeddings_from_bq(table_id):
-    client = _get_bigquery_connection()
-
-    # Initialize variables
-    batch_size = 100
-    offset = 0
-    total_fetched = 0
-
-    # Initialize lists to store results
-    embeddings = []
-    table_names = []
-
-    # First, get the total number of rows to set up the progress bar
-    total_rows_query = f"""
-        SELECT COUNT(*) as total
-        FROM `{table_id}`
-    """
-    total_rows_result = client.query(total_rows_query).to_dataframe()
-    total_rows = total_rows_result.total[0]
-
-    with tqdm(total=total_rows, desc="Fetching embeddings") as pbar:
-        while True:
-            # Modify the query to include LIMIT and OFFSET
-            query = f"""
-                SELECT qualified_table_name, embedding
-                FROM `{table_id}`
-                LIMIT {batch_size} OFFSET {offset}
-            """
-            query_job = client.query(query)
-
-            # Temporary lists to hold batch results
-            temp_embeddings = []
-            temp_table_names = []
-
-            for row in query_job:
-                temp_embeddings.append(row.embedding)
-                temp_table_names.append(row.qualified_table_name)
-
-            # Check if the batch was empty and exit the loop if so
-            if not temp_embeddings:
-                break
-
-            # Append batch results to the main lists
-            embeddings.extend(temp_embeddings)
-            table_names.extend(temp_table_names)
-
-            # Update counters and progress bar
-            fetched = len(temp_embeddings)
-            total_fetched += fetched
-            pbar.update(fetched)
-
-            if fetched < batch_size:
-                # If less than batch_size rows were fetched, it's the last batch
-                break
-
-            # Increase the offset for the next batch
-            offset += batch_size
-
-    return table_names, embeddings
 
 
 def load_embeddings_from_csv(csv_file_path):

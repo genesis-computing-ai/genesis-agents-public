@@ -1197,7 +1197,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
   #          new_response = {"response": func_response}
   #          func_response = new_response
       if isinstance(func_response, dict) and len(func_response) == 1 and 'error' in func_response:
-          new_response = {"success": False, "error": func_response[0]['error']}
+          new_response = {"success": False, "error": func_response['error']}
           func_response = new_response
           logger.info(f'openai submit_tool_outputs list with error converted to: {func_response}')
 

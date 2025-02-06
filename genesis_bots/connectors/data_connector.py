@@ -909,7 +909,7 @@ class DatabaseConnector:
         knowledge_base_path: str = "./kb_vector",
         bot_id: str = None,
         thread_id: str = None,
-    ) -> dict:
+    ) -> list | dict:
         """
         Search database metadata for tables, columns, and other objects
 
@@ -985,7 +985,7 @@ class DatabaseConnector:
 
     def search_metadata_detailed(
         self,
-        query: str,
+        query: str = None,
         connection_id: str = None,
         scope="database_metadata",
         database=None,
@@ -1048,7 +1048,7 @@ class DatabaseConnector:
             return result
         except Exception as e:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
-            return "An error occurred while trying to find the memory."
+            return {"error": "An error occurred while trying to find the memory."}
 
     def get_connection_string(self, conn_string=None):
         """Process any database connection string"""

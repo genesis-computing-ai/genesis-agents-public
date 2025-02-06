@@ -317,7 +317,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
 
 
-    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, connection_id=None, full_ddl='false') -> list | dict:
+    def find_memory(self, query=None, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, connection_id=None, full_ddl='false') -> list | dict:
         """
         Find relevant metadata using a combination of structural filtering and vector similarity search.
 

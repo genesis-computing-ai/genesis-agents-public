@@ -1427,12 +1427,12 @@ def _data_explorer(
 
 @gc_tool(
  #   query="SQL query to execute",
-    connection_id="ID of the database connection to query",
+    connection_id="ID of the database connection",
     database="Database name",
     schema="Schema name",
     table="Table name",
-    top_n="Number of rows to return",
-    knowledge_base_path="Path to the knowledge vector base",
+   # top_n="Number of rows to return",
+  #  knowledge_base_path="Path to the knowledge vector base",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools],
@@ -1448,7 +1448,7 @@ def _get_full_table_details(
     bot_id: str = None,
     thread_id: str = None,
 ):
-    """Get full table details"""
+    """Get full table details about a specific table"""
     return DatabaseConnector().search_metadata_detailed(
         query=query,
         connection_id=connection_id,

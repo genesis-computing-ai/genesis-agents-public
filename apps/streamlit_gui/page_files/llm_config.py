@@ -14,7 +14,7 @@ from .configuration import hide_sidebar
 def llm_config():
     hide_sidebar()
     # Add the header with back button
-    config_page_header("LLM Model & Key")
+    config_page_header("LLM Model & Key Configuration")
 
     # Initialize session state variables with defaults
     session_defaults = {
@@ -105,7 +105,7 @@ def display_setup_messages(bot_details, active_llm_type, llm_types):
         time.sleep(0.3)
     elif active_llm_type:
         st.success(f"You already have an LLM active: **{active_llm_type}**. You can change it below.")
-    st.header("LLM Model & API Key Setup")
+  #  st.header("LLM Model & API Key Setup")
     st.write(
         "Genesis Bots can optionally use OpenAI LLMs, in addition to Snowflake Cortex. "
         "To add or update a key for these models, enter it below. If you have not yet assigned "

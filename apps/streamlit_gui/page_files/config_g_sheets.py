@@ -38,7 +38,7 @@ def config_g_sheets():
     if not session:
         local = True
 
-    st.title("Configure Google Worksheets API settings")
+   # st.title("Configure Google Worksheets API settings")
 
     st.markdown(
         """

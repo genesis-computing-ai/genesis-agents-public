@@ -4,7 +4,7 @@ from utils import (check_eai_status, get_references, get_session, set_metadata, 
 from .components import config_page_header
 
 def config_web_access():
-    config_page_header("Setup WebAccess API Params")
+    config_page_header("Setup WebAccess API Key Params")
     # Initialize session state variables
     if "serper_eai_available" not in st.session_state:
         st.session_state.serper_eai_available = False
@@ -14,7 +14,7 @@ def config_web_access():
         st.session_state.NativeMode = False  # Or set this based on your environment
 
     # Page Title
-    st.title("Configure WebAccess API settings")
+   # st.title("Configure WebAccess API settings")
 
     # Custom styles
     st.markdown("""

@@ -11,7 +11,7 @@ def bot_config():
         from .llm_config import llm_config
         llm_config()
     else:
-        st.title("Bot Configuration")
+       # st.title("Bot Configuration")
         st.write("Here you can see the details of your bots, and you can deploy them to Slack. To create or remove bots, ask your Eve bot to do it for you in chat.")
         bot_details.sort(key=lambda x: (not "Eve" in x["bot_name"], x["bot_name"]))
 

@@ -1,7 +1,9 @@
 import streamlit as st
 from utils import get_bot_details, get_slack_tokens, get_metadata, deploy_bot, provide_slack_level_key
+from .components import config_page_header
 
 def bot_config():
+    config_page_header("Bot Configuration")
     get_bot_details.clear()
     bot_details = get_bot_details()
 

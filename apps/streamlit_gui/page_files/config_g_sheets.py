@@ -9,8 +9,10 @@ from utils import (
 )
 from snowflake.connector import SnowflakeConnection
 # from connectors import get_global_db_connector
+from .components import config_page_header
 
 def config_g_sheets():
+    config_page_header("Setup Google Workspace API")
     # Initialize session state variables
     st.session_state.setdefault("google_eai_available", False)
     st.session_state.setdefault("eai_reference_name", "google_external_access")

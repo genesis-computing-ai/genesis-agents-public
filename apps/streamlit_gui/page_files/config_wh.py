@@ -1,8 +1,10 @@
 import streamlit as st
 from utils import ( get_session, upgrade_services, check_eai_status, get_references)
 import pandas as pd
+from .components import config_page_header
 
 def config_wh():
+    config_page_header("Setup Custom Warehouse")
 
     session = get_session()
     if not session:

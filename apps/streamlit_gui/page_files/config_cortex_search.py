@@ -2,8 +2,10 @@ import streamlit as st
 from utils import (
  get_session, get_metadata)
 import pandas as pd
+from .components import config_page_header
 
 def setup_cortex_search():
+    config_page_header("Setup Cortex Search")
 
     local=False
     session = get_session()
@@ -35,7 +37,7 @@ def setup_cortex_search():
     st.markdown('<p class="big-font">Why do we need to configure Cortex Search?</p>', unsafe_allow_html=True)
 
     st.markdown("""
-    Genesis Bots can use Cortex Search wich enables low-latency, high-quality “fuzzy” search over your Snowflake data. Cortex Search powers a broad array of search experiences for Snowflake users including Retrieval Augmented Generation (RAG) applications leveraging Large Language Models (LLMs).
+    Genesis Bots can use Cortex Search wich enables low-latency, high-quality "fuzzy" search over your Snowflake data. Cortex Search powers a broad array of search experiences for Snowflake users including Retrieval Augmented Generation (RAG) applications leveraging Large Language Models (LLMs).
     """, unsafe_allow_html=True)
 
     st.markdown('<p class="big-font">Cortex Search Configuration Steps</p>', unsafe_allow_html=True)

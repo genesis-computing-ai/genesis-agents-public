@@ -1,8 +1,10 @@
 import streamlit as st
 from utils import get_session
 import pandas as pd
+from .components import config_page_header
 
 def start_stop():
+    config_page_header("Server Stop-Start")
     st.subheader("Start / Stop Genesis Server")
 
     session = get_session()

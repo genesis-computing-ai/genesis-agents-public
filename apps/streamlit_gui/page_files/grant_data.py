@@ -1,6 +1,8 @@
 import streamlit as st
+from .components import config_page_header
 
 def grant_data():
+    config_page_header("Grant Data Access")
     import codecs
 
     st.subheader("Grant Data Access")

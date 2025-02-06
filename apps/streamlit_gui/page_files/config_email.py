@@ -3,8 +3,10 @@ from utils import (
      get_session, get_metadata
 )
 import pandas as pd
+from .components import config_page_header
 
 def setup_email():
+    config_page_header("Setup Email Integration")
 
     # local=False
     # session = get_session()

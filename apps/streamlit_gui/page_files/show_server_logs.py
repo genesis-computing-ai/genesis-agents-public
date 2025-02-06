@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 
 from utils import get_session
+from .components import config_page_header
 
 def show_server_logs():
+    config_page_header("Server Logs")
 
     st.header("Server Status and Logs")
 

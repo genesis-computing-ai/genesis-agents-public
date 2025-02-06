@@ -7,8 +7,12 @@ from utils import (
     check_eai_status,
     upgrade_services,
 )
+from .components import config_page_header
 
 def setup_slack():
+    # Add the header with back button
+    config_page_header("Setup Slack Connection")
+
     # Initialize session state variables
     st.session_state.setdefault("slack_eai_available", False)
     st.session_state.setdefault("eai_reference_name", "slack_external_access")
@@ -45,11 +49,7 @@ def setup_slack():
         st.warning("Slack Connector is not active. Please complete the form below to activate it.")
 
     # Display page title and description
-    st.title("Setup Slack Tokens")
-    st.write("""
-        By providing a Slack App Refresh Token, Genesis Bots can create, update, and remove bots from your Slack environment.
-        If you have not yet assigned the External Access Integration to Genesis, click the **Assign EAI to Genesis** button below.
-    """)
+    st.write("Configure your Slack integration settings below:")
 
     if not st.session_state.slack_eai_available and st.session_state.get("NativeMode", False) == True:
         if st.button("Assign EAI to Genesis", key="assigneai"):

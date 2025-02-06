@@ -15,15 +15,6 @@ def setup_slack():
     # Add the header with back button
     config_page_header("Setup Slack Connection")
 
-    # Initialize session state variables with defaults
-    st.session_state.setdefault("data_source", "snowflake")
-
-    # Check if Snowflake metadata or not
-    metadata_response = get_metadata('check_db_source')
-    st.session_state.data_source = "other"
-    if metadata_response == True:
-        st.session_state.data_source = "snowflake"
-
     # Initialize session state variables
     st.session_state.setdefault("slack_eai_available", False)
     st.session_state.setdefault("eai_reference_name", "slack_external_access")
@@ -107,13 +98,13 @@ def setup_slack():
                     st.success("You can now activate your bots on Slack from the Bot Configuration page.")
                     st.session_state.show_slack_config = False
 
-    # NGROK section for non-Snowflake deployments
-    if st.session_state.get("data_source", "").lower() != "snowflake":
-        st.write("---")  # Add a visual separator
-        ngrok_auth_key = st.text_input("Add NGROK Auth Key")
-        if st.button("Update NGROK Auth Key"):
-            response = set_metadata(f"ngrok {ngrok_auth_key}")
-            if response and response[0].get('Success'):
-                st.success("NGROK auth key updated successfully!")
-            else:
-                st.error("Failed to update NGROK auth key")
+        # NGROK section for non-NativeMode deployments
+        if st.session_state.get("NativeMode", False) == False:
+            st.write("---")  # Add a visual separator
+            ngrok_auth_key = st.text_input("Add NGROK Auth Key")
+            if st.button("Update NGROK Auth Key"):
+                response = set_metadata(f"ngrok {ngrok_auth_key}")
+                if isinstance(response, dict) and response.get('Message') == "NGROK auth token set successfully":
+                    st.success("NGROK auth key updated successfully!")
+                else:
+                    st.error(f"Failed to update NGROK auth key: {response}")

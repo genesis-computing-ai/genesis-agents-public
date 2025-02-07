@@ -61,11 +61,11 @@ def make_input_message(thread_id, msg) -> BotOsInputMessage:
     msg_type = 'chat_input'
     return BotOsInputMessage(thread_id, msg, files, metadata, msg_type)
 
-def round_trip(msg:str, completions_create, event_callback=None, assistant=None) -> str:
+def round_trip(msg:str, completions_create, event_callback=None, assistant=None, thread_id=None) -> str:
     '''excercise adapter cycle: add_message() followed by check_runs()'''
 
     assistant = assistant or make_assistant()
-    thread_id = f'[thread_{uuid4()}]'
+    thread_id = thread_id or f'[thread_{uuid4()}]'
     completions.register_create_mock(completions_create)
     assistant.add_message(make_input_message(thread_id, msg))
     
@@ -224,6 +224,49 @@ class TestOpenAIAdapter(unittest.TestCase):
         self.assertEqual(len(logs), 2)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'ping')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Assistant Response' and logs[1]['MESSAGE_PAYLOAD'] == 'pong')
+
+    def test_ping_pong2(self):
+        '''simulate a thread with two runs, i.e. two request-reply trips to OpenAI'''
+        thread_id = f'[thread_{uuid4()}]'
+        in_msg = ['11111', '22222']
+        out_msg = ['33333', '44444']
+
+        call_count = 0;
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            nonlocal call_count
+            call_count += 1
+            
+            if call_count == 1:
+                self.assertEqual(messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': in_msg[0]}])
+            else:
+                self.assertEqual(messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': in_msg[0]},
+                    {'role': 'assistant', 'content': out_msg[0]},
+                    {'role': 'user', 'content': in_msg[1]}])
+                
+            id = f'chatcmpl-{uuid4()}'
+            return [
+                null_chunk(id),
+                content_chunk(id, out_msg[0 if call_count == 1 else 1]),
+                finish_reason_chunk(id, 'stop'),
+                usage_chunk(id)
+            ]
+
+        response, _ = round_trip(in_msg[0], openai_mock, thread_id=thread_id)
+        self.assertEqual(response, out_msg[0])
+
+        response, _ = round_trip(in_msg[1], openai_mock, thread_id=thread_id)
+        self.assertEqual(response, out_msg[1])
+
+        logs = query_message_log(thread_id)
+        self.assertEqual(len(logs), 4)
+        self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 11111)
+        self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Assistant Response' and logs[1]['MESSAGE_PAYLOAD'] == 33333)
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'User Prompt' and logs[2]['MESSAGE_PAYLOAD'] == 22222)
+        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'Assistant Response' and logs[3]['MESSAGE_PAYLOAD'] == 44444)
 
     def test_tool_call(self):
         '''simulate call to OpenAI with a tool invocation'''

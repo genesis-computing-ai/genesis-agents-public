@@ -15,30 +15,32 @@ jobs:
       new_version: ${{ steps.bump_version.outputs.new_version }}
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+        
     - name: Get latest tag
       id: get_latest_tag
       run: |
         git fetch --tags
         latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
         echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
-      
+        
     - name: Bump version
       id: bump_version
       run: |
         latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
-        major=$(echo $latest_tag | cut -d. -f1 | tr -d 'v')
-        minor=$(echo $latest_tag | cut -d. -f2)
-        patch=$(echo $latest_tag | cut -d. -f3)
-        new_patch=$((patch + 1))
-        new_version="v$major.$minor.$new_patch"
+        # Remove 'v' prefix if it exists
+        version=${latest_tag#v}
+        # Split version into array
+        IFS='.' read -ra VERSION_PARTS <<< "$version"
+        # Increment patch version
+        ((VERSION_PARTS[2]++))
+        # Construct new version
+        new_version="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.${VERSION_PARTS[2]}"
         echo "new_version=${new_version}" >> $GITHUB_OUTPUT
         
     - name: Create tag
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -88,12 +90,12 @@ jobs:
         echo "version=${latest_tag}" >> $GITHUB_OUTPUT
       shell: bash
 
-    - name: Build Cython package
-      run: |
-        python build/build.py --version ${{ needs.version.outputs.new_version || steps.default_version.outputs.version }}
+    - name: Build package
       env:
+        PACKAGE_VERSION: ${{ needs.version.outputs.new_version && needs.version.outputs.new_version || '0.0.0' }}
         COMPILE_CYTHON: true
-      shell: bash
+      run: |
+        python -m build
 
     - name: Test installation
       run: |

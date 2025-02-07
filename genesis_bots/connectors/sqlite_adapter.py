@@ -594,10 +594,19 @@ class SQLiteCursorWrapper:
     def execute(self, query: str, params: Any = None) -> Any:
         try:
             # Replace %s with ? for SQLite
-            if type(params) == dict:
+            if isinstance(params, dict):
                 converted_query = re.sub(r'%\(([a-zA-Z0-9_]+)\)s', r':\1', query)
             else:
                 converted_query = re.sub(r'%\([a-zA-Z0-9_]*\)s|%s', '?', query)
+
+            # Ensure params is in the correct format for SQLite
+            if params is not None:
+                if not isinstance(params, (list, tuple, dict)):
+                    # Single parameter - wrap in a tuple
+                    params = (params,)
+                elif isinstance(params, list):
+                    # Convert list to tuple
+                    params = tuple(params)
 
             # Log original parameters
             logger.debug(f"Original params count: {len(params) if params else 0}")

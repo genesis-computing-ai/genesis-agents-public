@@ -3,18 +3,11 @@ GENESIS BOT TODOS
 =================
 
 claude/cortex: catch when token window is exceeded and compress the history
-(test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
-x waive 20 tool call per thread limit for claude threads
-next-> (telemetry, ngrok key, other databases, annoy refresh signal on access change etc)
 (pr) email collector / telemetry on local vers
-x better way to collect NGROK_TOKEN and reporting when its not set
-(mr) make sure ngrok key is in place when in local mode before activating slack
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
-x (aviv) test gxs with completion mode (w/git etc)
-(aviv) make connection, harvest, search metadata, and query database work directly via api
 (test) harvester on standalone snowflake connection
 (test) harvester on oracle
-test/fix redshift, bigquery, databricks
+add databricks connector
 (test) axure openai, cortex on local runner via snowflake creds?
 dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed
@@ -42,6 +35,12 @@ x (reza) files out for generate image
 (later) make sqlite sample data load from csv files vs binary
 
 DONE:
+x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
+x waive 20 tool call per thread limit for claude threads
+x (aviv) test gxs with completion mode (w/git etc)
+x make connection, harvest, search metadata, and query database work directly via api
+x better way to collect NGROK_TOKEN and reporting when its not set
+x  make sure ngrok key is in place when in local mode before activating slack
 x make snowpark python work when you just have a regular connection to snowflake
 x trigger immediate harvest on adding something to the harvester
 x (test) harvester on mysql

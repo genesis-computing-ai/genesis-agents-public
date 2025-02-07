@@ -761,7 +761,7 @@ if st.session_state.data:
 
             # Add the file uploader section
             with st.expander("Upload File", expanded=False):
-                uploaded_file = st.file_uploader("FILE UPLOADER", key="main_file_uploader")
+                uploaded_file = st.file_uploader("FILE UPLOADER", key=st.session_state['uploader_key'])
                 st.session_state["uploaded_file_main"] = uploaded_file
 
         # Always show configuration and support buttons

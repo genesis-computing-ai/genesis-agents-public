@@ -128,5 +128,5 @@ setup(
     cmdclass={'bdist_wheel': bdist_wheel},
     install_requires=required + ['ngrok', 'setuptools>=61.0.0', 'wheel>=0.37.0'],
     setup_requires=['setuptools>=61.0.0', 'wheel>=0.37.0'],
-    python_requires='>=3.8',
+    python_requires='>=3.10',
 ) 

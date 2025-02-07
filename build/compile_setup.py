@@ -18,7 +18,19 @@ def main():
         os.environ['CYTHON_PARALLEL'] = '0'
         
         # Platform-specific compiler arguments
-        extra_compile_args = ['/O2'] if platform.system() == 'Windows' else ['-O2']
+        if platform.system() == 'Windows':
+            extra_compile_args = [
+                '/O2',  # Optimization flag
+                '/wd4702',  # Suppress unreachable code warnings
+                '/wd4457'   # Suppress fallthrough warnings
+            ]
+        else:
+            # Add flags to suppress specific warnings on Unix-like systems
+            extra_compile_args = [
+                '-O2',
+                '-Wno-unreachable-code',
+                '-Wno-unreachable-code-fallthrough'
+            ]
         
         extensions = []
         compiled_files = []  # Keep track of files we've compiled

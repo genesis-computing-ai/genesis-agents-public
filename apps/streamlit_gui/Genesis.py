@@ -103,7 +103,7 @@ def is_running_from_package():
             return False
     except Exception:  # catches PackageNotFoundError from importlib.metadata
         return False
-        
+
 def render_image(filepath: str, width = None):
     """
     filepath: path to the image. Must have a valid file extension.
@@ -111,7 +111,7 @@ def render_image(filepath: str, width = None):
     """
     try:
         image_path = None
-        
+
         # List of possible paths to try
         paths_to_try = [
             # Direct path for development
@@ -121,7 +121,7 @@ def render_image(filepath: str, width = None):
             # Path relative to current file
             os.path.join(os.path.dirname(os.path.abspath(__file__)), filepath),
         ]
-        
+
         # Try package resources if we're running from package
         try:
             from importlib import resources
@@ -530,7 +530,7 @@ if st.session_state.data:
             """,
             unsafe_allow_html=True,
         )
-        
+
         # Show chat elements only if not hidden
         if not st.session_state.get('hide_chat_elements', False):
             # Show New Chat button first with custom styling (light orange background)
@@ -544,45 +544,45 @@ if st.session_state.data:
                         border-color: #FFA500 !important;
                         width: 100% !important;
                     }
-                    
+
                     /* Target the button's inner structure */
                     .new-chat-btn-container button[kind="primary"] > div {
                         display: flex !important;
                         justify-content: center !important;
                         width: 100% !important;
                     }
-                    
+
                     .new-chat-btn-container button[kind="primary"] > div > p {
                         text-align: center !important;
                         width: 100% !important;
                         margin: 0 !important;
                     }
-                    
+
                     div[data-testid="stHorizontalBlock"] button[kind="primary"]:hover,
                     .new-chat-btn-container button[kind="primary"]:hover {
                         background-color: #E67300 !important;
                         border-color: #FF8C00 !important;
                     }
-                    
+
                     /* Override any Streamlit default primary button styles */
                     button[kind="primary"] {
                         background-color: #E67300 !important;
                         border-color: #FFA500 !important;
                         width: 100% !important;
                     }
-                    
+
                     button[kind="primary"] > div {
                         display: flex !important;
                         justify-content: center !important;
                         width: 100% !important;
                     }
-                    
+
                     button[kind="primary"] > div > p {
                         text-align: center !important;
                         width: 100% !important;
                         margin: 0 !important;
                     }
-                    
+
                     button[kind="primary"]:hover {
                         background-color: #E67300 !important;
                         border-color: #FF8C00 !important;
@@ -615,7 +615,7 @@ if st.session_state.data:
                                 st.session_state.active_sessions = []
                             # Always add the new session
                             st.session_state.active_sessions = [new_session] + [
-                                s for s in st.session_state.active_sessions 
+                                s for s in st.session_state.active_sessions
                                 if s != new_session
                             ]
                             st.session_state["current_thread_id"] = new_thread_id
@@ -634,7 +634,7 @@ if st.session_state.data:
             st.markdown("#### Active Chat Sessions:")
             if 'active_sessions' not in st.session_state:
                 st.session_state.active_sessions = []
-            
+
             # Show active sessions if we have any or if a chat has been started
             if st.session_state.active_sessions or st.session_state.get("active_chat_started"):
                 st.markdown(
@@ -719,17 +719,17 @@ if st.session_state.data:
                     bot_name = bot_name.split('🤖 ')[1]
                     thread_id = thread_id[:-1]  # Remove the closing parenthesis
                     full_thread_id = next((key.split('_')[1] for key in st.session_state.keys() if key.startswith(f"messages_{thread_id}")), thread_id)
-                    
+
                     # Get the session number
                     session_num = st.session_state.session_numbers[session]
-                    
+
                     # Check if this is the current session
                     is_current = session == st.session_state.get('current_session', '')
-                    
+
                     # Create columns
                     col1, col2 = st.columns([4, 1])
                     with col1:
-                        if st.button(f"⚡ {session_num}: {bot_name}", 
+                        if st.button(f"⚡ {session_num}: {bot_name}",
                                    key=f"session_btn_{full_thread_id}",
                                    use_container_width=True,
                                    type="secondary" if not is_current else "primary"):
@@ -810,4 +810,3 @@ else:
     except Exception as e:
         st.error(f"Error accessing page {st.session_state.get('radio')}: {e}")
         st.rerun()
-

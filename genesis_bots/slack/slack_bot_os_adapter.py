@@ -51,154 +51,174 @@ class SlackBotAdapter(BotOsInputAdapter):
         self,
         token: str,
         signing_secret: str,
-        channel_id: str,
+        channel_id: str | None,
         bot_user_id: str,
         bot_name: str = "Unknown",
         slack_app_level_token=None,
         bolt_app_active=True,
         legacy_sessions=[]
     ) -> None:
-        logger.debug("SlackBotAdapter")
-        super().__init__()
-        self.slack_app = App(token=token, signing_secret=signing_secret)
-        self.channel_id = channel_id
-        # self.slack_app.event("message")(self.handle_message_events_old)
-        self.handler = SlackRequestHandler(self.slack_app)
-        self.events = deque()
-        self.bot_user_id = bot_user_id
-        self.user_info_cache = {}
-        self.bot_name = bot_name
-        self.last_message_id_dict = {}
-        self.thinking_map = {}
-        self.events_map = {}
-        self.handled_events = {}
-        self.chunk_start_map = {}
-        self.chunk_last_100 = {}
-        self.thinking_msg_overide_map = {}
-        self.in_markdown_map = {}
-        self.finalized_threads = {}
-        self.split_at = 3700  # use 3700 normally
-        self.legacy_sessions = legacy_sessions
-        self.slack_thread = None # initialized later
-        self.slack_thread_shutdown_event = None # # initialized later
-        self.slack_socket_mode_handler = None # initialized later
+        logger.info(f"Initializing SlackBotAdapter for {bot_name}")
+        try:
+            logger.debug("Calling parent class constructor")
+            super().__init__()
+            
+            logger.debug("Initializing Slack App")
+            self.slack_app = App(token=token, signing_secret=signing_secret)
+            
+            logger.debug("Setting basic attributes")
+            self.channel_id = channel_id
+            self.handler = SlackRequestHandler(self.slack_app)
+            self.events = deque()
+            self.bot_user_id = bot_user_id
+            self.user_info_cache = {}
+            self.bot_name = bot_name
+            
+            logger.debug("Initializing tracking dictionaries")
+            self.last_message_id_dict = {}
+            self.thinking_map = {}
+            self.events_map = {}
+            self.handled_events = {}
+            self.chunk_start_map = {}
+            self.chunk_last_100 = {}
+            self.thinking_msg_overide_map = {}
+            self.in_markdown_map = {}
+            self.finalized_threads = {}
+            self.split_at = 3700  # use 3700 normally
+            self.legacy_sessions = legacy_sessions
+            
+            logger.debug("Setting thread-related attributes to None")
+            self.slack_thread = None # initialized later
+            self.slack_thread_shutdown_event = None # # initialized later
+            self.slack_socket_mode_handler = None # initialized later
 
+            logger.debug("Setting up log suppressors")
+            for msg_re_to_suppress in [r"Failed to establish a connection", r"on_error invoked \(session id"]:
+                LogSupressor.add_supressor(
+                    self.slack_app.logger.name, 
+                    log_level=logging.ERROR,
+                    regexp=msg_re_to_suppress, 
+                    n=100
+                )
 
-        # Supress/summarize certain repeated connection error logs that are polluting the logs in the native app. See Issue #114.
-        for msg_re_to_suppress in [r"Failed to establish a connection", r"on_error invoked \(session id"]:
-            LogSupressor.add_supressor(self.slack_app.logger.name, log_level=logging.ERROR,
-                                       regexp=msg_re_to_suppress, n=100)
+            logger.debug("Creating events lock")
+            self.events_lock = threading.Lock()
 
-        self.events_lock = threading.Lock()
+            if slack_app_level_token and bolt_app_active:
+                logger.info("Initializing Socket Mode with app-level token")
+                try:
+                    self.slack_app_level_token = slack_app_level_token
 
-        if slack_app_level_token and bolt_app_active:
-            self.slack_app_level_token = slack_app_level_token
+                    # Initialize Slack Bolt app
+                    self.slack_socket = App(token=slack_app_level_token)
 
-            # Initialize Slack Bolt app
-            self.slack_socket = App(token=slack_app_level_token)
-
-            # Define Slack event handlers
-            @self.slack_socket.event("message")
-            def handle_message_events(ack, event, say):
-                ack()
-                # TODO, clear this after 30 min
-                if event.get("subtype", None) == "message_changed":
-                    msg = event["message"].get("text", None)
-                    thread_ts = event["message"].get("thread_ts", None)
-                    user_id = event["message"].get("user", "NO_USER")
-                    txt = msg[:30]
-                else:
-                    #              if self.handled_events.get(event['ts'],False) == True:
-                    #                  return
-                    msg = event.get("text", "")
-                    thread_ts = event.get("thread_ts", event.get("ts", ""))
-                    user_id = event.get("user", "NO_USER")
-                    txt = event.get("text", "no text")[:30]
-                #             self.handled_events[event['ts']]=True
-                if len(txt) == 50:
-                    txt = txt + "..."
-                if (
-                    msg != "no text"
-                    and msg != "_thinking..._"
-                    and msg[:10] != ":toolbox: "
-                    and len(self.events) > 100    # change to 1 for testing
-                ):
-                    logger.info(
-                        f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}'
-                    )
-                if self.bot_user_id == user_id:
-                    self.last_message_id_dict[event.get("thread_ts", None)] = event.get(
-                        "ts", None
-                    )
-                # removed  event.get("subtype","none") != 'message_changed' to allow other bots to see streams from other bots
-                # may want to ignore messages that changed but have original timestamps more than 1 few minutes ago
-                if (
-                    not msg.endswith("💬")
-                    and not msg.endswith(":speech_balloon:")
-                    and msg != "_thinking..._"
-                    and msg[:10] != ":toolbox: "
-                    and self.bot_user_id != user_id
-                    and event.get("subtype", "none") != "message_deleted"
-                ):
-                    with self.events_lock:
-                        self.events.append(event)
-                        self.events_map[event.get("ts", None)] = {
-                            "event": event,
-                            "datetime": datetime.datetime.now().isoformat(),
-                        }
-                        if random.randint(1, 100) == 1:
-                            current_time = datetime.datetime.now()
-                            thirty_minutes_ago = current_time - datetime.timedelta(
-                                minutes=30
+                    # Define Slack event handlers
+                    @self.slack_socket.event("message")
+                    def handle_message_events(ack, event, say):
+                        ack()
+                        # TODO, clear this after 30 min
+                        if event.get("subtype", None) == "message_changed":
+                            msg = event["message"].get("text", None)
+                            thread_ts = event["message"].get("thread_ts", None)
+                            user_id = event["message"].get("user", "NO_USER")
+                            txt = msg[:30]
+                        else:
+                            #              if self.handled_events.get(event['ts'],False) == True:
+                            #                  return
+                            msg = event.get("text", "")
+                            thread_ts = event.get("thread_ts", event.get("ts", ""))
+                            user_id = event.get("user", "NO_USER")
+                            txt = event.get("text", "no text")[:30]
+                        #             self.handled_events[event['ts']]=True
+                        if len(txt) == 50:
+                            txt = txt + "..."
+                        if (
+                            msg != "no text"
+                            and msg != "_thinking..._"
+                            and msg[:10] != ":toolbox: "
+                            and len(self.events) > 100    # change to 1 for testing
+                        ):
+                            logger.info(
+                                f'{self.bot_name} slack_in {event.get("type","no type")[:50]}, queue len {len(self.events)+1}'
                             )
-                            for event_ts, event_info in list(self.events_map.items()):
-                                event_time = datetime.datetime.fromisoformat(
-                                    event_info["datetime"]
-                                )
-                                if event_time < thirty_minutes_ago:
-                                    del self.events_map[event_ts]
-                            for thinking_ts, thinking_info in list(
-                                self.thinking_map.items()
-                            ):
-                                thinking_time = datetime.datetime.fromisoformat(
-                                    thinking_info["datetime"]
-                                )
-                                if thinking_time < thirty_minutes_ago:
-                                    del self.thinking_map[thinking_ts]
+                        if self.bot_user_id == user_id:
+                            self.last_message_id_dict[event.get("thread_ts", None)] = event.get(
+                                "ts", None
+                            )
+                        # removed  event.get("subtype","none") != 'message_changed' to allow other bots to see streams from other bots
+                        # may want to ignore messages that changed but have original timestamps more than 1 few minutes ago
+                        if (
+                            not msg.endswith("💬")
+                            and not msg.endswith(":speech_balloon:")
+                            and msg != "_thinking..._"
+                            and msg[:10] != ":toolbox: "
+                            and self.bot_user_id != user_id
+                            and event.get("subtype", "none") != "message_deleted"
+                        ):
+                            with self.events_lock:
+                                self.events.append(event)
+                                self.events_map[event.get("ts", None)] = {
+                                    "event": event,
+                                    "datetime": datetime.datetime.now().isoformat(),
+                                }
+                                if random.randint(1, 100) == 1:
+                                    current_time = datetime.datetime.now()
+                                    thirty_minutes_ago = current_time - datetime.timedelta(
+                                        minutes=30
+                                    )
+                                    for event_ts, event_info in list(self.events_map.items()):
+                                        event_time = datetime.datetime.fromisoformat(
+                                            event_info["datetime"]
+                                        )
+                                        if event_time < thirty_minutes_ago:
+                                            del self.events_map[event_ts]
+                                    for thinking_ts, thinking_info in list(
+                                        self.thinking_map.items()
+                                    ):
+                                        thinking_time = datetime.datetime.fromisoformat(
+                                            thinking_info["datetime"]
+                                        )
+                                        if thinking_time < thirty_minutes_ago:
+                                            del self.thinking_map[thinking_ts]
 
-            @self.slack_socket.event("app_mention")
-            def mention_handler(event, say):
-                pass
+                    @self.slack_socket.event("app_mention")
+                    def mention_handler(event, say):
+                        pass
 
-            #        logger.info(f'event type: {event.get("type","no type")}, text: {event.get("text","no text")}')
-            #        if event.get("text","no text") != '_thinking..._' and self.bot_user_id != event.get("user","NO_USER") and event.get("subtype","none") != 'message_changed':
-            #            self.events.append(event)
+                    @self.slack_socket.action({"action_id": re.compile(".*")})
+                    def handle_all_block_actions(ack, body, client):
+                        ack()
+                        logger.info(f"Block action received: {body}")
+                        event = {}
+                        event["text"] = f"Block action received: {body['actions']}"
+                        event["user"] = body["user"]["id"]
+                        event["thread_ts"] = body["message"]["thread_ts"]
+                        event["ts"] = body["message"]["ts"]
+                        event["channel_type"] = body["channel"]["name"]
+                        event["channel"] = body["channel"]["id"]
+                        with self.events_lock:
+                            self.events.append(event)
 
-            @self.slack_socket.action({"action_id": re.compile(".*")})
-            def handle_all_block_actions(ack, body, client):
-                ack()
-                logger.info(f"Block action received: {body}")
-                event = {}
-                event["text"] = f"Block action received: {body['actions']}"
-                event["user"] = body["user"]["id"]
-                event["thread_ts"] = body["message"]["thread_ts"]
-                event["ts"] = body["message"]["ts"]
-                event["channel_type"] = body["channel"]["name"]
-                event["channel"] = body["channel"]["id"]
-                with self.events_lock:
-                    self.events.append(event)
+                    def run_slack_app():
+                        # runs the event loop and blocks on an event. This emulates the .start() method
+                        self.slack_socket_mode_handler.connect()
+                        self.slack_thread_shutdown_event.wait()
 
-            def run_slack_app():
-                # runs the event loop and blocks on an event. This emulates the .start() method
-                self.slack_socket_mode_handler.connect()
-                self.slack_thread_shutdown_event.wait()
+                    # Run Slack app in a separate thread
+                    self.slack_socket_mode_handler = SocketModeHandler(self.slack_socket, slack_app_level_token)
+                    self.slack_thread = threading.Thread(target=run_slack_app)
+                    self.slack_thread_shutdown_event = threading.Event() # used for signalling the thread to terminate
+                    self.slack_thread.start()
+                    
+                except Exception as e:
+                    logger.error(f"Failed to initialize socket mode: {str(e)}", exc_info=True)
+                    raise
 
+            logger.info(f"Successfully initialized SlackBotAdapter for {bot_name}")
 
-            # Run Slack app in a separate thread
-            self.slack_socket_mode_handler = SocketModeHandler(self.slack_socket, slack_app_level_token)
-            self.slack_thread = threading.Thread(target=run_slack_app)
-            self.slack_thread_shutdown_event = threading.Event() # used for signalling the thread to terminate
-            self.slack_thread.start()
+        except Exception as e:
+            logger.error(f"Failed to initialize SlackBotAdapter: {str(e)}", exc_info=True)
+            raise
 
 
     def shutdown(self):

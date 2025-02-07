@@ -64,7 +64,7 @@ def _configure_openai_or_azure_openai(db_adapter:DatabaseConnector) -> bool:
             return True
     return False
 
-def get_legacy_sessions(bot_id: str, db_adapter) -> dict:
+def get_legacy_sessions(bot_id: str, db_adapter) -> dict | list:
     """
     Gets legacy thread_ts values for a bot by querying message_log table.
 
@@ -253,23 +253,45 @@ def make_session(
 
             # Stream mode is for interactive bot serving, False means task server
             if stream_mode:
-                logger.info(f"Making Slack adapter for bot_id: {bot_config['bot_id']} named {bot_config['bot_name']} with bot_user_id: {bot_config['bot_slack_user_id']}")
-                legacy_sessions = get_legacy_sessions(bot_config['bot_id'], db_adapter)
-                slack_adapter_local = SlackBotAdapter(
-                    token=bot_config[
-                        "slack_app_token"
-                    ],  # This should be the Slack App Token, adjust field name accordingly
-                    signing_secret=bot_config[
-                        "slack_signing_secret"
-                    ],  # Assuming the signing secret is the same for all bots, adjust if needed
-                    channel_id=bot_config[
-                        "slack_channel_id"
-                    ],  # Assuming the channel is the same for all bots, adjust if needed
-                    bot_user_id=bot_config["bot_slack_user_id"],
-                    bot_name=bot_config["bot_name"],
-                    slack_app_level_token=app_level_token,
-                    legacy_sessions = legacy_sessions
-                )  # Adjust field name if necessary
+                logger.info(f"Starting Slack adapter creation for bot_id: {bot_config['bot_id']}")
+                logger.info(f"Bot config details:")
+                logger.info(f"- Bot name: {bot_config['bot_name']}")
+                logger.info(f"- Bot user ID: {bot_config['bot_slack_user_id']}")
+                logger.info(f"- Channel ID: {bot_config['slack_channel_id']}")
+                logger.info(f"- Has app token: {'Yes' if bot_config.get('slack_app_token') else 'No'}")
+                logger.info(f"- Has signing secret: {'Yes' if bot_config.get('slack_signing_secret') else 'No'}")
+                logger.info(f"- Has app level token: {'Yes' if app_level_token else 'No'}")
+
+                try:
+                    logger.info("Fetching legacy sessions from database...")
+                    legacy_sessions = get_legacy_sessions(bot_config['bot_id'], db_adapter)
+                    logger.info(f"Found {len(legacy_sessions) if legacy_sessions else 0} legacy sessions")
+                except Exception as e:
+                    logger.error(f"Error getting legacy sessions: {str(e)}")
+                    legacy_sessions = None
+
+                try:
+                    logger.info("Creating SlackBotAdapter instance...")
+                    slack_adapter_local = SlackBotAdapter(
+                        token=bot_config[
+                            "slack_app_token"
+                        ],  # This should be the Slack App Token, adjust field name accordingly
+                        signing_secret=bot_config[
+                            "slack_signing_secret"
+                        ],  # Assuming the signing secret is the same for all bots, adjust if needed
+                        channel_id=bot_config[
+                            "slack_channel_id"
+                        ],  # Assuming the channel is the same for all bots, adjust if needed
+                        bot_user_id=bot_config["bot_slack_user_id"],
+                        bot_name=bot_config["bot_name"],
+                        slack_app_level_token=app_level_token,
+                        legacy_sessions = legacy_sessions
+                    )  # Adjust field name if necessary
+                    logger.info("Successfully created SlackBotAdapter instance")
+                except Exception as e:
+                    logger.error(f"Failed to create SlackBotAdapter: {str(e)}")
+                    logger.error(f"Error details: {type(e).__name__}")
+                    raise
             else:
                 slack_adapter_local = SlackBotAdapter(
                     token=bot_config[

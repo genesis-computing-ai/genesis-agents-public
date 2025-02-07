@@ -396,7 +396,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         output_rows = []
         for row in input_rows:
             if len(row) > 4:
-                arg = {} if isinstance(row[4], str) else row[4]
+                arg = json.loads(row[4]) if isinstance(row[4], str) else row[4]
             else:
                 arg = None
             output_rows.append([row[0], self.submit(row[1], row[2], row[3], arg)])

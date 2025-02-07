@@ -4,6 +4,7 @@ import os
 import platform
 from build_config import IGNORE_DIRS, IGNORE_FILES, PUBLIC_API_FILES
 import glob
+import subprocess
 
 # Add this import
 COMPILE_CYTHON = os.getenv('COMPILE_CYTHON', 'false').lower() == 'true'
@@ -110,7 +111,20 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "
 with open(os.path.join(root_dir, "requirements.txt")) as f:
     required = f.read().splitlines()
 
+def setup_build_environment():
+    """Ensure build environment has all necessary dependencies."""
+    print("Setting up build environment...")
+    subprocess.run(['pip', 'install', '--upgrade', 'pip'], check=True)
+    subprocess.run(['pip', 'install', 'setuptools>=40.8.0'], check=True)
+    subprocess.run(['pip', 'install', 'wheel>=0.37.0'], check=True)
+    subprocess.run(['pip', 'install', 'Cython'], check=True)
+    subprocess.run(['pip', 'install', 'numpy>=1.7.0'], check=True)
+    subprocess.run(['pip', 'install', 'cmake>=3.1.0'], check=True)
+    subprocess.run(['pip', 'install', 'annoy==1.17.3'], check=True)
+
 # Let setuptools handle version through pyproject.toml
+setup_build_environment()
+
 setup(
     name="genesis_bots",
     version=VERSION,  # Add version here
@@ -126,7 +140,12 @@ setup(
     zip_safe=False,
     include_package_data=True,
     cmdclass={'bdist_wheel': bdist_wheel},
-    install_requires=required + ['ngrok', 'setuptools>=61.0.0', 'wheel>=0.37.0'],
-    setup_requires=['setuptools>=61.0.0', 'wheel>=0.37.0'],
+    install_requires=required + ['ngrok', 'setuptools>=40.8.0', 'wheel>=0.37.0'],
+    setup_requires=[
+        'setuptools>=40.8.0',
+        'wheel>=0.37.0',
+        'numpy>=1.7.0,<3.0.0',
+        'Cython>=0.29.0'
+    ],
     python_requires='>=3.10',
 ) 

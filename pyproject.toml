@@ -5,9 +5,9 @@ requires = [
     "setuptools>=40.8.0",
     "wheel>=0.37.0",
     
-    # Core dependencies
-    "numpy>=1.7.0,<3.0.0",  # Keep this for other C extensions
-    "Cython"                # Keep this for other C extensions
+    # Core build dependencies
+    "numpy>=1.7.0,<3.0.0",  # Required for building annoy
+    "Cython>=0.29.0"        # Required for building annoy
 ]
 build-backend = "setuptools.build_meta"
 
@@ -15,11 +15,16 @@ build-backend = "setuptools.build_meta"
 name = "genesis_bots"
 dynamic = ["version"]
 description = "Genesis Bots Package"
-requires-python = ">=3.8,<=3.12.8"
+requires-python = ">=3.10"
 license = {text = "SSPL"}
 dependencies = [
+    # Core dependencies - order matters!
+    "numpy>=1.7.0,<3.0.0",  # Must be before annoy
+    "Cython>=0.29.0",       # Must be before annoy
+    "wheel>=0.37.0",        # Must be before annoy
+    "setuptools>=40.8.0",   # Must be before annoy
+    "annoy==1.17.3",        # After its build dependencies
     # From requirements.txt
-    "annoy",
     "APscheduler",
     "bs4",
     "db-dtypes",
@@ -68,8 +73,6 @@ dependencies = [
     "spider-client",
     "openpyxl",
     # Additional dependencies not in requirements.txt
-    "numpy>=1.7.0",
-    "wheel>=0.37.0",
     "ngrok"
 ]
 classifiers = [

@@ -1,4 +1,4 @@
-annoy
+annoy==1.17.3
 APscheduler
 bs4
 db-dtypes

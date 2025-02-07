@@ -21,7 +21,12 @@ class bdist_wheel(_bdist_wheel):
                 self.plat_name = f"manylinux1_{platform.machine()}"
             elif platform.system() == 'Darwin':
                 self.plat_name = f"macosx_10_9_{platform.machine()}"
-            # Windows will use default platform tag
+            elif platform.system() == 'Windows':
+                # Proper Windows platform tag
+                import sys
+                self.plat_name = f"win_{platform.machine().lower()}"
+                if sys.maxsize > 2**32:
+                    self.plat_name = 'win_amd64'
         else:
             # Platform-independent for pure Python builds
             self.root_is_pure = True

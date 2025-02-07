@@ -95,6 +95,7 @@ jobs:
         PACKAGE_VERSION: ${{ needs.version.outputs.new_version && needs.version.outputs.new_version || '0.0.0' }}
         COMPILE_CYTHON: true
       run: |
+        cd build  # Change to the directory containing setup.py
         python -m build
 
     - name: Test installation

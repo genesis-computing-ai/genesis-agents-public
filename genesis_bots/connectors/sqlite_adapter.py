@@ -5,6 +5,7 @@ from typing import Any
 from datetime import datetime
 from genesis_bots.core.logging_config import logger
 import os
+from pathlib import Path
 
 from genesis_bots.core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
@@ -331,7 +332,7 @@ class SQLiteAdapter:
                 return
             
             import json
-            input_file = "./apps/demos/demo_data/demo_harvest_results.json"
+            input_file = Path(__file__).parent.parent.parent / "apps" / "demos" / "demo_data" / "demo_harvest_results.json"
             
             # Check if file exists
             if not os.path.exists(input_file):

@@ -88,6 +88,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         if os.getenv("SNOWFLAKE_METADATA", "False").lower() == "false":
             # Use SQLite with compatibility layer
             # Set default LLM engine to openai if not specified
+            logger.warning('Using SQLite for connection...')
             if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
                 os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
             db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
@@ -100,6 +101,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             self.user = "local"
             self.role = 'default'
         else:
+            logger.warning('Using Snowflake for connection...')
             account, database, user, password, warehouse, role = [None] * 6
 
             if bot_database_creds:

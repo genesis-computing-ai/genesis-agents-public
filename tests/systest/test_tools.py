@@ -20,6 +20,7 @@ from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
 
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
+SNOWFLAKE = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"
 
 class TestTools(unittest.TestCase):
 
@@ -27,9 +28,9 @@ class TestTools(unittest.TestCase):
     def setUpClass(cls):
         """Setup shared resources for all test methods."""
         server_proxy = build_server_proxy('embedded')
-        cls.snowflake = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bots = get_available_bots(cls.client)
+        cls.db_adapter = cls.client._server_proxy.genesis_app.db_adapter
         cls.eve_id = cls.available_bots[0]
         for bot_id in cls.available_bots:
             if 'Eve' in bot_id:
@@ -75,14 +76,15 @@ class TestTools(unittest.TestCase):
         self.assertTrue(len(response['Scheduled Processes']) == 0)
 
 
-    @unittest.skipIf(lambda self: TestTools.snowflake, "Skipping test_data_connections_functions on Snowflake")
     def test_data_connections_functions(self):
         bot_id = self.eve_id
-        response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id,
-                                   query='SELECT COUNT(DISTINCT team_id) from team')
-        self.assertTrue(response['success'])
+        if not SNOWFLAKE:
+            response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id,
+                                    query='SELECT COUNT(DISTINCT team_id) from team')
+            self.assertTrue(response['success'])
 
-        response = _search_metadata(connection_id='baseball_sqlite', bot_id=bot_id,
+        connection_id = 'baseball_sqlite' if not SNOWFLAKE else 'Snowflake'
+        response = _search_metadata(connection_id=connection_id, bot_id=bot_id,
                                     query='SELECT COUNT(DISTINCT team_id) from team')
         self.assertTrue(len(response) > 0)
 
@@ -168,6 +170,16 @@ class TestTools(unittest.TestCase):
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=40)
         self.assertTrue('_ImageGeneration_' in response)
         self.assertTrue('.png' in response)
+
+    @unittest.skipIf(not SNOWFLAKE, "Skipping test_snowflake_tools on Sqlite")
+    def test_snowflake_tools(self):
+        bot_id = self.eve_id
+        thread_id = str(uuid4())
+        code = '# Calculate the sum\nresult_sum = 10 + 20\n\n# Printing the result\nresult = result_sum'
+        purpose = 'Generate and plot y = x for x from 0 to 10 using Snowpark'
+        packages = ''
+        response = self.db_adapter.run_python_code(purpose=purpose, packages=packages, bot_id=bot_id, code=code, thread_id=thread_id)
+        self.assertTrue(response == 30)
 
     @classmethod
     def tearDownClass(cls):

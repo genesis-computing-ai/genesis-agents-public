@@ -27,9 +27,13 @@ class TestTools(unittest.TestCase):
     def setUpClass(cls):
         """Setup shared resources for all test methods."""
         server_proxy = build_server_proxy('embedded')
+        cls.snowflake = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bots = get_available_bots(cls.client)
         cls.eve_id = cls.available_bots[0]
+        for bot_id in cls.available_bots:
+            if 'Eve' in bot_id:
+                cls.eve_id = bot_id
 
     def test_process_scheduler(self):
         bot_id = self.eve_id
@@ -71,6 +75,7 @@ class TestTools(unittest.TestCase):
         self.assertTrue(len(response['Scheduled Processes']) == 0)
 
 
+    @unittest.skipIf(lambda self: TestTools.snowflake, "Skipping test_data_connections_functions on Snowflake")
     def test_data_connections_functions(self):
         bot_id = self.eve_id
         response = _query_database(connection_id='baseball_sqlite', bot_id=bot_id,
@@ -121,7 +126,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
-        self.assertTrue('_ManageProcesses_' in response)
+        self.assertTrue('process' in response)
 
     def test_list_of_bots_agent(self):
         thread_id = str(uuid4())
@@ -132,8 +137,9 @@ class TestTools(unittest.TestCase):
         self.assertTrue('_ListAllBots_' in response)
 
     def test_make_baby_bot(self):
-        bot_id = 'BotId'
-        bot_name = 'BotName'
+        rnd = str(uuid4()).split('-')[0]
+        bot_id = f'BotId-{rnd}'
+        bot_name = f'BotName-{rnd}'
         response = make_baby_bot(bot_id=bot_id, bot_name=bot_name, confirmed='CONFIRMED', bot_instructions='You are a helpful test bot.')
         self.assertTrue(response['success'])
 

@@ -35,9 +35,8 @@ jobs:
         PACKAGE_VERSION: '1.0.36'
         COMPILE_CYTHON: true
       run: |
-        cd build  # Change to the directory containing setup.py
-        python build.py --version ${PACKAGE_VERSION}
-        cd ..  # Return to root directory
+        # Run build.py from the project root
+        python build/build.py --version ${PACKAGE_VERSION}
 
     - name: Test installation
       run: |

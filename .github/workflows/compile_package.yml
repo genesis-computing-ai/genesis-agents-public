@@ -4,73 +4,22 @@ env:
   COMPILE_CYTHON: true
 
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-  version:
-    name: Create version and tag
+  build:
+    name: Build on ubuntu-latest
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    outputs:
-      new_version: ${{ steps.bump_version.outputs.new_version }}
     
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        
-    - name: Get latest tag
-      id: get_latest_tag
-      run: |
-        git fetch --tags
-        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
-        echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
-        
-    - name: Bump version
-      id: bump_version
-      run: |
-        latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
-        # Remove 'v' prefix if it exists
-        version=${latest_tag#v}
-        # Split version into array
-        IFS='.' read -ra VERSION_PARTS <<< "$version"
-        # Increment patch version
-        ((VERSION_PARTS[2]++))
-        # Construct new version
-        new_version="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.${VERSION_PARTS[2]}"
-        echo "new_version=${new_version}" >> $GITHUB_OUTPUT
-        
-    - name: Create tag
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git tag -a ${{ steps.bump_version.outputs.new_version }} -m "Release ${{ steps.bump_version.outputs.new_version }}" || exit 0
-        git push origin ${{ steps.bump_version.outputs.new_version }} || exit 0
 
-  build:
-    name: Build on ${{ matrix.os }}
-    needs: [version]
-    if: always() && (needs.version.result == 'success' || needs.version.result == 'skipped')
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version:
-          - '3.10'
-          - '3.11'
-          - '3.12'
-
-    steps:
-    - uses: actions/checkout@v3
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
       with:
-        fetch-depth: 0
-        ref: ${{ needs.version.outputs.new_version }}
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.12'
 
     - name: Install dependencies
       run: |
@@ -81,32 +30,24 @@ jobs:
         fi
       shell: bash
 
-    - name: Get default version if needed
-      id: default_version
-      if: needs.version.outputs.new_version == ''
-      run: |
-        git fetch --tags
-        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "v0.0.0")
-        echo "version=${latest_tag}" >> $GITHUB_OUTPUT
-      shell: bash
-
     - name: Build package
       env:
-        PACKAGE_VERSION: ${{ needs.version.outputs.new_version && needs.version.outputs.new_version || '0.0.0' }}
+        PACKAGE_VERSION: '1.0.36'
         COMPILE_CYTHON: true
       run: |
         cd build  # Change to the directory containing setup.py
         python -m build
+        cd ..  # Return to root directory
 
     - name: Test installation
       run: |
-        pip install .
+        pip install build/dist/*.whl
       shell: bash
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: dist-${{ matrix.os }}-py${{ matrix.python-version }}
+        name: dist-ubuntu-latest-py3.12
         path: build/dist/
         retention-days: 5
 

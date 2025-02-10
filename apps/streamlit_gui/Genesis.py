@@ -312,7 +312,7 @@ if st.session_state.NativeMode:
                     )
                     if service_status_result == "READY":
                         service_status.text("")
-                        st.experimental_rerun()
+                        st.rerun()
 
                     time.sleep(10)
 
@@ -592,7 +592,7 @@ if st.session_state.data:
                 st.markdown('<div class="new-chat-btn-container">', unsafe_allow_html=True)
                 if st.button(" ⚡  New Chat", type="primary", key="new_chat_main"):
                     st.session_state["show_new_chat_selector"] = True
-                    st.experimental_rerun()
+                    st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
             if st.session_state.get("show_new_chat_selector", False):
@@ -624,11 +624,11 @@ if st.session_state.data:
                             st.session_state[f"messages_{new_thread_id}"] = []
                             st.session_state["show_new_chat_selector"] = False
                             st.session_state["active_chat_started"] = True  # Flag to indicate active chat
-                            st.experimental_rerun()
+                            st.rerun()
                     with col2:
                         if st.button("⨂", key="cancel_new_chat"):
                             st.session_state["show_new_chat_selector"] = False
-                            st.experimental_rerun()
+                            st.rerun()
 
             # Show active chat sessions
             st.markdown("#### Active Chat Sessions:")

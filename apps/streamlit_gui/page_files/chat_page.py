@@ -410,10 +410,10 @@ def chat_page():
                 if bot_id == selected_bot_id:
                     current_llm = llm_info.get('current_llm')
 
-            return (current_llm)
+            return current_llm
         else:
             st.error(f"No LLM configuration found for bot with ID: {selected_bot_id}")
-            return {}
+            return current_llm
 
 
     def submit_button(prompt,
@@ -700,4 +700,3 @@ def chat_page():
         st.session_state.new_session_added = False
         st.success("new session added??")
         st.rerun()
-

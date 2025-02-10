@@ -24,22 +24,30 @@ def _get_token(args):
   return token
 
 def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_account):
-  scope_role = f'session:role:{role}' if role is not None else None
-  scope = f'{scope_role} {endpoint}' if scope_role is not None else endpoint
-  data = {
-    'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-    'scope': scope,
-    'assertion': token,
-  }
-  logger.info(data)
-  url = f'https://{snowflake_account}.snowflakecomputing.com/oauth/token'
-  if snowflake_account_url:
-    url =       f'{snowflake_account_url}/oauth/token'
-  logger.info("oauth url: %s" %url)
-  response = requests.post(url, data=data)
-  logger.info("snowflake jwt : %s" % response.text)
-  assert 200 == response.status_code, "unable to get snowflake token"
-  return response.text
+    scope_role = f'session:role:{role}' if role is not None else None
+    scope = f'{scope_role} {endpoint}' if scope_role is not None else endpoint
+    data = {
+        'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        'scope': scope,
+        'assertion': token,
+    }
+    logger.info(f"Request data: {data}")
+    url = f'https://{snowflake_account}.snowflakecomputing.com/oauth/token'
+    if snowflake_account_url:
+        url = f'{snowflake_account_url}/oauth/token'
+    logger.info(f"OAuth URL: {url}")
+    
+    response = requests.post(url, data=data)
+    logger.info(f"Response status code: {response.status_code}")
+    logger.info(f"Response headers: {response.headers}")
+    logger.info(f"Response body: {response.text}")
+    
+    if response.status_code != 200:
+        error_msg = f"Failed to get Snowflake token. Status: {response.status_code}, Response: {response.text}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+        
+    return response.text
 
 def connect_to_spcs(token, url):
   # Create a request to the ingress endpoint with authz.

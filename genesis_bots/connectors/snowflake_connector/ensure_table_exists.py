@@ -1143,43 +1143,43 @@ def ensure_table_exists(self):
         if cursor is not None:
             cursor.close()
 
-    # AVAILABLE_TOOLS
-    # -----------------
-    try:
-        cursor = self.client.cursor()
-        if os.getenv('TASK_TEST_MODE', 'False').lower() != 'true': # skip if TEST_MODE
-            available_tools_table_ddl = f"""
-            CREATE OR REPLACE TABLE {self.available_tools_table_name} (
-                TOOL_NAME VARCHAR(16777216),
-                TOOL_DESCRIPTION VARCHAR(16777216)
-            );
-            """
-            cursor.execute(available_tools_table_ddl)
-            self.client.commit()
-            logger.info(
-                f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
-            )
+    # # AVAILABLE_TOOLS
+    # # -----------------
+    # try:
+    #     cursor = self.client.cursor()
+    #     if os.getenv('TASK_TEST_MODE', 'False').lower() != 'true': # skip if TEST_MODE
+    #         available_tools_table_ddl = f"""
+    #         CREATE OR REPLACE TABLE {self.available_tools_table_name} (
+    #             TOOL_NAME VARCHAR(16777216),
+    #             TOOL_DESCRIPTION VARCHAR(16777216)
+    #         );
+    #         """
+    #         cursor.execute(available_tools_table_ddl)
+    #         self.client.commit()
+    #         logger.info(
+    #             f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
+    #         )
 
-            tools_data = core.bot_os_tool_descriptions.get_persistent_tools_descriptions()
+    #         tools_data = core.bot_os_tool_descriptions.get_persistent_tools_descriptions()
 
-            insert_tools_query = f"""
-            INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
-            VALUES (%s, %s);
-            """
-            for tool_name, tool_description in tools_data:
-                cursor.execute(insert_tools_query, (tool_name, tool_description))
-                logger.info(f"Inserting {tool_name} ({tool_description}) to available tools ")
-            self.client.commit()
-            logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
-        else:
-            logger.info(f"Table {self.available_tools_table_name} already exists.")
-    except Exception as e:
-        logger.error(
-            f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
-        )
-    finally:
-        if cursor is not None:
-            cursor.close()
+    #         insert_tools_query = f"""
+    #         INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
+    #         VALUES (%s, %s);
+    #         """
+    #         for tool_name, tool_description in tools_data:
+    #             cursor.execute(insert_tools_query, (tool_name, tool_description))
+    #             logger.info(f"Inserting {tool_name} ({tool_description}) to available tools ")
+    #         self.client.commit()
+    #         logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
+    #     else:
+    #         logger.info(f"Table {self.available_tools_table_name} already exists.")
+    # except Exception as e:
+    #     logger.error(
+    #         f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
+    #     )
+    # finally:
+    #     if cursor is not None:
+    #         cursor.close()
 
     # # Check if the 'snowflake_semantic_tools' row exists in the available_tables and insert if not present
     # check_snowflake_semantic_tools_query = f"SELECT COUNT(*) FROM {self.available_tools_table_name} WHERE TOOL_NAME = 'snowflake_semantic_tools';"

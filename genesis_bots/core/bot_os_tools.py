@@ -5,63 +5,38 @@ import random
 import string
 import threading
 import time
-from   typing                   import Any, Callable, Dict, List
-from genesis_bots.core.bot_os_web_access import WebAccess
+from   typing                   import Callable, List
 
 
-from   genesis_bots.core                     import global_flags
-from   genesis_bots.core.bot_os_tools2       import (ToolFuncDescriptor,
+from   genesis_bots.core.bot_os_tools2 \
+                                import (ToolFuncDescriptor,
+                                        ToolFuncGroupLifetime,
                                         get_global_tools_registry,
                                         get_tool_func_descriptor)
 
 # from   genesis_bots.llm.llm_openai.bot_os_openai import StreamingEventHandler
 
-from   genesis_bots.google_sheets.g_sheets   import (add_g_file_comment,
-                                        add_reply_to_g_file_comment,
-                                        find_g_file_by_name,
-                                        get_g_file_comments,
-                                        get_g_file_version,
-                                        get_g_file_web_link,
-                                        get_g_folder_directory, read_g_sheet,
-                                        write_g_sheet_cell_v4)
 
-import collections
-import re
-from   typing                   import Optional
 
 from   genesis_bots.bot_genesis.make_baby_bot \
                                 import (MAKE_BABY_BOT_DESCRIPTIONS,
                                         make_baby_bot_tools)
+from   genesis_bots.connectors.database_tools \
+                                import (notebook_manager_functions,
+                                        notebook_manager_tools)
 from   jinja2                   import Template
-from genesis_bots.connectors.database_tools import (
-    notebook_manager_functions,
-    notebook_manager_tools,
-)
-from genesis_bots.core.bot_os_web_access import (
-    web_access_tools,  # This is the ToolFuncGroup
-    get_web_access_functions  # Add this to get the actual functions
-)
 
 from   genesis_bots.schema_explorer.harvester_tools \
                                 import (harvester_tools_functions,
                                         harvester_tools_list)
-from   genesis_bots.slack.slack_tools        import slack_tools, slack_tools_descriptions
+from   genesis_bots.slack.slack_tools \
+                                import slack_tools, slack_tools_descriptions
 
 
-from   genesis_bots.core.bot_os_defaults     import (BASE_BOT_INSTRUCTIONS_ADDENDUM,
-                                        BASE_BOT_PRE_VALIDATION_INSTRUCTIONS,
-                                        BASE_BOT_PROACTIVE_INSTRUCTIONS,
-                                        BASE_BOT_VALIDATION_INSTRUCTIONS)
 
 from   genesis_bots.core.bot_os_tool_descriptions \
-                                import (
-                                        # data_dev_tools,
-                                        # data_dev_tools_functions,
-                                        # git_file_manager_functions,
-                                        # git_file_manager_tools,
-                                        process_runner_functions,
-                                        process_runner_tools,
-)
+                                import (process_runner_functions,
+                                        process_runner_tools)
 
 from   genesis_bots.connectors.snowflake_connector.snowflake_connector \
                                 import SnowflakeConnector
@@ -72,10 +47,12 @@ from   genesis_bots.connectors.snowflake_connector.snowflake_connector \
 #                                         )
 
 
-from   genesis_bots.core.file_diff_handler   import GitFileManager
-from   genesis_bots.core.logging_config      import logger
+from   genesis_bots.core.logging_config \
+                                import logger
 
-from  genesis_bots.core.tools.tool_helpers import get_sys_email, get_process_info, chat_completion
+from   genesis_bots.core.tools.tool_helpers \
+                                import (chat_completion, get_process_info,
+                                        get_sys_email)
 
 
 genesis_source = os.getenv("GENESIS_SOURCE", default="Snowflake")
@@ -1154,22 +1131,95 @@ class ToolBelt:
                 cursor.close()
 
     # ====== NOTEBOOK END ==========================================================================================
+
+# A collection of 'old style' tools information. These are tools that are not registered in the global tools registry
+# (AKA new style tools).
+# TODO: migrate all old style tools to the new style tools registry. Once we do that, we can refactor get_tools() below
+#       to use the new style tools registry.
+_old_style_tool_metadata = {
+    "slack_tools": {
+        "func_descriptors": slack_tools_descriptions,
+        "funcname_to_locator": slack_tools
+    },
+    "harvester_tools": {
+        "func_descriptors": harvester_tools_functions,
+        "funcname_to_locator": harvester_tools_list
+    },
+    "make_baby_bot": {
+        "func_descriptors": MAKE_BABY_BOT_DESCRIPTIONS,
+        "funcname_to_locator": make_baby_bot_tools
+    },
+    "process_runner_tools": {
+        "func_descriptors": process_runner_functions,
+        "funcname_to_locator": process_runner_tools
+    },
+    "notebook_manager_tools": {
+        "func_descriptors": notebook_manager_functions,
+        "funcname_to_locator": notebook_manager_tools
+    }
+}
+
+
+def get_all_tool_to_func_map(include_ephemeral_tools: bool = False) -> dict[str, list[str]]:
+    """
+    Retrieve metadata for all tools, optionally including ephemeral tools.
+
+    Args:
+        include_ephemeral_tools (bool): Whether to include ephemeral tools in the metadata.
+
+    Returns:
+        dict: A dictionary mapping tool (group) names to a list of the function names in this group.
+    """
+    all_tools_metadata = {}
+
+    # Include old style tools (always non-ephemeral)
+    for tool_group, metadata in _old_style_tool_metadata.items():
+        func_names = [func_desc["function"]["name"] for func_desc in metadata["func_descriptors"]]
+        all_tools_metadata[tool_group] = func_names
+
+    # Include new style tools from the global tools registry
+    reg = get_global_tools_registry()
+    group_lifetime_incl_filter = None
+    if not include_ephemeral_tools:
+        group_lifetime_incl_filter = ToolFuncGroupLifetime.PERSISTENT
+    all_tools_metadata.update(reg.get_tool_to_func_map(group_lifetime_incl_filter))
+
+    return all_tools_metadata
+
+
+def get_persistent_tools_descriptions() -> dict[str, str]:
+    """
+    Retrieves a map of all avaialble tool func group) names to their descriptions for tools that have a 'persistent' lifetime, sorted by tool name.
+
+    Returns:
+        dict: A dictionary where each key is the name of a tool (group) and the value is its description.
+    """
+    from genesis_bots.core.bot_os_tool_descriptions import _tools_data # holds the legacy tools (groups) descriptors
+    tools_data = {name: description for name, description in _tools_data}
+
+    registry = get_global_tools_registry()
+    for group in registry.list_groups():
+        if group.lifetime == ToolFuncGroupLifetime.PERSISTENT:
+            tools_data[group.name] = group.description
+
+    return dict(sorted(tools_data.items()))
+
+
 def get_tools(
     which_tools: list[str],
-    db_adapter,
-    slack_adapter_local=None,
+    db_adapter = None, # UNUSED
+    slack_adapter_local=None, # UNUSED
     include_slack: bool = True,
-    tool_belt=None
+    tool_belt=None # UNUSED
     ) -> tuple[list, dict, dict]:
     """
     Retrieve a list of tools (function groups), available functions, and a mapping of functions to tools based on the specified tool names.
+    
+    This function combines information from 'old style' and 'new style' tools (those which are registered in the global tools registry).
 
     Args:
         which_tools (list): A list of tool (function group) names to retrieve.
-        db_adapter: The database adapter to use (some functions we methods of db_adapter).
-        slack_adapter_local: The Slack adapter to use for Slack operations (optional).
         include_slack (bool): Whether to include Slack tools (default is True).
-        tool_belt: An optional tool belt instance to use.
 
     Returns:
         tuple: A tuple containing three elements:
@@ -1189,7 +1239,7 @@ def get_tools(
     #         for tool in which_tools
     #     ]
 
-    which_tools = [tool for tool in which_tools]  # if tool != "autonomous_functions"
+    which_tools = list(which_tools)
 
     for tool in which_tools:
         try:
@@ -1197,7 +1247,7 @@ def get_tools(
         except:
             tool_name = tool
 
-        # Resolve 'old style' tool names
+        # Canonicalize 'old style' tool names
         # ----------------------------------
         if tool_name == "bot_dispatch_tools" or tool_name == "bot_dispatch":
             tool_name = "delegate_work"
@@ -1208,57 +1258,17 @@ def get_tools(
         if tool_name == "data_dev_tools":
             tool_name = "jira_connector_tools" # FIXME
 
-        if include_slack and tool_name == "slack_tools":
-            func_descriptors.extend(slack_tools_descriptions)
-            available_functions_loaded.update(slack_tools)
-            tool_to_func_descriptors_map[tool_name] = slack_tools_descriptions
-        elif tool_name == "harvester_tools":
-            func_descriptors.extend(harvester_tools_functions)
-            available_functions_loaded.update(harvester_tools_list)
-            tool_to_func_descriptors_map[tool_name] = harvester_tools_functions
-        elif tool_name == "make_baby_bot":
-            func_descriptors.extend(MAKE_BABY_BOT_DESCRIPTIONS)
-            available_functions_loaded.update(make_baby_bot_tools)
-            tool_to_func_descriptors_map[tool_name] = MAKE_BABY_BOT_DESCRIPTIONS
-        elif tool_name == "process_runner_tools":
-            func_descriptors.extend(process_runner_functions)
-            available_functions_loaded.update(process_runner_tools)
-            tool_to_func_descriptors_map[tool_name] = process_runner_functions
-        elif tool_name == "notebook_manager_tools":
-            func_descriptors.extend(notebook_manager_functions)
-            available_functions_loaded.update(notebook_manager_tools)
-            tool_to_func_descriptors_map[tool_name] = notebook_manager_functions
-        # elif tool_name == "web_access_tools":
-        #     func_descriptors.extend(get_web_access_functions())
-        #     available_functions_loaded.update({
-        #         func.__name__: func for func in get_web_access_functions()
-        #     })
-        #     tool_to_func_descriptors_map[tool_name] = get_web_access_functions()
-        # elif tool_name == "snowflake_tools":
-        #     func_descriptors.extend(snowflake_functions)
-        #     available_functions_loaded.update(snowflake_tools)
-        #     tool_to_func_descriptors_map[tool_name] = snowflake_functions
-        # elif tool_name == "git_file_manager_tools":  # Add this section
-        #     func_descriptors.extend(git_file_manager_functions)
-        #     available_functions_loaded.update(git_file_manager_tools)
-        #     tool_to_func_descriptors_map[tool_name] = git_file_manager_functions
-        # elif tool_name == "webpage_downloader":
-        #     func_descriptors.extend(webpage_downloader_functions)
-        #     available_functions_loaded.update(webpage_downloader_tools)
-        #     tool_to_func_descriptors_map[tool_name] = webpage_downloader_functions
-        # dagster tools have been converted to 'new type' tools (see bot_os_tools2.py)
-        # elif tool_name == "dagster_tools":
-        #     func_descriptors.extend(dagster_tool_functions)
-        #     available_functions_loaded.update(dagster_tools)
-        #     tool_to_func_descriptors_map[tool_name] = dagster_tool_functions
-        # elif tool_name == "bot_dispatch_tools" or tool_name == "bot_dispatch":
-        #     func_descriptors.extend(BOT_DISPATCH_DESCRIPTIONS)
-        #     available_functions_loaded.update(bot_dispatch_tools)
-        #     tool_to_func_descriptors_map[tool_name] = BOT_DISPATCH_DESCRIPTIONS
-        # elif tool_name == "data_dev_tools":
-        #     func_descriptors.extend(data_dev_tools_functions)
-        #     available_functions_loaded.update(data_dev_tools)
+        # Skip loading slack tools if include_slack is False (backward compatible behavior) TODO: remove special case
+        if tool_name == "slack_tools" and not include_slack:
+            continue
 
+        # Lookup tool in _old_style_tool_metadata
+        global _old_style_tool_metadata
+        if tool_name in _old_style_tool_metadata:
+            tool_metadata = _old_style_tool_metadata[tool_name]
+            func_descriptors.extend(tool_metadata["func_descriptors"])
+            available_functions_loaded.update(tool_metadata["funcname_to_locator"])
+            tool_to_func_descriptors_map[tool_name] = tool_metadata["func_descriptors"]
         else:
             # Resolve 'new style' tool functions
             # (from tool functions registry)
@@ -1353,48 +1363,3 @@ def dispatch_to_bots(task_template, args_array, dispatch_bot_id=None):
             logger.info(f"dispatch_to_bots - {responses}")
             return responses
         time.sleep(1)
-
-BOT_DISPATCH_DESCRIPTIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "_delegate_work",
-            "description": "Delegates a task to another bot (or self) and waits for a JSON response. Use this when you need to delegate work to another bot.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "prompt": {
-                        "type": "string",
-                        "description": "The instruction or prompt to send to the target bot"
-                    },
-                    "target_bot": {
-                        "type": "string",
-                        "description": "Bot ID or name of target bot to delegate to. If you dont know the exact ID or name, call with target_bot_id 'UNKNOWN' to get a list of active bots."
-                    },
-                    "max_retries": {
-                        "type": "integer",
-                        "description": "Maximum number of retry attempts (1-10), defaults to 3",
-                        "minimum": 1,
-                        "maximum": 10,
-                        "default": 3
-                    },
-                    "timeout_seconds": {
-                        "type": "integer",
-                        "description": "Maximum seconds to wait for response, defaults to 300",
-                        "minimum": 1,
-                        "default": 300
-                    }
-                    ,
-                    "callback_id": {
-                        "type": "string",
-                        "description": "Optional callback_id to continue a previous delegation thread. Use this if you need to follow up on a previous delegation, by providing the callback_id that you received in the response to the previous delegation. If not used, a new thread will be started with the target_bot for this delegation.",
-                        "default": None
-                    }
-                },
-                "required": ["prompt"]  # Only prompt is required, others have defaults
-            }
-        }
-    }
-]
-
-bot_dispatch_tools = {"_delegate_work": "tool_belt.delegate_work"}

@@ -19,7 +19,7 @@ db_adapter = get_global_db_connector()
 
 manage_tests_tools = ToolFuncGroup(
     name="manage_tests_tools",
-    description="",
+    description="Functions to execute Genesis-internal system tests",
     lifetime="PERSISTENT",
 )
 

@@ -18,7 +18,7 @@ project_manager = ProjectManager(db_adapter)
 
 project_manager_tools = ToolFuncGroup(
     name="project_manager_tools",
-    description="",
+    description="Functions to manage Projects and TODOs",
     lifetime="PERSISTENT",
 )
 

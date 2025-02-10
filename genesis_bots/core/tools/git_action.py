@@ -19,7 +19,7 @@ git_manager = GitFileManager()
 
 git_action_grp = ToolFuncGroup(
     name="git_action",
-    description="",
+    description="Git repository file management operations",
     lifetime="PERSISTENT",
 )
 

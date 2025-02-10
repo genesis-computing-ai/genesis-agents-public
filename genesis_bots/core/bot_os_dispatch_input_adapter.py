@@ -79,10 +79,7 @@ def make_session_for_dispatch(bot_config):
         connection_info = {"Connection_Type": "Snowflake"}
 
     logger.info("---> CONNECTED TO DATABASE: ", genesis_source)
-    tools, available_functions, function_to_tool_map = get_tools(
-        bot_tools, db_adapter, include_slack=False
-    )  # FixMe remove slack adapter if
-
+    tools, available_functions, function_to_tool_map = get_tools(which_tools=bot_tools, include_slack=False)  # FixMe remove include_slack
     instructions = (
         bot_config["bot_instructions"] + "\n" + BASE_BOT_INSTRUCTIONS_ADDENDUM
     )

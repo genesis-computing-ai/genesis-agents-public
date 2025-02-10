@@ -1,5 +1,6 @@
 import unittest
 from genesis_bots.core.bot_os_tools2 import *
+from genesis_bots.core.bot_os_tools import *
 
 class TestGCTools(unittest.TestCase):
 
@@ -793,3 +794,14 @@ class TestGCTools(unittest.TestCase):
 
         # Validate that no ephemeral tools are assigned to bot_1 after revocation
         self.assertEqual(len(registry.get_ephemeral_tool_funcs_for_bot("bot_1")), 0)
+
+
+    def test_get_persistent_tools_descriptions(self):
+        # Test get_persistent_tools_descriptions
+        persistent_tools_descriptions = get_persistent_tools_descriptions()
+        self.assertIsInstance(persistent_tools_descriptions, dict)
+        self.assertGreater(len(persistent_tools_descriptions), 0)
+        for tool_name, description in persistent_tools_descriptions.items():
+            self.assertIsInstance(description, str)
+            self.assertGreater(len(description), 0, f"Tool description for tool (functions group) '{tool_name}' is empty")
+

@@ -26,7 +26,7 @@ db_adapter = get_global_db_connector()
 
 delegate_work = ToolFuncGroup(
     name="delegate_work",
-    description="",
+    description="Functions to delegate work to other bots.",
     lifetime="PERSISTENT",
 )
 
@@ -67,8 +67,7 @@ def _delegate_work(
     thread_id: str = None,
 ) -> Dict[str, Any]:
     """
-    Internal method that implements the delegation logic.
-    Creates a new thread with target bot and waits for JSON response.
+    Delegates a task to another bot.
     """
     og_thread_id = thread_id
 
@@ -145,8 +144,8 @@ def _delegate_work(
                 db_schema = genbot_internal_project_and_schema.split('.')
                 project_id = db_schema[0]
                 dataset_name = db_schema[1]
-                bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')  
-                bots = bb_db_connector.db_list_all_bots(project_id=project_id, 
+                bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
+                bots = bb_db_connector.db_list_all_bots(project_id=project_id,
                                                        dataset_name=dataset_name,
                                                        bot_servicing_table=bot_servicing_table,
                                                        runner_id=None,

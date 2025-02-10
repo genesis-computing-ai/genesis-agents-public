@@ -23,8 +23,7 @@ from   genesis_bots.core.bot_os_memory \
                                 import BotOsKnowledgeAnnoy_Metadata
 
 from   genesis_bots.bot_genesis.make_baby_bot \
-                                import (get_all_bots_full_details,
-                                        get_available_persistent_tools)
+                                import get_all_bots_full_details
 from   genesis_bots.core.bot_os_tools \
                                 import ToolBelt, get_tools
 from   genesis_bots.core.bot_os_tools2 \
@@ -40,7 +39,8 @@ from   genesis_bots.core.bot_os_task_input_adapter \
 from   genesis_bots.core.bot_os_udf_proxy_input \
                                 import UDFBotOsInputAdapter
 
-
+from   genesis_bots.core.bot_os_tools \
+                                import get_persistent_tools_descriptions
 
 from   genesis_bots.core.logging_config \
                                 import logger
@@ -98,7 +98,7 @@ def get_legacy_sessions(bot_id: str, db_adapter) -> dict | list:
     return threads
 
 
-def _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter):
+def _resolve_session_tools_info(bot_config):
     '''helper function for make_session(...) to resolve tools & tool-functions info for a given bot '''
 
     #NOTE on nameing: 'tools' are named groups of tool-functions
@@ -109,8 +109,8 @@ def _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter):
     slack_enabled = bot_config.get("slack_active", "Y") == "Y"
 
     # get the names of all tools (function groups) persistent in the DB (which are not bot-specific)
-    all_p_tools_descriptions = get_available_persistent_tools()
-    all_p_tools_names = [tool["tool_name"] for tool in all_p_tools_descriptions]
+    all_p_tools_descriptions = get_persistent_tools_descriptions()
+    all_p_tools_names = list(all_p_tools_descriptions.keys())
 
     logger.info(f"Number of all available persistent tools (listed in the DB) {len(all_p_tools_names)}")
 
@@ -135,10 +135,8 @@ def _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter):
     # get functions metadata for the (persistent) tools configured for this bot
     (available_p_func_descriptors,            # list of func descriptors dicts
      available_p_callables_map,               # map from func name to its callable
-     tool_to_func_descs_map                   # map from tool (group) name to a list of func descriptors
-     ) = get_tools(
-        list(bot_p_tool_names), slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
-    )
+     _                                        # map from tool (group) name to a list of func descriptors
+     ) = get_tools(which_tools=list(bot_p_tool_names))
     logger.info(f"Number of available persistent functions for bot {bot_id}: {len(available_p_callables_map)}")
 
     # get ephemeral functions that are assigned to this bot and convert them to the same info structure as the persistent functions
@@ -163,9 +161,8 @@ def _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter):
     (all_func_descriptions,                 # list of func descriptors dicts
      all_callables_map,                     # map from func name to its callable
      all_tool_to_func_descs_map             # map from tool (group) name to a list of func descriptors
-     ) = get_tools(
-        all_tool_names, slack_adapter_local=slack_adapter_local, db_adapter=db_adapter, tool_belt=tool_belt
-    )
+     ) = get_tools(which_tools=all_tool_names)
+
     logger.info(f"Number of all persistent functions: {len(all_callables_map)}")
 
     # Return a simple object with the resolved tools and functions
@@ -314,7 +311,7 @@ def make_session(
             logger.error(f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]}')
 
     # Use _resolve_session_tools_info to get tool information
-    tools_info = _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter)
+    tools_info = _resolve_session_tools_info(bot_config)
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 

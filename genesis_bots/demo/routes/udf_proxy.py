@@ -1,6 +1,5 @@
-import re
-from   flask                    import (Blueprint, Response, jsonify,
-                                        make_response, request, current_app)
+from   flask                    import (Blueprint, Response, current_app,
+                                        jsonify, make_response, request)
 from   genesis_bots.core        import global_flags
 from   genesis_bots.core.logging_config \
                                 import logger
@@ -37,7 +36,6 @@ from   genesis_bots.core.system_variables \
                                 import SystemVariables
 from   genesis_bots.demo.routes.slack \
                                 import bot_install_followup
-import requests
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -323,7 +321,7 @@ def set_metadata():
         elif metadata_type.startswith('ngrok '):
             ngrok_auth_key = metadata_type.split('ngrok ')[1].strip()
             os.environ["NGROK_AUTH_TOKEN"] = ngrok_auth_key
-            
+
             # Store the token in Snowflake using db_set_ngrok_auth_token
             db_response = genesis_app.db_adapter.db_set_ngrok_auth_token(
                 ngrok_auth_token=ngrok_auth_key,

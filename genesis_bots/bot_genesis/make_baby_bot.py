@@ -6,7 +6,7 @@ import requests
 import uuid
 
 import threading
-from   typing                   import Mapping
+from   typing                   import Dict, Mapping
 
 from   genesis_bots.connectors  import get_global_db_connector
 from   genesis_bots.connectors.connector_helpers \
@@ -628,11 +628,13 @@ def add_new_tools_to_bot(bot_id, new_tools):
     Returns:
         dict: A dictionary containing the tools that were added and those that were already present.
     """
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions # avoid circular import
+
     # Retrieve the current available tools for the bot
     bb_db_connector = get_global_db_connector()
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
-    available_tool_names = [tool['tool_name'] for tool in available_tools_list]
+    available_tool_names = get_persistent_tools_descriptions().keys()
+
     if isinstance(new_tools, str):
         new_tools = json.loads(new_tools.replace("'", '"'))
     # Check if all new_tools are in the list of available tools
@@ -1033,22 +1035,20 @@ def get_bot_details(bot_id):
     return bb_db_connector.db_get_bot_details(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
 
-def get_available_persistent_tools():
-    bb_db_connector = get_global_db_connector()
-    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    return bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
+def get_available_tools() -> Dict[str, str]:
+    """
+    A wrapper around the get_persistent_tools_descriptions function which we list as an (old-style) toolfunc as part of MAKE_BABY_BOT_DESCRIPTIONS
 
-get_available_tools = get_available_persistent_tools # for backward compatibility
+    Returns:
+        dict: A dictionary where each key is the name of a tool group and the value is its description.
+    """
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions # avoid circular import
+    return get_persistent_tools_descriptions()
 
 
 def get_default_avatar():
     bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_get_default_avatar()
-
-def add_or_update_available_tool(tool_name, tool_description):
-    bb_db_connector = get_global_db_connector()
-    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
 
 def make_baby_bot(
@@ -1088,6 +1088,8 @@ def make_baby_bot(
     Returns:
         dict: A dictionary indicating the success or failure of the bot creation or update process.
     """
+
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions # avoid circular import
 
     def _make_retval(status : bool, success_msg:str = None, error_msg: str = None, extra: Mapping =None):
         success = bool(status)
@@ -1149,8 +1151,8 @@ def make_baby_bot(
                         return _make_retval(False, error_msg=f"Tool call error: Tool '{tool}' has leading or trailing whitespace in available_tools. Please remove any extra spaces from your list.")
 
                 # Retrieve the list of available tools from the database
-                db_available_tools = get_available_persistent_tools()
-                db_tool_names = [tool['tool_name'] for tool in db_available_tools]
+                db_available_tools = get_persistent_tools_descriptions()
+                db_tool_names = list(db_available_tools.keys())
 
                 # Check if the provided available tools match the database tools
                 if not all(tool in db_tool_names for tool in available_tools_array):

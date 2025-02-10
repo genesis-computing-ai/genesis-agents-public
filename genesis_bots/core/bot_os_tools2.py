@@ -647,7 +647,7 @@ class ToolsFuncRegistry:
 
 
     def get_tool_func(self, func_name: str) -> callable:
-        """Retrieve a tool function by its name."""
+        """Retrieve a tool function (callable) by its name."""
         for func in self._tool_funcs:
             if get_tool_func_descriptor(func).name == func_name:
                 return func
@@ -672,6 +672,34 @@ class ToolsFuncRegistry:
                                for group in get_tool_func_descriptor(func).groups)
                       ],
                       key=lambda func: get_tool_func_descriptor(func).name)
+
+
+    def get_tool_func_names_by_group(self, group_name: str) -> List[str]:
+        """Retrieve tool function names by their group name."""
+        tool_funcs = self.get_tool_funcs_by_group(group_name)
+        return [get_tool_func_descriptor(func).name for func in tool_funcs]
+
+
+    def get_tool_to_func_map(self, group_lifetime_incl_filter: ToolFuncGroupLifetime = None) -> Dict[str, List[str]]:
+        '''
+        Returns a map from group name to a list of tool function names that are associated with the group.
+
+        Args:
+            group_lifetime_incl_filter (ToolFuncGroupLifetime): If provided, only groups with this lifetime will be included in the map.
+
+        Returns:
+            Dict[str, List[str]]: A map from group name to a list of tool function names.
+        '''
+        tool_to_func_map = defaultdict(list)
+        group_lifetime_incl_filter = ToolFuncGroupLifetime(group_lifetime_incl_filter) if group_lifetime_incl_filter is not None else None
+        for func in self._tool_funcs:
+            desc = get_tool_func_descriptor(func)
+            func_name = desc.name
+            func_groups = desc.groups
+            for group in func_groups:
+                if group_lifetime_incl_filter is None or group.lifetime == group_lifetime_incl_filter:
+                    tool_to_func_map[group.name].append(func_name)
+        return tool_to_func_map
 
 
     def list_groups(self) -> List[ToolFuncGroup]:
@@ -799,8 +827,6 @@ def get_global_tools_registry():
     global _global_tools_registry
     if _global_tools_registry is None:
         try:
-            current_thread = threading.current_thread()
-
             reg =  ToolsFuncRegistry()
 
             # Register all 'new type' PERSISTENT tools here explicitly

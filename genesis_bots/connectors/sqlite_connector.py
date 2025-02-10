@@ -64,7 +64,6 @@ class SqliteConnector(DatabaseConnector):
         self.knowledge_table_name = os.getenv("GENESIS_INTERNAL_KNOWLEDGE_TABLE", "KNOWLEDGE")
         self.user_bot_table_name = os.getenv("GENESIS_INTERNAL_USER_BOT_TABLE", "USER_BOT")
         self.slack_tokens_table_name = "SLACK_APP_CONFIG_TOKENS"
-        self.available_tools_table_name = "AVAILABLE_TOOLS"
         self.bot_servicing_table_name = "BOT_SERVICING"
         self.ngrok_tokens_table_name = "NGROK_TOKENS"
         self.images_table_name =  "APP_SHARE_IMAGES"
@@ -1919,45 +1918,6 @@ class SqliteConnector(DatabaseConnector):
             if cursor is not None:
                 cursor.close()
 
-        available_tools_table_check_query = "SELECT name FROM sqlite_master WHERE type='table' and name like 'NGROK_TOKENS'"
-        try:
-            cursor = self.client.cursor()
-            # cursor.execute(available_tools_table_check_query)
-            if True:
-                cursor.execute(f'DROP TABLE IF EXISTS {self.available_tools_table_name};');
-
-                available_tools_table_ddl = f"""
-                    CREATE TABLE {self.available_tools_table_name} (
-                        TOOL_NAME VARCHAR(16777216),
-                        TOOL_DESCRIPTION VARCHAR(16777216)
-                    );
-                    """
-                cursor.execute(available_tools_table_ddl)
-                self.client.commit()
-                logger.info(
-                    f"Table {self.available_tools_table_name} (re)created, this is expected on every run."
-                )
-
-                tools_data = genesis_bots.core.bot_os_tool_descriptions.get_persistent_tools_descriptions()
-
-                insert_tools_query = f"""
-                    INSERT INTO {self.available_tools_table_name} (TOOL_NAME, TOOL_DESCRIPTION)
-                    VALUES (?, ?);
-                """
-                for tool_name, tool_description in tools_data:
-                    cursor.execute(insert_tools_query, (tool_name, tool_description))
-                self.client.commit()
-                logger.info(f"Inserted initial rows into {self.available_tools_table_name}")
-            else:
-                logger.info(f"Table {self.available_tools_table_name} already exists.")
-        except Exception as e:
-            logger.info(
-                f"An error occurred while checking or creating table {self.available_tools_table_name}: {e}"
-            )
-        finally:
-            if cursor is not None:
-                cursor.close()
-
         # Check if the 'snowflake_semantic_tools' row exists in the available_tables and insert if not present
         check_snowflake_semantic_tools_query = f"SELECT COUNT(*) FROM {self.available_tools_table_name} WHERE TOOL_NAME = 'snowflake_semantic_tools';"
         try:
@@ -3694,70 +3654,6 @@ class SqliteConnector(DatabaseConnector):
             )
             raise e
 
-    def db_get_available_tools(self, project_id, dataset_name):
-        """
-        Retrieves the list of available tools and their descriptions from the Snowflake table.
-
-        Returns:
-            list of dict: A list of dictionaries, each containing the tool name and description.
-        """
-
-        # Query to select the available tools
-        select_query = f"""
-            SELECT tool_name, tool_description
-            FROM available_tools
-        """
-
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(select_query)
-            results = cursor.fetchall()
-            tools_list = [
-                {"tool_name": result[0], "tool_description": result[1]}
-                for result in results
-            ]
-            return tools_list
-        except Exception as e:
-            logger.exception(f"Failed to retrieve available tools with error: {e}")
-            return []
-
-    def db_add_or_update_available_tool(
-        self, tool_name, tool_description, project_id, dataset_name
-    ):
-        """
-        Adds a new tool or updates an existing tool in the available_tools table with the provided name and description.
-
-        Args:
-            tool_name (str): The name of the tool to add or update.
-            tool_description (str): The description of the tool to add or update.
-        Returns:
-            dict: A dictionary containing the result of the operation.
-        """
-        # Query to merge (upsert) tool into the available_tools table
-        merge_query = f"""
-            MERGE INTO available_tools USING (
-                SELECT ? AS tool_name, ? AS tool_description
-            ) AS source ON target.tool_name = source.tool_name
-            WHEN MATCHED THEN
-                UPDATE SET tool_description = source.tool_description
-            WHEN NOT MATCHED THEN
-                INSERT (tool_name, tool_description)
-                VALUES (source.tool_name, source.tool_description)
-        """
-
-        # Execute the merge query
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(merge_query, (tool_name, tool_description))
-            self.client.commit()
-            logger.info(f"Successfully added or updated tool: {tool_name}")
-            return {
-                "success": True,
-                "message": f"Tool '{tool_name}' added or updated successfully.",
-            }
-        except Exception as e:
-            logger.error(f"Failed to add or update tool: {tool_name} with error: {e}")
-            return {"success": False, "error": str(e)}
 
     def db_delete_bot(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """

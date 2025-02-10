@@ -36,7 +36,7 @@ jobs:
         COMPILE_CYTHON: true
       run: |
         cd build  # Change to the directory containing setup.py
-        python -m build
+        python build.py --version ${PACKAGE_VERSION}
         cd ..  # Return to root directory
 
     - name: Test installation

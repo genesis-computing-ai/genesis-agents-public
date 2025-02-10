@@ -154,8 +154,8 @@ player:
     player_id:
       description: unknown.
       type: TEXT
-      # NOTE: Using the terml "missing" to indicate that the relationship is not known.
-      relationship: missing
+      # NOTE: Using a weird value to indicate that the relationship is missing or 'bad'
+      relationship: "--"
     birth_year:
       description: Year of birth.
       type: NUMERIC

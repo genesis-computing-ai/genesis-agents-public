@@ -118,6 +118,8 @@ def set_initial_chat_sesssion_data(bot_name, initial_prompt, initial_message):
     )
 
 
+SPEECH_BALLOON_ORD =  128172 # "speech balloon" emoji (💬).
+
 def chat_page():
 
     # Add custom CSS to reduce whitespace even further
@@ -173,7 +175,7 @@ def chat_page():
                             max(len(previous_response) - 4, 0) : len(response) - offset
                         ]
                     else:
-                        if len(response) >= 2 and ord(response[-1]) == 128172:
+                        if len(response) >= 2 and ord(response[-1]) == SPEECH_BALLOON_ORD:
                             offset = 0
                         else:
                             offset = 0
@@ -182,16 +184,16 @@ def chat_page():
                         ]
                     previous_response = response
                     try:
-                        if ord(new_increment[-1]) == 128172:
+                        if ord(new_increment[-1]) == SPEECH_BALLOON_ORD:
                             new_increment = new_increment[:-2]
                     except:
                         new_increment = ''
                     yield new_increment
 
-            if len(response) < 3 or ord(response[-1]) != 128172:
+            if len(response) < 3 or ord(response[-1]) != SPEECH_BALLOON_ORD:
                 break
 
-            if len(response)>=1 and ord(response[-1]) == 128172:
+            if len(response)>=1 and ord(response[-1]) == SPEECH_BALLOON_ORD:
                 time.sleep(0.5)
 
     def emulate_write_stream(text_generator):

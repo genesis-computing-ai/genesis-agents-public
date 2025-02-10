@@ -1408,7 +1408,7 @@ def _data_explorer(
     bot_id: str = None,
     thread_id: str = None,
 ):
-    """Explore data"""
+    """Fetch information about various database objects"""
     return DatabaseConnector().search_metadata(
         search_string=search_string,
         database=database,
@@ -1443,7 +1443,7 @@ def _get_full_table_details(
     database: str = None,
     schema: str = None,
     table: str = None,
-    top_n: int = 8,
+    top_n: int = 10,
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,

@@ -1220,6 +1220,50 @@ class DatabaseConnector:
             
             return response
 
+    # I think this is unused, but leaving it here for now
+    def get_db_connections(self) -> dict:
+        """Get all database connections metadata"""
+        try:
+            cursor = self.db_adapter.client.cursor()
+            try:
+                cursor.execute(
+                    f"""
+                    SELECT 
+                        connection_id,
+                        db_type,
+                        owner_bot_id,
+                        allowed_bot_ids,
+                        created_at,
+                        updated_at,
+                        description
+                    FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
+                    ORDER BY created_at DESC
+                    """
+                )
+                
+                columns = ['connection_id', 'db_type', 'owner_bot_id', 'allowed_bot_ids', 
+                          'created_at', 'updated_at', 'description']
+                connections = []
+                
+                for row in cursor.fetchall():
+                    connection = dict(zip(columns, row))
+                    connections.append(connection)
+
+                return {
+                    "Success": True,
+                    "Data": connections
+                }
+
+            finally:
+                cursor.close()
+
+        except Exception as e:
+            logger.error(f"Error getting database connections: {str(e)}")
+            return {
+                "Success": False,
+                "Error": str(e)
+            }
+
 
 data_connector_tools = ToolFuncGroup(
     name="data_connector_tools",

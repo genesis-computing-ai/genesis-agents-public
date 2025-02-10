@@ -363,6 +363,7 @@ if st.session_state.data:
     if st.session_state.NativeMode: pages.add_page('start_stop', 'Server Stop-Start', 'start_stop', 'start_stop')
     if st.session_state.NativeMode: pages.add_page('show_server_logs', 'Server Logs', 'show_server_logs', 'show_server_logs')
     pages.add_page('support', 'Support and Community', 'support', 'support')
+    pages.add_page('db_connections', 'Database Connections', 'db_connections', 'db_connections')
 
     #    st.sidebar.subheader("**Genesis App**")
 
@@ -766,7 +767,7 @@ if st.session_state.data:
 
         # Always show configuration and support buttons
         st.markdown("---")  # Add a visual separator
-        desired_sidebar = ["configuration", "support"]
+        desired_sidebar = ["configuration", "db_connections", "support"]
         for key in desired_sidebar:
             if key in pages.all:
                 page = pages.all[key]

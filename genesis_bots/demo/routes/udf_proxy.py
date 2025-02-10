@@ -37,6 +37,8 @@ from   genesis_bots.core.system_variables \
 from   genesis_bots.demo.routes.slack \
                                 import bot_install_followup
 
+from genesis_bots.connectors.data_connector import DatabaseConnector
+
 udf_routes = Blueprint('udf_routes', __name__)
 
 
@@ -194,6 +196,14 @@ def get_metadata():
 
         if metadata_type == "harvest_control":
             result = genesis_app.db_adapter.get_harvest_control_data_as_json()
+        elif metadata_type == "db_connections":
+            db_connector = DatabaseConnector()
+            db_result = db_connector.list_database_connections(bot_id = '', bot_id_override=True)
+            # Convert the result to JSON string if it's successful
+            if db_result["success"]:
+                result = {"Success": True, "Data": json.dumps(db_result["connections"])}
+            else:
+                result = {"Success": False, "Error": db_result.get("Error", "Unknown error")}
         elif metadata_type == "check_db_source":
             metadata_response = os.getenv("SNOWFLAKE_METADATA", "False").upper() == "TRUE"
             result = {"Success": True, "Data": json.dumps(metadata_response)}

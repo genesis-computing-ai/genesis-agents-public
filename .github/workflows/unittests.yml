@@ -4,7 +4,7 @@ on:
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  run-snowflake-script:
+  run-unittests:
     runs-on: ubuntu-latest
 
     steps:
@@ -34,6 +34,6 @@ jobs:
         env:
           SNOWFLAKE_METADATA: FALSE
           SPCS_MODE: FALSE
-
+          PYTHONPATH: $PWD
         run: |
           pytest -v

@@ -1972,10 +1972,12 @@ def remove_tools_from_bot(bot_id, remove_tools):
         dict: A dictionary containing the current tool list.
     """
     # Retrieve the current available tools for the bot
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions
+
     bb_db_connector = get_global_db_connector()
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
-    available_tool_names = [tool['tool_name'] for tool in available_tools_list]
+    available_tool_names = get_persistent_tools_descriptions().keys()
+
     logger.info(bot_id, remove_tools)
 
     if isinstance(remove_tools, str):

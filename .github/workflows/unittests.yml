@@ -30,10 +30,13 @@ jobs:
       - name: Add user-level bin to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Set environment variable
+        run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
+             echo $PYTHONPATH
+
       - name: Run Unittests
         env:
           SNOWFLAKE_METADATA: FALSE
           SPCS_MODE: FALSE
-          PYTHONPATH: $PWD
         run: |
           pytest -v

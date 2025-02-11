@@ -5257,7 +5257,7 @@ def _cortex_search(
 
 
 @gc_tool(
-    purpose="A detailed explanation in English of what this code is supposed to do. This will be used to help validate and debug your code..",
+    purpose="A detailed explanation in English of what this code is supposed to do. This will be used to help validate the code.",
     code=dedent(
     """
     The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already
@@ -5272,10 +5272,13 @@ def _cortex_search(
     double quotes in the code.
     """
     ),
-    packages="A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
+    packages=dedent(
+        """A comma-separated list of required non-default Python packages to be pip installed for code execution
+        (do not include any standard python libraries). For graphing, include matplotlib in this list."""
+    ),
     note_id=dedent(
         """An id for a note in the notebook table.  The note_id will be used to look up the
-        python code from the note content in lieu of the code field. A note_id will take precendent
+        python code from the note content in lieu of the code field. A note_id will take precedence
         over the code field, that is, if the note_id is not empty, the contents of the note will be run
         instead of the content of the code field."""
     ),
@@ -5300,14 +5303,10 @@ def _run_snowpark_python(
     thread_id: str = None,
     ):
     """
-    Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create
-    a new session. Use this instead of code_interpreter when directed to use snowpark, or when you want to run
-    python that can directly interact with the user's snowflake session, tables, and stages.  Results should only
-    have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the python code
-    to run, or the 'note_id' field with the id of the note that contains the code you want to run. Do not ever attempt
-    to load the code from the note.  If the note id is present, pass only id to the tool.  The tool will know how to get
-    the code from the note. this function has an existing snowflake session inside that you can use called session so do
-    not try to create a new session or connection.
+    This function accepts a string containing Python code and executes it using Snowflake's Snowpark python environment.
+    Code is run using a precreated and provided Snowpark 'session', do not create a new session.
+    Results should only have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the 
+    python code to run, or the 'note_id' field with the id of the note referencing the pre-saved program you want to run.
     """
     return SnowflakeConnector("Snowflake").run_python_code(
         purpose=purpose,

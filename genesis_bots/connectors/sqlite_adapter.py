@@ -280,16 +280,16 @@ class SQLiteAdapter:
                         'db_type': 'sqlite',
                         'connection_string': 'sqlite:///./apps/demos/demo_data/workspace.sqlite',
                         'owner_bot_id': 'Eve',
-                        'allowed_bot_ids': '*', 
+                        'allowed_bot_ids': '*',
                         'description': 'Workspace/scratchpad database you can use for storing data and creating new tables'
                     },
                 ]
-                
+
                 for conn in connections:
-                    cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?", 
+                    cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?",
                                 (conn['connection_id'],))
                     exists = cursor.fetchone()[0] > 0
-                    
+
                     if not exists:
                         insert_sql = """
                             INSERT INTO CUST_DB_CONNECTIONS (
@@ -311,7 +311,7 @@ class SQLiteAdapter:
                         ))
                         self.connection.commit()
                         logger.info(f"Inserted {conn['connection_id']} record")
-                    
+
                     self.import_harvest()
 
             except Exception as e:
@@ -322,31 +322,31 @@ class SQLiteAdapter:
         """Import HARVEST_RESULTS table from JSON file if table is empty"""
         try:
             cursor = self.connection.cursor()
-            
+
             # Check if table has any rows
             cursor.execute("SELECT COUNT(*) FROM HARVEST_RESULTS")
             count = cursor.fetchone()[0]
-            
+
             if count > 0:
                 logger.info("HARVEST_RESULTS table already contains data, skipping import")
                 return
-            
+
             import json
-            input_file = Path(__file__).parent.parent.parent / "apps" / "demos" / "demo_data" / "demo_harvest_results.json"
-            
+            input_file = Path(__file__).parent.parent / "apps" / "demos" / "demo_data" / "demo_harvest_results.json"
+
             # Check if file exists
             if not os.path.exists(input_file):
                 logger.warning(f"Harvest results file not found at {input_file}")
                 return
-            
+
             # Read JSON file
             with open(input_file, 'r') as f:
                 data = json.load(f)
-            
+
             if not data:
                 logger.info("No data found in harvest results file")
                 return
-            
+
             # Insert data
             insert_sql = """
                 INSERT OR REPLACE INTO HARVEST_RESULTS (
@@ -369,7 +369,7 @@ class SQLiteAdapter:
                     embedding_native
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-            
+
             for row in data:
                 cursor.execute(insert_sql, (
                     row.get('source_name'),
@@ -390,10 +390,10 @@ class SQLiteAdapter:
                     str(row.get('embedding')),  # Convert ARRAY to TEXT
                     str(row.get('embedding_native'))  # Convert ARRAY to TEXT
                 ))
-            
+
             self.connection.commit()
             logger.info(f"Successfully imported harvest results from {input_file}")
-            
+
         except Exception as e:
             logger.error(f"Error importing harvest results: {e}")
             raise
@@ -404,24 +404,24 @@ class SQLiteAdapter:
             cursor = self.connection.cursor()
             cursor.execute("SELECT * FROM HARVEST_RESULTS")
             rows = cursor.fetchall()
-            
+
             # Get column names
             column_names = [description[0] for description in cursor.description]
-            
+
             # Convert to list of dicts
             data = []
             for row in rows:
                 data.append(dict(zip(column_names, row)))
 
             # Create demos/demo_data directory if it doesn't exist
-            os.makedirs("./apps/demos/demo_data", exist_ok=True)
-            
+            os.makedirs("../apps/demos/demo_data", exist_ok=True)
+
             # Save to JSON file
             import json
-            output_file = "./apps/demos/demo_data/demo_harvest_results.json"
+            output_file = "../apps/demos/demo_data/demo_harvest_results.json"
             with open(output_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
-            
+
             logger.info(f"Successfully exported HARVEST_RESULTS to {output_file}")
 
         except Exception as e:
@@ -448,7 +448,7 @@ class SQLiteAdapter:
             """
             cursor.execute(create_table_sql)
             self.connection.commit()
-            
+
             # Define the default harvest control entries
             default_entries = [
                 {
@@ -461,7 +461,7 @@ class SQLiteAdapter:
                     'initial_crawl_complete': 0
                 },
                 {
-                    'source_name': 'formula_1_sqlite', 
+                    'source_name': 'formula_1_sqlite',
                     'database_name': 'formula_1_sqlite',
                     'schema_inclusions': '[]',
                     'schema_exclusions': '["INFORMATION_SCHEMA"]',
@@ -471,7 +471,7 @@ class SQLiteAdapter:
                 },
                 {
                     'source_name': 'workspace_sqlite',
-                    'database_name': 'workspace_sqlite', 
+                    'database_name': 'workspace_sqlite',
                     'schema_inclusions': '[]',
                     'schema_exclusions': '["INFORMATION_SCHEMA"]',
                     'status': 'Include',
@@ -482,7 +482,7 @@ class SQLiteAdapter:
 
             # Check and add each entry
             for entry in default_entries:
-                cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name = ?", 
+                cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name = ?",
                              (entry['source_name'],))
                 count = cursor.fetchone()[0]
 

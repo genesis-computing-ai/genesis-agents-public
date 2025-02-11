@@ -20,7 +20,7 @@ DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 echo "starting"
 # Run make_alpha_sis_launch.py
-python3 ./apps/streamlit_gui/make_community_compute_pool.py
+python3 ./genesis_bots/apps/streamlit_gui/make_community_compute_pool.py
 sleep 5
 
 # Login to image repo

@@ -1,4 +1,4 @@
-from generate_JWT import JWTGenerator
+from .generate_JWT import JWTGenerator
 from datetime import timedelta
 import argparse
 import logging

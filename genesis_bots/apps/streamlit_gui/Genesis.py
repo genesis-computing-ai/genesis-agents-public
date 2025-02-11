@@ -116,8 +116,8 @@ def render_image(filepath: str, width = None):
         paths_to_try = [
             # Direct path for development
             filepath,
-            os.path.join("apps/streamlit_gui", filepath),
-            os.path.join("./apps/streamlit_gui", filepath),
+            os.path.join("genesis_bots/apps/streamlit_gui", filepath),
+            os.path.join("./genesis_bots/apps/streamlit_gui", filepath),
             # Path relative to current file
             os.path.join(os.path.dirname(os.path.abspath(__file__)), filepath),
         ]
@@ -384,7 +384,7 @@ if st.session_state.data:
                     st.sidebar.image(str(image_path), width=250)
         else:
             # Direct development path
-            st.sidebar.image("./apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
+            st.sidebar.image("./genesis_bots/apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
 
     # Set the default selection page
     selected_page_id = None

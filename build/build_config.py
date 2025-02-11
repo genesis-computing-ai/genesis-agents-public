@@ -1,12 +1,41 @@
-# Files that should remain as Python source
-PUBLIC_API_FILES = [
-    'genesis_bots/api/genesis_api.py',
-    'genesis_bots/api/snowflake_remote_server.py',
-    'genesis_bots/api/genesis_base.py',
-    'genesis_bots/api/control.py',
+from glob import glob
+import os
+from functools import lru_cache
+
+
+# File patterens that should remain as Python source (.py) and not cythonized
+PUBLIC_API_FILES = (
+    'genesis_bots/api/*.py',
     'genesis_bots/api/README.md',
     'genesis_bots/api/LICENSE',
-]
+    'genesis_bots/apps/**/*.py',  # Keep all Python files under apps as .py files
+)
+
+
+@lru_cache(maxsize=None)
+def _expand_glob_patterns(root_dir, patterns: tuple[str]) -> set[str]:
+    expanded_patterns = set()
+    prev_cwd = os.getcwd()
+    os.chdir(root_dir)
+    for pattern in patterns:
+        expanded_patterns.update(glob(pattern, recursive=True))
+    os.chdir(prev_cwd)
+    return expanded_patterns
+
+
+def is_public_api_file(root_dir, file_path):
+    """
+    Check if a given file path is part of the public API files.
+
+    Args:
+        root_dir (str): The root directory to resolve the file paths (typically the root of the repository, or CWD)
+        file_path (str): The file path relative to the root directory (e.g. 'genesis_bots/api/genesis_api.py')
+
+    Returns:
+        bool: True if the file path is part of the public API files, False otherwise.
+    """
+    return file_path in _expand_glob_patterns(root_dir, PUBLIC_API_FILES)
+
 
 # Directories to ignore
 IGNORE_DIRS = {

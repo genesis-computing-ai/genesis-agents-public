@@ -835,7 +835,7 @@ def get_global_tools_registry():
 
             # IMPORT TOOL FUNCTIONS FROM OTHER MODULES
             import_locations = [
-                "genesis_bots.data_pipeline_tools.gc_dagster.get_dagster_tool_functions",
+                #"genesis_bots.data_pipeline_tools.gc_dagster.get_dagster_tool_functions", # Moved to /customer_demos while we sort our dagster libs depdendencies
                 "genesis_bots.connectors.data_connector.get_data_connections_functions",
                 "genesis_bots.connectors.snowflake_connector.snowflake_connector.get_snowflake_connector_functions",
                 "genesis_bots.core.tools.google_drive.get_google_drive_tool_functions",
@@ -844,7 +844,7 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.process_manager.get_process_manager_functions",
                 "genesis_bots.core.tools.process_scheduler.get_process_scheduler_functions",
                 "genesis_bots.core.tools.artifact_manager.get_artifact_manager_functions",
-          #      "genesis_bots.core.tools.webpage_downloader.get_webpage_downloader_functions",
+                #"genesis_bots.core.tools.webpage_downloader.get_webpage_downloader_functions",
                 "genesis_bots.core.tools.delegate_work.get_delegate_work_functions",
                 "genesis_bots.core.tools.git_action.get_git_action_functions",
                 "genesis_bots.core.tools.image_tools.get_image_functions",

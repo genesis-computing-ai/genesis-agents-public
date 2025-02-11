@@ -37,34 +37,38 @@ def find_packages_excluding(exclude_dirs, exclude_files):
         # Check if package is in excluded directories
         if any(exclude_dir in package.split('.') for exclude_dir in exclude_dirs):
             return True
-        
+
         # Check if package corresponds to excluded files
         package_path = package.replace('.', os.path.sep) + '.py'
         if package_path in exclude_files:
             return True
-        
+
         return False
-    
-    # Make sure we're including both genesis_bots and apps packages
+
+    # List all packages we want to include
     all_packages = find_namespace_packages(include=[
         'genesis_bots',
         'genesis_bots.*',
-        'apps',
-        'apps.*'
     ])
     return [pkg for pkg in all_packages if not is_excluded(pkg)]
 
 def get_package_data():
     """Get package data, excluding .py files that have corresponding .so files"""
     def should_include_py(filepath):
-        # Always include __init__.py files and PUBLIC_API_FILES
+        # Always include __init__.py files
         if os.path.basename(filepath) == '__init__.py':
             return True
             
-        # Always include files in PUBLIC_API_FILES
+        # Check if file matches any pattern in PUBLIC_API_FILES
         relative_path = filepath.replace('\\', '/').replace('./', '')
-        if relative_path in PUBLIC_API_FILES:
-            return True
+        for pattern in PUBLIC_API_FILES:
+            if '**' in pattern:
+                # Handle glob patterns
+                if glob.fnmatch.fnmatch(relative_path, pattern):
+                    return True
+            elif relative_path == pattern:
+                # Handle exact matches
+                return True
             
         # Check for corresponding binary files across different platforms
         base_path = os.path.splitext(filepath)[0]
@@ -88,27 +92,21 @@ def get_package_data():
             '**/*.json',
             '**/*.md',     # Add markdown files
             '**/LICENSE',  # Add LICENSE file
+            'apps/streamlit_gui/**/*',
+            'apps/streamlit_gui/*.png',
+            'apps/streamlit_gui/*',
             'requirements.txt',
             'default_config/*'
         ],
-        'apps': [
-            '**/*.yaml', 
-            '**/*.so', 
-            '**/*.conf',
-            '**/*.json',
-            'demos/**/*',
-            'streamlit_gui/**/*',
-            'sdk_examples/**/*'
-        ]
     }
-    
+
     # Add Python files selectively
-    for package in ['genesis_bots', 'apps']:
+    for package in ['genesis_bots']:
         py_files = glob.glob(f'{package}/**/*.py', recursive=True)
         included_py = [f[len(package)+1:] for f in py_files if should_include_py(f)]
         if included_py:
             package_data[package].extend(included_py)
-    
+
     return package_data
 
 # Get the project root directory
@@ -137,9 +135,11 @@ setup(
     packages=find_packages_excluding(IGNORE_DIRS, IGNORE_FILES),
     package_dir={
         "": ".",  # Look for packages in the current directory
-        "genesis_bots.apps": "apps",  # Map apps to genesis_bots.apps
+        ## "genesis_bots.apps": "apps",  # Map apps to genesis_bots.apps
     },
-    py_modules=['apps'],  # Explicitly include apps as a module
+    py_modules=[
+        # 'apps' # DEPRECATED - moved under genesis_bots.apps
+        ],  # Explicitly include apps as a module
     package_data=get_package_data(),  # Use the function instead of hardcoded dict
     data_files=[],
     zip_safe=False,
@@ -153,4 +153,4 @@ setup(
         'Cython>=0.29.0'
     ],
     python_requires='>=3.10',
-) 
+)

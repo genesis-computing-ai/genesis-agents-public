@@ -1,6 +1,6 @@
 from setuptools import setup
 import os
-from build_config import PUBLIC_API_FILES, IGNORE_DIRS, IGNORE_FILES
+from build_config import IGNORE_DIRS, IGNORE_FILES, is_public_api_file
 from multiprocessing import freeze_support
 import platform
 
@@ -13,10 +13,10 @@ def main():
     if COMPILE_CYTHON:
         from setuptools.extension import Extension
         from Cython.Build import cythonize
-        
+
         # Disable multiprocessing completely for Cython
         os.environ['CYTHON_PARALLEL'] = '0'
-        
+
         # Platform-specific compiler arguments
         if platform.system() == 'Windows':
             extra_compile_args = [
@@ -31,28 +31,29 @@ def main():
                 '-Wno-unreachable-code',
                 '-Wno-unreachable-code-fallthrough'
             ]
-        
+
         extensions = []
         compiled_files = []  # Keep track of files we've compiled
+        cwd = os.getcwd()
         for root, dirs, files in os.walk('genesis_bots'):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
-            
+
             for file in files:
                 if file.endswith('.py'):
                     path = os.path.join(root, file)
-                    if (path not in PUBLIC_API_FILES and 
-                        file != '__init__.py' and 
+                    if (not is_public_api_file(cwd, path) and
+                        file != '__init__.py' and
                         path not in IGNORE_FILES):
                         module_path = path[:-3].replace(os.path.sep, '.')
                         extension = Extension(
-                            module_path, 
+                            module_path,
                             [path],
                             extra_compile_args=extra_compile_args,
                             define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
                         )
                         extensions.append(extension)
                         compiled_files.append(path)
-        
+
         # Cythonize all extensions
         extensions = cythonize(
             extensions,
@@ -76,4 +77,4 @@ def main():
 
 if __name__ == '__main__':
     freeze_support()
-    main() 
+    main()

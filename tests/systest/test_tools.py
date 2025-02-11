@@ -130,6 +130,12 @@ class TestTools(unittest.TestCase):
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
         self.assertTrue('process' in response)
 
+        prompt = f'Run manage_processes with the following action: CREATE_CONFIRMED, bot_id: {bot_id}, process_name: {process_name}, process_instructions: {process_instructions}'
+        thread_id = str(uuid4())
+        request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
+        response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+        self.assertTrue('manage_processes' in response)
+
     def test_list_of_bots_agent(self):
         thread_id = str(uuid4())
         bot_id = self.eve_id

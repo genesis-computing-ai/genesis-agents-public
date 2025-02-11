@@ -63,3 +63,4 @@ jl.db
 runtime/*
 apps/vscode-curosr-ext/node_modules/
 sample_catalog_stage
+build_output.log

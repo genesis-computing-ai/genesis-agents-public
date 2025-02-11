@@ -2,6 +2,9 @@
 GENESIS BOT TODOS
 =================
 
+Yuly - context length compression
+snowpark function being called oddly, and libraries
+dont load Janice processes into table when in sqlite mode
 claude/cortex: catch when token window is exceeded and compress the history
 (pr) email collector / telemetry on local vers
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right

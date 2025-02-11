@@ -8,7 +8,7 @@ if os.path.exists('tests/genesis.db'):
 import unittest
 from genesis_bots.api import GenesisAPI, build_server_proxy
 from uuid import uuid4
-from apps.demos.cli_chat import get_available_bots
+from genesis_bots.apps.demos.cli_chat import get_available_bots
 from datetime import datetime, timedelta
 
 from genesis_bots.core.tools.process_scheduler import process_scheduler

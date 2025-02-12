@@ -38,5 +38,6 @@ jobs:
         env:
           SNOWFLAKE_METADATA: FALSE
           SPCS_MODE: FALSE
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           pytest -v

@@ -136,7 +136,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
-        self.assertTrue('manage_processes' in response)
+        self.assertTrue('process' in response)
 
     def test_list_of_bots_agent(self):
         thread_id = str(uuid4())

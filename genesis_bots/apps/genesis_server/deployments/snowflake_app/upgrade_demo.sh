@@ -20,11 +20,11 @@ DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
 echo "starting"
 # Run make_alpha_sis_launch.py
-python3 ./genesis_bots/apps/streamlit_gui/make_community_compute_pool.py
+python3 ../../streamlit_gui/make_demo_compute_pool.py
 sleep 5
 
 # Login to image repo
-snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON
+# snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON
 snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON | docker login dshrnxx-genesis.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
 
@@ -89,6 +89,19 @@ fi
 snow sql -c GENESIS-ALPHA-CONSUMER -q "alter application genesis_bots upgrade"
 
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show services"
+
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on warehouse app_xsmall to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on service genesis_bots.APP1.GENESISAPP_HARVESTER_SERVICE to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on service genesis_bots.APP1.GENESISAPP_KNOWLEDGE_SERVICE to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on service genesis_bots.APP1.GENESISAPP_TASK_SERVICE to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on service genesis_bots.APP1.GENESISAPP_SERVICE_SERVICE to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on all tables in schema genesis_bots.APP1 to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant select on genesis_bots.APP1.LLM_RESULTS to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on schema genesis_bots.APP1 to application role app_public;');"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "show applications;"
+
+python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/apps/streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
+
 
 echo "Upgrade complete"
 

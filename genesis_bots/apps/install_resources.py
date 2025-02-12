@@ -1,9 +1,31 @@
 import os
 import shutil
 from pathlib import Path
+import genesis_bots
+
+
+def _copy_files_by_patterns(src_dir, dest_dir, patterns, verbose=False):
+    for pattern in patterns:
+        for src_file in src_dir.glob(pattern):
+            tgt_file = dest_dir / src_file.relative_to(src_dir)
+            tgt_file.parent.mkdir(parents=True, exist_ok=True) # Ensure the target directory exists
+            if src_file.resolve() == tgt_file.resolve(): # don't copy if the source and target are the same file (can happen in development mode)
+                continue
+            shutil.copy2(src_file, tgt_file)
+
 
 def copy_resources(base_dir=None, verbose=False):
-    """Copy demo files and demo data to the current directory."""
+    """
+    Copies resources from the genesis_bots package to the specified base directory.
+    This is intended to be called right after installing the genesis_bots package (with pip install)
+    It copies the demo apps and golden defaults into the base directory, making them visible and editable for the users.
+
+    Args:
+        base_dir (str or Path, optional): The base directory where resources will be copied. 
+                                          If None, defaults to CWD
+        verbose (bool, optional): If True, prints detailed trace of actions being performed.
+
+    """
 
     def trace_action(message):
         if verbose:
@@ -16,80 +38,42 @@ def copy_resources(base_dir=None, verbose=False):
         base_dir = Path(base_dir).resolve()
 
     # Get the source directory (to the root of the genesis_bots package)
-    root_pkg_source_dir = Path(__file__).parent.parent  # Go up one level from apps/install_resources.py
+    root_pkg_source_dir = Path(genesis_bots.__file__).parent
 
-    # Define source and destination paths
-    demo_src = root_pkg_source_dir / "apps" / "demos"
-    demo_dest = base_dir / "apps" / "demos"
-    golden_src = root_pkg_source_dir / "genesis_bots" / "golden_defaults"
-    golden_dest = base_dir / "genesis_bots" / "golden_defaults"
-
-    # Create destination directories
-    demo_data_dest = demo_dest / "demo_data"
-    db_demos_dest = demo_dest / "database_demos"
-
-    for directory in [demo_data_dest, db_demos_dest, golden_dest]:
-        directory.mkdir(parents=True, exist_ok=True)
-        trace_action(f"Created/Using directory: {directory}")
-
-    # Copy demo data files
-    demo_data_src = demo_src / "demo_data"
-    if demo_data_src.exists():
-        for file_name in ["workspace.sqlite", "baseball.sqlite", "formula_1.sqlite",
-                         "postgres_travel.sql", "demo_harvest_results.json"]:
-            src_file = demo_data_src / file_name
-            dst_file = demo_data_dest / file_name
-            if src_file.exists():
-                shutil.copy2(src_file, dst_file)
-
-    # Copy database demo files
-    db_demos_src = demo_src / "database_demos"
-    if db_demos_src.exists():
-        for file_name in ["oracle.md", "oracle_demo.sql"]:
-            src_file = db_demos_src / file_name
-            dst_file = db_demos_dest / file_name
-            if src_file.exists():
-                shutil.copy2(src_file, dst_file)
+    # Copy demo apps data and source code
+    demo_apps_src = root_pkg_source_dir / "apps" / "demos"
+    demo_apps_dest = base_dir / "apps" / "demos"
+    demo_incl_globs = ["demo_data/**/*",
+                       "database_demos/**/*.sql",
+                       "database_demos/**/*.md",
+                       "database_demos/**/*.py",
+                       "*.py",
+                       ]
+    demo_apps_dest.mkdir(parents=True, exist_ok=True)
+    trace_action(f"Creating/updating directory: {demo_apps_dest}")
+    _copy_files_by_patterns(demo_apps_src, demo_apps_dest, demo_incl_globs, verbose)
 
     # Copy golden defaults structure
+    golden_src = root_pkg_source_dir / "golden_defaults"
+    golden_dest = base_dir / "genesis_bots" / "golden_defaults"
     if golden_src.exists():
-        # Copy golden_notes
-        golden_notes_src = golden_src / "golden_notes"
-        golden_notes_dest = golden_dest / "golden_notes"
-        golden_notes_dest.mkdir(exist_ok=True)
-        trace_action(f"Created/Using directory: {golden_notes_dest}")
-        if golden_notes_src.exists():
-            for file_name in ["__init__.py", "golden_notes.yaml"]:
-                src_file = golden_notes_src / file_name
-                dst_file = golden_notes_dest / file_name
-                if src_file.exists():
-                    shutil.copy2(src_file, dst_file)
+        golden_dest.mkdir(parents=True, exist_ok=True)
+        trace_action(f"Creating/updating directory: {golden_dest}")
+        golden_incl_globs = ["golden_notes/**/*",
+                             "golden_processes/**/*",
+                            ]
+        _copy_files_by_patterns(golden_src, golden_dest, golden_incl_globs, verbose)
 
-        # Copy golden_processes
-        golden_processes_src = golden_src / "golden_processes"
-        golden_processes_dest = golden_dest / "golden_processes"
-        golden_processes_dest.mkdir(exist_ok=True)
-        trace_action(f"Created/Using directory: {golden_processes_dest}")
-        if golden_processes_src.exists():
-            for file_name in ["__init__.py", "janice_processes_default.yaml"]:
-                src_file = golden_processes_src / file_name
-                dst_file = golden_processes_dest / file_name
-                if src_file.exists():
-                    shutil.copy2(src_file, dst_file)
+    # Copy API documentation files (currently disabes - can't we just leave them in the package?)
+    # api_src = root_pkg_source_dir / "api"
+    # api_dest = base_dir / "api"
+    # api_dest.mkdir(parents=True, exist_ok=True)
+    # trace_action(f"Creating/updating directory: {api_dest}")
 
-    # Copy API documentation files
-    api_src = root_pkg_source_dir / "genesis_bots" / "api"
-    api_dest = base_dir / "genesis_bots" / "api"
-    api_dest.mkdir(parents=True, exist_ok=True)
-    trace_action(f"Created/Using directory: {api_dest}")
-
-    # Copy README.md and LICENSE
-    for file_name in ["README.md", "LICENSE"]:
-        src_file = api_src / file_name
-        dst_file = api_dest / file_name
-        if src_file.exists():
-            shutil.copy2(src_file, dst_file)
+    # # Copy README.md and LICENSE
+    # api_incl_globs = ["README.md", "LICENSE"]
+    # _copy_files_by_patterns(api_src, api_dest, api_incl_globs, verbose)
 
 if __name__ == '__main__':
     copy_resources(verbose=True)
-    print("Resources copied successfully.")
+    print("Local Resources created/updated successfully.")

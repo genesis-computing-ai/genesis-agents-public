@@ -305,7 +305,7 @@ def get_metadata():
 
     response = make_response({"data": output_rows})
     response.headers["Content-type"] = "application/json"
-    logger.info(f"get_metadata - Sending response: {response.json}")
+    # logger.info(f"get_metadata - Sending response: {response.json}")
     return response
 
 

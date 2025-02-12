@@ -2,8 +2,13 @@
 GENESIS BOT TODOS
 =================
 
+
+bulk add todos
+streamlit page to see projects and todos
+prompter loop to work on projects when enabled
+finish redhsift, and bigquery
 Yuly - context length compression
-snowpark function being called oddly, and libraries
+test-snowpark function being called oddly, and libraries
 dont load Janice processes into table when in sqlite mode
 claude/cortex: catch when token window is exceeded and compress the history
 (pr) email collector / telemetry on local vers

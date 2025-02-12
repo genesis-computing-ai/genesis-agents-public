@@ -17,6 +17,7 @@ from genesis_bots.core.tools.image_tools import image_generation
 from genesis_bots.core.tools.process_manager import manage_processes
 from genesis_bots.bot_genesis.make_baby_bot import make_baby_bot, add_new_tools_to_bot, update_bot_instructions
 from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
+from genesis_bots.core.tools.git_action import git_action
 
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
@@ -188,6 +189,32 @@ class TestTools(unittest.TestCase):
         packages = ''
         response = self.db_adapter.run_python_code(purpose=purpose, packages=packages, bot_id=bot_id, code=code, thread_id=thread_id)
         self.assertTrue(response == 30)
+
+    def test_git_action(self):
+        bot_id = self.eve_id
+        thread_id = str(uuid4())
+        response = git_action(action='list_files', thread_id=thread_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
+
+        response = git_action(action='get_branch', thread_id=thread_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
+
+        response = git_action(action='get_status', thread_id=thread_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
+
+        response = git_action(action='get_history', thread_id=thread_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
+
+        response = git_action(action='read_file', thread_id=thread_id, bot_id=bot_id, file_path='README.md')
+        self.assertTrue(response['success'])
+
+        content = "This is the content of the file"
+        response = git_action(action='write_file', thread_id=thread_id, bot_id=bot_id, file_path='test.txt', content=content)
+        self.assertTrue(response['success'])
+
+        response = git_action(action='list_files', thread_id=thread_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
+        self.assertTrue('test.txt' in response['files'])
 
     @classmethod
     def tearDownClass(cls):

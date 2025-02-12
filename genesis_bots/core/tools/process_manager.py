@@ -41,8 +41,11 @@ process_manager_tools = ToolFuncGroup(
             type="string",
             enum=[
                 "CREATE",
+                "CREATE_CONFIRMED",
                 "UPDATE",
+                "UPDATE_CONFIRMED",
                 "DELETE",
+                "DELETE_CONFIRMED",
                 "CREATE_PROCESS_CONFIG",
                 "UPDATE_PROCESS_CONFIG",
                 "DELETE_PROCESS_CONFIG",

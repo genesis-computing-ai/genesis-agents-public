@@ -124,28 +124,26 @@ class BotOsServer:
 
         bot_config = get_bot_details(bot_id)
 
-        new_session, api_app_id, udf_local_adapter, slack_adapter_local = make_session(
-                bot_config=bot_config,
-                db_adapter=self.db_adapter,
-                bot_id_to_udf_adapter_map=self.bot_id_to_udf_adapter_map,
-                stream_mode=True,
-                existing_slack=None,
-                existing_udf=None
-            )
-        # check new_session
-        if new_session is None:
-            logger.info("new_session is none")
-            raise ValueError(f"Failed to start a new session for {bot_id=}")
+        from genesis_bots.demo.app import genesis_app
 
-        if slack_adapter_local is not None and self.bot_id_to_slack_adapter_map is not None:
-            self.bot_id_to_slack_adapter_map[bot_config["bot_id"]] = (
-                slack_adapter_local
-            )
-        if udf_local_adapter is not None:
-            self.bot_id_to_udf_adapter_map[bot_config["bot_id"]] = udf_local_adapter
-        self.api_app_id_to_session_map[api_app_id] = new_session
-        #    logger.info("about to add session ",new_session)
-        self.add_session(new_session, replace_existing=True)
+        orig_session = any(session.bot_id == bot_id for session in genesis_app.sessions)
+
+        if orig_session:
+            logger.info(f"Session for bot {bot_id} already exists, will be replaced")
+
+        genesis_app.create_app_sessions(bot_list=[bot_config], targetted=True)
+
+        if genesis_app.sessions:  # Check if sessions exists and is not None
+            matching_sessions = [session for session in genesis_app.sessions if session.bot_id == bot_id]
+            new_session = matching_sessions[0] if matching_sessions else None
+
+        if new_session:
+            logger.info(f"Session for bot {bot_id} created")
+            return new_session
+        else:
+            logger.info(f"Session for bot {bot_id} not created")
+            return False
+            
 
 
     def add_session(self, session: BotOsSession, replace_existing=False):

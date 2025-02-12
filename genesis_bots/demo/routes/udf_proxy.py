@@ -171,7 +171,10 @@ def create_baby_bot():
             available_tools=available_tools,
             bot_instructions=bot_instructions
         )
-        return make_response({"Success": True, "Data": result}), 200
+        if result:
+            return make_response({"Success": True, "Data": 'Bot created successfully'}), 200
+        else:
+            return make_response({"Success": False, "Message": "Bot creation failed"}), 500
 
     except Exception as e:
         logger.error(f"Error in create_baby_bot: {str(e)}")

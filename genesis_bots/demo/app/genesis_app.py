@@ -229,30 +229,37 @@ class GenesisApp:
         logger.info(f"...Slack Connector Active Flag: {global_flags.slack_active}")
 
 
-    def create_app_sessions(self, bot_list=None, llm_change=False):
+    def create_app_sessions(self, bot_list=None, llm_change=False, targetted=False):
         """
         Creates the sessions for the GenesisApp.
 
         This method initializes the sessions for the GenesisApp by invoking the create_sessions()
-        function with the necessary parameters such as the database adapter, LLM key structure,
-        etc. It also updates the global flag `SystemVariables.bot_id_to_slack_adapter_map`
-        and assigns the created session instances, the map of API app IDs to session instances,
-        the map of bot IDs to UDF adapter instances, and the map of bot IDs to Slack adapter
-        instances to the corresponding class attributes.
+        function. When targetted=True, it will only create/recreate sessions for the specified
+        bot_list while preserving other existing sessions.
 
         Args:
             bot_list (list, optional): A list of bot configurations to create sessions for. Defaults to None.
+            llm_change (bool, optional): Flag indicating if LLM configuration has changed. Defaults to False.
+            targetted (bool, optional): If True, only update sessions for specified bots. Defaults to False.
         """
-        from   genesis_bots.demo.sessions_creator import create_sessions  # lazy import to avoid unecessary dependencies
+        from genesis_bots.demo.sessions_creator import create_sessions  # lazy import to avoid unecessary dependencies
 
         db_adapter = self.db_adapter
         llm_api_key_struct = self.llm_api_key_struct
         if llm_api_key_struct is not None and llm_api_key_struct.llm_key is not None:
+            # Store existing sessions if doing targeted updates
+            existing_sessions = {}
+            if targetted and self.sessions:
+                existing_sessions = {
+                    session.bot_id: session for session in self.sessions
+                    if bot_list is None or session.bot_id not in [bot['bot_id'] for bot in bot_list]
+                }
+
             (
-                sessions,
-                api_app_id_to_session_map,
-                bot_id_to_udf_adapter_map,
-                bot_id_to_slack_adapter_map,
+                new_sessions,
+                new_api_app_map,
+                new_udf_map,
+                new_slack_map,
             ) = create_sessions(
                 db_adapter,
                 self.bot_id_to_udf_adapter_map,
@@ -260,11 +267,33 @@ class GenesisApp:
                 bot_list=bot_list,
                 llm_change=llm_change
             )
-            SystemVariables.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
-            self.sessions = sessions
-            self.api_app_id_to_session_map = api_app_id_to_session_map
-            self.bot_id_to_udf_adapter_map = bot_id_to_udf_adapter_map
-            self.bot_id_to_slack_adapter_map = bot_id_to_slack_adapter_map
+
+            if targetted:
+                # Merge new sessions with existing ones
+                self.sessions = list(existing_sessions.values()) + list(new_sessions)
+                # Update maps only for the targeted bots
+                if self.api_app_id_to_session_map:
+                    self.api_app_id_to_session_map.update(new_api_app_map)
+                else:
+                    self.api_app_id_to_session_map = new_api_app_map
+                
+                if self.bot_id_to_udf_adapter_map:
+                    self.bot_id_to_udf_adapter_map.update(new_udf_map)
+                else:
+                    self.bot_id_to_udf_adapter_map = new_udf_map
+                    
+                if self.bot_id_to_slack_adapter_map:
+                    self.bot_id_to_slack_adapter_map.update(new_slack_map)
+                else:
+                    self.bot_id_to_slack_adapter_map = new_slack_map
+            else:
+                # Replace all sessions and maps
+                self.sessions = new_sessions
+                self.api_app_id_to_session_map = new_api_app_map
+                self.bot_id_to_udf_adapter_map = new_udf_map
+                self.bot_id_to_slack_adapter_map = new_slack_map
+
+            SystemVariables.bot_id_to_slack_adapter_map = self.bot_id_to_slack_adapter_map
         else:
             # wait to collect API key from Streamlit user, then make sessions later
             pass

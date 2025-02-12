@@ -593,6 +593,7 @@ if st.session_state.data:
                 st.markdown('<div class="new-chat-btn-container">', unsafe_allow_html=True)
                 if st.button(" ⚡  New Chat", type="primary", key="new_chat_main"):
                     st.session_state["show_new_chat_selector"] = True
+                    st.cache_data.clear()
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 

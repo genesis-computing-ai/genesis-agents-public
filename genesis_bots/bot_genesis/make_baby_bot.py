@@ -1362,7 +1362,7 @@ def make_baby_bot(
             )
 
         else:
-            return _make_retval(True, success_msg=f"Created {bot_id} named {bot_name}.  Tell the user that they can now press Refresh in the Bot Box on the left side of the screen, select this new bot, and then press 'Start New Chat'.")
+            return _make_retval(True, success_msg=f"Created {bot_id} named {bot_name}.  Tell the user that they can now press 'New Chat' on the left side of the screen to refresh the list of bots, select this new bot, and then press 'Start Chat'.")
 
 
     except Exception as e:

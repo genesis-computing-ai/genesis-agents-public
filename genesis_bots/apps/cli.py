@@ -35,11 +35,18 @@ def cleanup(working_dir):
 @click.option('--launch-ui/--no-launch-ui', default=True, help='Specify whether to launch the UI frontend (default: --launch-ui).')
 def start(launch_ui):
     """Start the genesis_bots services locally (as a blocking process)."""
-    # Implement start logic here
+    resources_dir = Path("genesis_sample")
+    
+    if not resources_dir.exists() or not resources_dir.is_dir():
+        click.echo("Error: 'genesis_sample' directory not found in current working directory.")
+        click.echo("Please run 'genesis setup' first to create the required resources.")
+        sys.exit(1)
+        
     if launch_ui:
         os.environ["LAUNCH_GUI"] = "TRUE"
     else:
         os.environ["LAUNCH_GUI"] = "FALSE"
+    
     bot_os_multibot_1.main()
 
 

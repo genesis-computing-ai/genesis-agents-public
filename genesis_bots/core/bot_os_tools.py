@@ -1207,10 +1207,10 @@ def get_persistent_tools_descriptions() -> dict[str, str]:
 
 def get_tools(
     which_tools: list[str],
-    db_adapter = None, # UNUSED
-    slack_adapter_local=None, # UNUSED
+    db_adapter = None, # used for 'old style' tools
+    slack_adapter_local=None, # # used for 'old style' tools
     include_slack: bool = True,
-    tool_belt=None # UNUSED
+    tool_belt=None # # used for 'old style' tools
     ) -> tuple[list, dict, dict]:
     """
     Retrieve a list of tools (function groups), available functions, and a mapping of functions to tools based on the specified tool names.
@@ -1309,6 +1309,7 @@ def get_tools(
             assert isinstance(function_handle, str)
             module_path, func_name = function_handle.rsplit(".", 1)
             if module_path in locals():
+                # old style tools might be depending on the following object: tool_belt, db_adapter, slack_adapter_local
                 module = locals()[module_path]
                 try:
                     func = getattr(module, func_name)
@@ -1327,7 +1328,10 @@ def get_tools(
                 module = __import__(module_path, fromlist=[func_name])
                 func = getattr(module, func_name)
                 # logger.info("imported: ",func)
-            available_functions[name] = func
+            if func is not None:
+                available_functions[name] = func
+            else:
+                logger.warning(f"Tool Function '{name}' could not be resolved to a callable from '{function_handle}'. It may be listed as a tool function, but not available for use.")
 
     return func_descriptors, available_functions, tool_to_func_descriptors_map
 

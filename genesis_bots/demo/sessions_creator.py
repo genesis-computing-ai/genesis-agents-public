@@ -98,10 +98,10 @@ def get_legacy_sessions(bot_id: str, db_adapter) -> dict | list:
     return threads
 
 
-def _resolve_session_tools_info(bot_config):
+def _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter):
     '''helper function for make_session(...) to resolve tools & tool-functions info for a given bot '''
 
-    #NOTE on nameing: 'tools' are named groups of tool-functions
+    #NOTE on naming: 'tools' are named groups of tool-functions
 
 
     # fetch some bot attributes that are needed for tool resolution
@@ -128,15 +128,23 @@ def _resolve_session_tools_info(bot_config):
     if not slack_enabled:
         bot_p_tool_names.discard("slack_tools")
 
-    # NOTE: Legacy? ToolBelt seems to be a local variable that is used as a global variable by some tools
-    # TODO: clean this up
+
+    # 'old-style' tools require some legacy args to resolve to their callables
     tool_belt = ToolBelt()
+    legacy_args = dict(
+        tool_belt = tool_belt,
+        db_adapter = db_adapter,
+        slack_adapter_local = slack_adapter_local,
+        include_slack = (slack_adapter_local is not None)
+    )
+
 
     # get functions metadata for the (persistent) tools configured for this bot
     (available_p_func_descriptors,            # list of func descriptors dicts
      available_p_callables_map,               # map from func name to its callable
      _                                        # map from tool (group) name to a list of func descriptors
-     ) = get_tools(which_tools=list(bot_p_tool_names))
+     ) = get_tools(which_tools=list(bot_p_tool_names), **legacy_args)
+
     logger.info(f"Number of available persistent functions for bot {bot_id}: {len(available_p_callables_map)}")
 
     # get ephemeral functions that are assigned to this bot and convert them to the same info structure as the persistent functions
@@ -161,7 +169,7 @@ def _resolve_session_tools_info(bot_config):
     (all_func_descriptions,                 # list of func descriptors dicts
      all_callables_map,                     # map from func name to its callable
      all_tool_to_func_descs_map             # map from tool (group) name to a list of func descriptors
-     ) = get_tools(which_tools=all_tool_names)
+     ) = get_tools(which_tools=all_tool_names, **legacy_args)
 
     logger.info(f"Number of all persistent functions: {len(all_callables_map)}")
 
@@ -174,7 +182,6 @@ def _resolve_session_tools_info(bot_config):
         all_callables_map = all_callables_map,
         all_tool_to_func_descs_map = all_tool_to_func_descs_map,
         ephemeral_bot_callables = ephemeral_bot_callables,
-
         tool_belt=tool_belt
     )
 
@@ -311,7 +318,7 @@ def make_session(
             logger.error(f'Failed to create Slack adapter with the provided configuration for bot {bot_config["bot_name"]}')
 
     # Use _resolve_session_tools_info to get tool information
-    tools_info = _resolve_session_tools_info(bot_config)
+    tools_info = _resolve_session_tools_info(bot_config, slack_adapter_local, db_adapter)
 
     simple_mode = os.getenv("SIMPLE_MODE", "false").lower() == "true"
 

@@ -62,10 +62,10 @@ class SlackBotAdapter(BotOsInputAdapter):
         try:
             logger.debug("Calling parent class constructor")
             super().__init__()
-            
+
             logger.debug("Initializing Slack App")
             self.slack_app = App(token=token, signing_secret=signing_secret)
-            
+
             logger.debug("Setting basic attributes")
             self.channel_id = channel_id
             self.handler = SlackRequestHandler(self.slack_app)
@@ -73,7 +73,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             self.bot_user_id = bot_user_id
             self.user_info_cache = {}
             self.bot_name = bot_name
-            
+
             logger.debug("Initializing tracking dictionaries")
             self.last_message_id_dict = {}
             self.thinking_map = {}
@@ -86,7 +86,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             self.finalized_threads = {}
             self.split_at = 3700  # use 3700 normally
             self.legacy_sessions = legacy_sessions
-            
+
             logger.debug("Setting thread-related attributes to None")
             self.slack_thread = None # initialized later
             self.slack_thread_shutdown_event = None # # initialized later
@@ -95,9 +95,9 @@ class SlackBotAdapter(BotOsInputAdapter):
             logger.debug("Setting up log suppressors")
             for msg_re_to_suppress in [r"Failed to establish a connection", r"on_error invoked \(session id"]:
                 LogSupressor.add_supressor(
-                    self.slack_app.logger.name, 
+                    self.slack_app.logger.name,
                     log_level=logging.ERROR,
-                    regexp=msg_re_to_suppress, 
+                    regexp=msg_re_to_suppress,
                     n=100
                 )
 
@@ -209,7 +209,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     self.slack_thread = threading.Thread(target=run_slack_app)
                     self.slack_thread_shutdown_event = threading.Event() # used for signalling the thread to terminate
                     self.slack_thread.start()
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to initialize socket mode: {str(e)}", exc_info=True)
                     raise
@@ -1225,7 +1225,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                 logger.error(
                     f"SlackBotAdapter:handle_response - Error posting message: {e}"
                 )
-                
+
     def process_attachments(self, msg, attachments, files_in = None):
         files_to_attach = []
         for attachment in attachments:

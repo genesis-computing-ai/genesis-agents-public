@@ -262,7 +262,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'baseball_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./apps/demos/demo_data/baseball.sqlite',
+                        'connection_string': 'sqlite:///./genesis_bots/apps/demos/demo_data/baseball.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Baseball data up to 2015'
@@ -270,7 +270,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'formula_1_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./apps/demos/demo_data/formula_1.sqlite',
+                        'connection_string': 'sqlite:///./genesis_bots/apps/demos/demo_data/formula_1.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Formula 1 data up to 2024'
@@ -278,7 +278,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'workspace_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./apps/demos/demo_data/workspace.sqlite',
+                        'connection_string': 'sqlite:///./genesis_bots/apps/demos/demo_data/workspace.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Workspace/scratchpad database you can use for storing data and creating new tables'
@@ -493,7 +493,7 @@ class SQLiteAdapter:
                             database_name,
                             schema_inclusions,
                             schema_exclusions,
-                            status, 
+                            status,
                             refresh_interval,
                             initial_crawl_complete
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)

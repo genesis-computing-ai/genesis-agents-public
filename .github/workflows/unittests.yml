@@ -27,7 +27,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          pip install pytest
         if: steps.cache-venv.outputs.cache-hit != 'true'
 
       - name: Add user-level bin to PATH
@@ -43,4 +42,5 @@ jobs:
           SPCS_MODE: FALSE
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          python -m pip install pytest
           pytest -v

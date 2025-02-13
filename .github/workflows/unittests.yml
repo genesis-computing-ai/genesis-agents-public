@@ -1,7 +1,10 @@
-name: Run Unittest Tests
+name: Run-Unittest-Tests
 
 on:
   workflow_dispatch: # Allows manual triggering of the workflow
+  pull_request:
+    branches:
+      - main
 
 jobs:
   run-unittests:

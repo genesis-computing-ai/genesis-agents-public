@@ -46,11 +46,12 @@ def init():
     we do not have BotOsSession/Server so handle config directly
     create all the necessary tables, set stream_mode and override OpenAI client 
     '''
-    genesis_bots.llm.llm_openai.bot_os_openai.get_openai_client = lambda : Client()
+    genesis_bots.llm.llm_openai.bot_os_openai_chat.get_openai_client = lambda : Client()
+    genesis_bots.llm.llm_openai.bot_os_openai_asst.get_openai_client = lambda : Client()
     genesis_bots.llm.llm_openai.bot_os_openai.BotOsAssistantOpenAI.stream_mode = True
     get_global_db_connector().ensure_table_exists()
 
-def make_assistant(name='bot_name', instr='bot_instructions') -> genesis_bots.llm.llm_openai.bot_os_openai.BotOsAssistantOpenAI:
+def make_assistant(name='bot_name', instr='bot_instructions'):
     return genesis_bots.llm.llm_openai.bot_os_openai.BotOsAssistantOpenAI(name, instr,
                                                                           log_db_connector=get_global_db_connector())
 
@@ -64,16 +65,17 @@ def make_input_message(thread_id, msg) -> BotOsInputMessage:
 def round_trip(msg:str, completions_create, event_callback=None, assistant=None, thread_id=None) -> str:
     '''excercise adapter cycle: add_message() followed by check_runs()'''
 
-    assistant = assistant or make_assistant()
-    thread_id = thread_id or f'[thread_{uuid4()}]'
-    completions.register_create_mock(completions_create)
-    assistant.add_message(make_input_message(thread_id, msg))
-    
     response = 'done'
     def default_event_callback(session_id, output_message: BotOsOutputMessage):
         nonlocal response
         response = output_message.output
 
+    assistant = assistant or make_assistant()
+    thread_id = thread_id or f'[thread_{uuid4()}]'
+    completions.register_create_mock(completions_create)
+    assistant.add_message(make_input_message(thread_id, msg),
+                          event_callback=event_callback or default_event_callback)
+    
     for i in range(10):
         assistant.check_runs(event_callback or default_event_callback)
     return response, thread_id

@@ -7,6 +7,7 @@ import threading
 from genesis_bots.core.bot_os_corpus import FileCorpus
 from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI
+from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAIChat
 from genesis_bots.llm.llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 
 # from bot_os_reka import BotOsAssistantReka
@@ -40,6 +41,8 @@ class BotOsThread:
             self.assistant_impl = current_assistant
         if isinstance(self.assistant_impl, BotOsAssistantSnowflakeCortex):
             ret = self.assistant_impl.add_message(message, event_callback=event_callback)
+        elif isinstance(self.assistant_impl, BotOsAssistantOpenAIChat):
+            ret = self.assistant_impl.add_message(message, event_callback)
         else:
             ret = self.assistant_impl.add_message(message)
         #ret = self.assistant_impl.add_message(message)

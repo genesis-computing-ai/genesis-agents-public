@@ -1,6 +1,6 @@
 import json
 import streamlit as st
-from utils import (check_eai_status, get_references, get_session, set_metadata, upgrade_services)
+from utils import (check_eai_assigned, get_references, get_session, set_metadata, upgrade_services)
 from .components import config_page_header
 
 def config_web_access():
@@ -86,7 +86,7 @@ def config_web_access():
     # Check if Web Access EAI is available and we're in Native Mode
     if not st.session_state.serper_eai_available and st.session_state.get("NativeMode", False) == True:
         try:
-            eai_status = check_eai_status("serper")
+            eai_status = check_eai_assigned("serper_external_access")
             if eai_status:
                 st.session_state.serper_eai_available = True
                 st.success("Web Access External Access Integration is available.")

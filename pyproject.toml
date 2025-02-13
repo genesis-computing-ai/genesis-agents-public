@@ -97,12 +97,17 @@ package-dir = {"" = "."}
     "**/*.json",
     "**/*.md",
     "**/LICENSE",
+    "**/*.sqlite",
+    "**/*.sql",
+    "**/*.db",
     "default_config/*",
     "requirements.txt",
     "apps/demos/**/*",
     "apps/streamlit_gui/**/*",
     "apps/streamlit_gui/*.png",
-    "genesis_bots/apps/streamlit_gui/*.png"
+    "genesis_bots/apps/streamlit_gui/*.png",
+    "**/demo_data/**/*.sqlite",
+    "genesis_sample_golden/**/*.sqlite"
 ]
 
 [tool.setuptools.dynamic]

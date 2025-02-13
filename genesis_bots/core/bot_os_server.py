@@ -1,22 +1,24 @@
-import traceback, datetime
-from flask import Flask
-from genesis_bots.core.bot_os import BotOsSession
-import threading
+from   apscheduler.events       import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
+from   apscheduler.schedulers.background \
+                                import BackgroundScheduler
+import datetime
+from   flask                    import Flask
+from   genesis_bots.bot_genesis.make_baby_bot \
+                                import (get_slack_config_tokens,
+                                        rotate_slack_token)
+from   genesis_bots.core.bot_os import BotOsSession
 import os
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
-from genesis_bots.bot_genesis.make_baby_bot import get_slack_config_tokens, rotate_slack_token
-from apscheduler.job import Job
-from concurrent.futures import ThreadPoolExecutor
-from apscheduler.executors.pool import ThreadPoolExecutor
-import time, sys
-import threading
+import sys
+import traceback
 
-from genesis_bots.demo.sessions_creator import create_sessions, make_session
+from   genesis_bots.demo.sessions_creator \
+                                import make_session
 
-from genesis_bots.bot_genesis.make_baby_bot import (  get_bot_details, make_baby_bot )
+from   genesis_bots.bot_genesis.make_baby_bot \
+                                import get_bot_details, make_baby_bot
 
-from genesis_bots.core.logging_config import logger
+from   genesis_bots.core.logging_config \
+                                import logger
 
 
 def _job_listener(event):
@@ -133,6 +135,7 @@ class BotOsServer:
 
         genesis_app.create_app_sessions(bot_list=[bot_config], targetted=True)
 
+        new_session = None
         if genesis_app.sessions:  # Check if sessions exists and is not None
             matching_sessions = [session for session in genesis_app.sessions if session.bot_id == bot_id]
             new_session = matching_sessions[0] if matching_sessions else None
@@ -143,7 +146,7 @@ class BotOsServer:
         else:
             logger.info(f"Session for bot {bot_id} not created")
             return False
-            
+
 
 
     def add_session(self, session: BotOsSession, replace_existing=False):

@@ -467,11 +467,11 @@ def check_eai_assigned(reference_name):
 def check_eai_status(site):
     result = False
     try:
-        eai_result = get_metadata(f"check_eai {site}")
-        if isinstance(eai_result, list) and len(eai_result) > 0:
-            # The response is a list containing a dictionary
-            # The dictionary has a 'Success' key that's a boolean
-            result = bool(eai_result[0].get('Success', False))
+        # eai_result = get_metadata(f"check_eai {site}")
+        # if isinstance(eai_result, list) and len(eai_result) > 0:
+        #     # The response is a list containing a dictionary
+        #     # The dictionary has a 'Success' key that's a boolean
+        #     result = bool(eai_result[0].get('Success', False))
         return result
     except Exception as e:
         st.error(f"Error checking eai status: {e}")

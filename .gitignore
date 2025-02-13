@@ -65,3 +65,6 @@ apps/vscode-curosr-ext/node_modules/
 sample_catalog_stage
 build_output.log
 apps/*
+
+# we copy all the local sample files to this dir from the genesis_bots package
+genesis_sample/

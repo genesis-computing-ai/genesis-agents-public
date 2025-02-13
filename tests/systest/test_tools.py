@@ -8,7 +8,6 @@ if os.path.exists('tests/genesis.db'):
 import unittest
 from genesis_bots.api import GenesisAPI, build_server_proxy
 from uuid import uuid4
-from genesis_bots.apps.demos.cli_chat import get_available_bots
 from datetime import datetime, timedelta
 
 from genesis_bots.core.tools.process_scheduler import process_scheduler
@@ -23,6 +22,12 @@ from genesis_bots.core.tools.git_action import git_action
 RESPONSE_TIMEOUT_SECONDS = 20.0
 SNOWFLAKE = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"
 
+def _get_available_bot_ids(client: GenesisAPI) -> list[str]:
+    all_bot_configs = client.list_available_bots()
+    all_bot_ids = sorted([bot.bot_id for bot in all_bot_configs])
+    return all_bot_ids
+
+
 class TestTools(unittest.TestCase):
 
     @classmethod
@@ -30,10 +35,10 @@ class TestTools(unittest.TestCase):
         """Setup shared resources for all test methods."""
         server_proxy = build_server_proxy('embedded')
         cls.client = GenesisAPI(server_proxy=server_proxy)
-        cls.available_bots = get_available_bots(cls.client)
+        cls.available_bot_ids = _get_available_bot_ids(cls.client)
         cls.db_adapter = cls.client._server_proxy.genesis_app.db_adapter
-        cls.eve_id = cls.available_bots[0]
-        for bot_id in cls.available_bots:
+        cls.eve_id = cls.available_bot_ids[0]
+        for bot_id in cls.available_bot_ids:
             if 'Eve' in bot_id:
                 cls.eve_id = bot_id
 

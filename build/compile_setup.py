@@ -70,9 +70,14 @@ def main():
             except OSError as e:
                 print(f"Error removing {py_file}: {e}")
 
-    # Minimal setup call with only Cython-related configuration
+    # Modify the setup call to include entry_points
     setup(
         ext_modules=extensions,
+        entry_points={
+            'console_scripts': [
+                'genesis=genesis_bots.apps.cli:main',
+            ],
+        }
     )
 
 if __name__ == '__main__':

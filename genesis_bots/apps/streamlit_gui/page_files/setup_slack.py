@@ -4,7 +4,7 @@ from utils import (
     get_slack_tokens,
     set_slack_tokens,
     get_slack_tokens_cached,
-    check_eai_status,
+    check_eai_assigned,
     upgrade_services,
     get_metadata,
     set_metadata,
@@ -27,7 +27,7 @@ def setup_slack():
     # Check if Slack External Access Integration (EAI) is available
     if not st.session_state.slack_eai_available:
         try:
-            eai_status = check_eai_status("slack")
+            eai_status = check_eai_assigned("slack_external_access")
             if eai_status:
                 st.session_state.slack_eai_available = True
                 st.success("Slack External Access Integration is available.")

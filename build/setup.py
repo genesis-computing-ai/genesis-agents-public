@@ -65,6 +65,7 @@ def get_package_data():
             if '**' in pattern:
                 # Handle glob patterns
                 if glob.fnmatch.fnmatch(relative_path, pattern):
+                    print(f"Including file due to pattern match: {relative_path} -> {pattern}")  # Debug line
                     return True
             elif relative_path == pattern:
                 # Handle exact matches
@@ -90,13 +91,19 @@ def get_package_data():
             '**/*.so',
             '**/*.conf',
             '**/*.json',
-            '**/*.md',     # Add markdown files
-            '**/LICENSE',  # Add LICENSE file
+            '**/*.md',
+            '**/LICENSE',
+            '**/*.sqlite',  # Add SQLite files
+            '**/*.sql',     # Add SQL files
+            '**/*.db',      # Add alternative SQLite extension
             'apps/streamlit_gui/**/*',
             'apps/streamlit_gui/*.png',
             'apps/streamlit_gui/*',
             'requirements.txt',
-            'default_config/*'
+            'default_config/*',
+            'genesis_sample_golden/**/*',  # Include all files in genesis_sample_golden
+            'genesis_sample_golden/demo_data/*',  # Explicitly include demo_data contents
+            'genesis_sample_golden/demo_data/*.sqlite',  # Explicitly include SQLite files
         ],
     }
 
@@ -130,17 +137,14 @@ setup_build_environment()
 
 setup(
     name="genesis_bots",
-    version=VERSION,  # Add version here
+    version=VERSION,
     description="Genesis Bots Package",
     packages=find_packages_excluding(IGNORE_DIRS, IGNORE_FILES),
     package_dir={
-        "": ".",  # Look for packages in the current directory
-        ## "genesis_bots.apps": "apps",  # Map apps to genesis_bots.apps
+        "": ".",
     },
-    py_modules=[
-        # 'apps' # DEPRECATED - moved under genesis_bots.apps
-        ],  # Explicitly include apps as a module
-    package_data=get_package_data(),  # Use the function instead of hardcoded dict
+    py_modules=[],
+    package_data=get_package_data(),
     data_files=[],
     zip_safe=False,
     include_package_data=True,
@@ -153,4 +157,9 @@ setup(
         'Cython>=0.29.0'
     ],
     python_requires='>=3.10',
+    entry_points={
+        'console_scripts': [
+            'genesis=genesis_bots.apps.cli:main',
+        ],
+    },
 )

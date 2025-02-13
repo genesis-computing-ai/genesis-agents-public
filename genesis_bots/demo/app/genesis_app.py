@@ -107,11 +107,14 @@ class GenesisApp:
             project_id (str): The ID of the project being processed.
             dataset_name (str): The name of the dataset used in the application.
         """
-        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "None")
-        if genbot_internal_project_and_schema == "None":
-            logger.info("ENV Variable GENESIS_INTERNAL_DB_SCHEMA is not set.")
-        if genbot_internal_project_and_schema is not None:
-            genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
+        genbot_internal_project_and_schema = os.getenv("GENESIS_INTERNAL_DB_SCHEMA")
+        if not genbot_internal_project_and_schema:
+            if os.getenv("SNOWFLAKE_METADATA", "FALSE").upper() != "TRUE":
+                os.environ["GENESIS_INTERNAL_DB_SCHEMA"] = "NONE.NONE"
+                genbot_internal_project_and_schema = "NONE.NONE"
+            else:
+                raise ValueError("GENESIS_INTERNAL_DB_SCHEMA is not set. Cannot determine internal project and schema.")
+        genbot_internal_project_and_schema = genbot_internal_project_and_schema.upper()
         db_schema = genbot_internal_project_and_schema.split(".")
         project_id = db_schema[0]
         global_flags.project_id = project_id
@@ -276,12 +279,12 @@ class GenesisApp:
                     self.api_app_id_to_session_map.update(new_api_app_map)
                 else:
                     self.api_app_id_to_session_map = new_api_app_map
-                
+
                 if self.bot_id_to_udf_adapter_map:
                     self.bot_id_to_udf_adapter_map.update(new_udf_map)
                 else:
                     self.bot_id_to_udf_adapter_map = new_udf_map
-                    
+
                 if self.bot_id_to_slack_adapter_map:
                     self.bot_id_to_slack_adapter_map.update(new_slack_map)
                 else:

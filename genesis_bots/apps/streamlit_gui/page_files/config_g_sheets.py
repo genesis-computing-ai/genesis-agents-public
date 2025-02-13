@@ -5,7 +5,7 @@ sys.path.append(".")
 
 import streamlit as st
 from utils import (
-    check_eai_status, get_references, get_session, set_metadata, upgrade_services
+    check_eai_assigned, get_references, get_session, set_metadata, upgrade_services
 )
 from snowflake.connector import SnowflakeConnection
 # from connectors import get_global_db_connector
@@ -20,7 +20,7 @@ def config_g_sheets():
     # Check if Slack External Access Integration (EAI) is available and in Native Mode
     if not st.session_state.google_eai_available and st.session_state.get("NativeMode", False) == True:
         try:
-            eai_status = check_eai_status("google")
+            eai_status = check_eai_assigned("google_external_access")
             if eai_status:
                 st.session_state.google_eai_available = True
                 st.success("Google External Access Integration is available.")

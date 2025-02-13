@@ -3,12 +3,13 @@ import os
 from functools import lru_cache
 
 
-# File patterens that should remain as Python source (.py) and not cythonized
+# File patterns that should remain as Python source (.py) and not cythonized
 PUBLIC_API_FILES = (
     'genesis_bots/api/*.py',
     'genesis_bots/api/README.md',
     'genesis_bots/api/LICENSE',
     'genesis_bots/apps/**/*.py',  # Keep all Python files under apps as .py files
+    'genesis_bots/genesis_sample_golden/**/*', # these files should remain as is as they are copied from the genesis_bots package when user runs `genesis setup`
 )
 
 

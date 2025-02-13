@@ -262,7 +262,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'baseball_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./genesis_bots/apps/demos/demo_data/baseball.sqlite',
+                        'connection_string': 'sqlite:///./genesis_sample/demo_data/baseball.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Baseball data up to 2015'
@@ -270,7 +270,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'formula_1_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./genesis_bots/apps/demos/demo_data/formula_1.sqlite',
+                        'connection_string': 'sqlite:///./genesis_sample/demo_data/formula_1.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Formula 1 data up to 2024'
@@ -278,7 +278,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'workspace_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./genesis_bots/apps/demos/demo_data/workspace.sqlite',
+                        'connection_string': 'sqlite:///./genesis_sample/demo_data/workspace.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Workspace/scratchpad database you can use for storing data and creating new tables'
@@ -332,10 +332,10 @@ class SQLiteAdapter:
                 return
 
             import json
-            input_file = Path(__file__).parent.parent / "apps" / "demos" / "demo_data" / "demo_harvest_results.json"
+            input_file = Path("genesis_sample/demo_data/demo_harvest_results.json")
 
             # Check if file exists
-            if not os.path.exists(input_file):
+            if not input_file.exists():
                 logger.warning(f"Harvest results file not found at {input_file}")
                 return
 
@@ -414,11 +414,11 @@ class SQLiteAdapter:
                 data.append(dict(zip(column_names, row)))
 
             # Create demos/demo_data directory if it doesn't exist
-            os.makedirs("../apps/demos/demo_data", exist_ok=True)
+            os.makedirs("./genesis_sample/demo_data", exist_ok=True)
 
             # Save to JSON file
             import json
-            output_file = "../apps/demos/demo_data/demo_harvest_results.json"
+            output_file = "./genesis_sample/demo_data/demo_harvest_results.json"
             with open(output_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
 

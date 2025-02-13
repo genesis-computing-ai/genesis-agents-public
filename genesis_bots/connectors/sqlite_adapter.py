@@ -34,6 +34,7 @@ class SQLiteAdapter:
             logger.info("Database connection and write permissions verified")
         except sqlite3.Error as e:
             logger.error(f"Failed to initialize database connection: {e}")
+            logger.error(f"location of db_path: {db_path}")
             raise Exception(f"Database initialization failed: {e}")
 
         # Ensure tables exist only once per class

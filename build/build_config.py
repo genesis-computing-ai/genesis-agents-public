@@ -55,6 +55,7 @@ IGNORE_DIRS = {
     'dist',
     'egg-info',
     'genesis_bots/teams',
+    'genesis_bots/genesis_sample_golden/demos/genesis_spcs_ingress'
 }
 
 # Individual files to ignore

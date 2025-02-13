@@ -17,7 +17,7 @@ from genesis_bots.core.tools.process_manager import manage_processes
 from genesis_bots.bot_genesis.make_baby_bot import make_baby_bot, add_new_tools_to_bot, update_bot_instructions
 from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
 from genesis_bots.core.tools.git_action import git_action
-
+from genesis_bots.genesis_sample_golden.demos.cli_chat import get_available_bots
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 SNOWFLAKE = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"

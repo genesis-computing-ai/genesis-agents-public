@@ -26,6 +26,7 @@ class SQLiteAdapter:
 
         # Test database connection and write permissions
         try:
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
             self.connection = sqlite3.connect(db_path, check_same_thread=False)
             # Try to create and drop a test table
             with self.connection:

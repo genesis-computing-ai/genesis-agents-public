@@ -34,8 +34,8 @@ RUN python3 -c "import subprocess; subprocess.run(['git', '--version'], check=Tr
 # RUN gcloud services enable drive.googleapis.com
 
 WORKDIR /src/app
-RUN mkdir -p /src/app/apps/genesis_server
-RUN mkdir -p /src/app/apps/streamlit_gui
+# RUN mkdir -p /src/app/apps/genesis_server
+# RUN mkdir -p /src/app/apps/streamlit_gui
 COPY genesis_bots ./genesis_bots
 # COPY apps/genesis_server/bot_os_multibot_1.py ./apps/genesis_server/bot_os_multibot_1.py
 # COPY apps/streamlit_gui ./apps/streamlit_gui

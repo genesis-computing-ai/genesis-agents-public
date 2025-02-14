@@ -33,14 +33,38 @@ class BotOsThread:
         self.input_adapter = input_adapter
         #self.input_adapter.thread_id = self.thread_id # JL COMMENT OUT FOR NOW
         self.validated = False
+
         self.messages = []
         self.fast_mode = False
+        self.mutex = threading.Lock()
+        self.is_active = False
+
+    def is_thread_active(self):
+        with self.mutex:
+            if self.is_active:
+                return True
+            else:
+                self.is_active = True
+                return False
+
+    def release_thread(self, thread_id):
+        with self.mutex:
+            self.is_active = False
 
     def is_fast_mode(self):
         return self.fast_mode
 
     def set_fast_mode(self, flag):
         self.fast_mode = flag
+
+    def add_chat_message(self, message, event_callback):
+        if self.is_thread_active():
+            return False
+
+        try:
+            return self.assistant_impl.add_message(message, self, event_callback)
+        finally:
+            self.release_thread()
 
     def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
         thread_id = message.thread_id
@@ -50,7 +74,7 @@ class BotOsThread:
         if isinstance(self.assistant_impl, BotOsAssistantSnowflakeCortex):
             ret = self.assistant_impl.add_message(message, event_callback=event_callback)
         elif isinstance(self.assistant_impl, BotOsAssistantOpenAIChat):
-            ret = self.assistant_impl.add_message(message, self, event_callback)
+            ret = self.add_chat_message(message, event_callback)
         else:
             ret = self.assistant_impl.add_message(message)
         #ret = self.assistant_impl.add_message(message)

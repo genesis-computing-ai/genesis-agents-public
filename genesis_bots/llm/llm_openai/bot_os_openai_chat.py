@@ -54,9 +54,6 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
         self.instructions = instructions
         self.tools = my_tools
-
-        self.mutex = Lock()
-        self.active_threads = {} # active LLM conversations by thread_id
         
         genbot_internal_project_and_schema = os.getenv('GENESIS_INTERNAL_DB_SCHEMA','None')
         if genbot_internal_project_and_schema is not None:
@@ -725,32 +722,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         logger.telemetry('add_answer:', thread_id, self.bot_id, run.metadata.get('user_email', 'unknown_email'),
                          os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), input_tokens, output_tokens)
 
-    def is_thread_active(self, thread_id):
-        with self.mutex:
-            if thread_id in self.active_threads:
-                return True
-            else:
-                self.active_threads[thread_id] = True
-                return False
-
-    def release_thread(self, thread_id):
-        with self.mutex:
-            self.active_threads.pop(thread_id, None)
-
     def add_message(self, input_message:BotOsInputMessage, bot_os_thread, event_callback):
-        thread_id = input_message.thread_id
-        if thread_id is None:
-            raise(Exception("thread_id is None"))
-
-        if self.is_thread_active(thread_id):
-            return False
-
-        try:
-            return self._add_message(input_message, bot_os_thread, event_callback)
-        finally:
-            self.release_thread(thread_id)
-
-    def _add_message(self, input_message:BotOsInputMessage, bot_os_thread, event_callback):
         thread_id = input_message.thread_id
 
         primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),

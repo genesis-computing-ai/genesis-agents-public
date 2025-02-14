@@ -255,7 +255,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             #self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message['content'] == last_user_message['content'])]
             if self.thread_history[thread_id]:
                 self.thread_history[thread_id].pop()
-            if self.thread_model_map[thread_id] is not None:
+            if thread_id in self.thread_model_map and self.thread_model_map[thread_id] is not None:
                 self.thread_model_map.pop(thread_id, None)
 
             if BotOsAssistantSnowflakeCortex.stream_mode == True:

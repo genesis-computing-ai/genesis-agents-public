@@ -53,7 +53,7 @@ else
 
     echo "Running Streamlit"
 
-    streamlit run apps/streamlit_gui/Genesis.py --server.port=8501 --server.address=0.0.0.0 &
+    streamlit run /src/app/genesis_bots/apps/streamlit_gui/Genesis.py --server.port=8501 --server.address=0.0.0.0 &
 
     export PYTHONPATH=$PYTHONPATH:~/bot_os
     export PYTHONPATH=$PYTHONPATH:/src/app/
@@ -88,6 +88,6 @@ else
     echo "Running Genesis Bot Server"
 
 
-    python3 /src/app/apps/genesis_server/bot_os_multibot_1.py
+    python3 /src/app/genesis_bots/apps/genesis_server/bot_os_multibot_1.py
 fi
 

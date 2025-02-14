@@ -37,7 +37,7 @@ try:
         print(f"Replacement complete. New file '{output_file}' created with GENESIS_DEMO_POOL.")
 
     # Define input and output file paths relative to the script directory
-    files_to_change = ['../connectors/snowflake_connector/snowflake_connector.py','../core/tools/image_tools.py']
+    files_to_change = ['../../connectors/snowflake_connector/snowflake_connector.py','../../core/tools/image_tools.py']
     for file in files_to_change:
         input_file = os.path.join(script_dir, file)
         output_file = os.path.join(script_dir, file)

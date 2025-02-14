@@ -1021,6 +1021,31 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             err = f"An error occurred while getting jira info: {e}"
             return {"Success": False, "Error": err}
 
+    def get_github_config_params(self):
+        """
+        Retrieves GitHub configuration parameters from the database.
+
+        Returns:
+            dict: A dictionary containing GitHub configuration parameters.
+        """
+        try:
+            query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'github';"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+            if not rows:
+                return {"Success": False, "Error": "No GitHub configuration found"}
+
+            github_params_list = [dict(zip(["parameter", "value"], row)) for row in rows]
+            json_data = json.dumps(github_params_list, default=str)
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting GitHub config params: {e}"
+            return {"Success": False, "Error": err}
+
     def set_api_config_params(self, service_name, key_pairs_str):
         try:
 
@@ -2654,7 +2679,6 @@ def get_status(site):
             }
 
         return sample_data
-
     def db_list_all_bots(
         self,
         project_id,
@@ -5330,3 +5354,4 @@ _all_snowflake_connector_functions = [
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_snowflake_connector_functions():
     return _all_snowflake_connector_functions
+

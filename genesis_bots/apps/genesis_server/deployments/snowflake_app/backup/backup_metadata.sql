@@ -97,7 +97,7 @@ call GENESIS_BACKUP.PUBLIC.BACKUP_DATA('GENESIS_BOTS','GENESIS_BACKUP');
 
 
 // Verify your back up data, then uninstall the Genesis Bots application via script below or from the Snowflake Data Products-->Apps UI
-DROP APPLICATION GENESIS_BOTS;
+// DROP APPLICATION GENESIS_BOTS;
 
 
 

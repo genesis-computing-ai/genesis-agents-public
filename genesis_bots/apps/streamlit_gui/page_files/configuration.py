@@ -144,6 +144,7 @@ def configuration():
     config_options.extend([
         ("db_harvester", "Harvester Status"),
         ("config_jira", "Setup Jira API Params"),
+        ("config_github", "Setup GitHub API Params"),
         ("config_web_access", "Setup WebAccess API Params"),
         ("config_g_sheets", "Setup Google Workspace API"),
     ])

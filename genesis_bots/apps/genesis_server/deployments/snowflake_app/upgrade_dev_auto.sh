@@ -53,7 +53,7 @@ snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT fi
 snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis_bots/apps/genesis_server/deployments/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload YML files
-snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/gensis_bots/apps/genesis_server/deployments/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis_bots/apps/genesis_server/deployments/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 
 json_data=$(snow --config-file ~/.snowcli/config.toml sql -c GENESIS-DEV-PROVIDER --format json -q "show versions in application package GENESISAPP_APP_PKG;")

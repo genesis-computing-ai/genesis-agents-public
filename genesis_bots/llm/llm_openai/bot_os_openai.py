@@ -1030,73 +1030,41 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             # Update first message content to current instructions
             openai_messages[0]["content"] = self.instructions
 
-            # Begin streaming from OpenAI directly
-            if model_name == 'o1' or model_name == 'o1-mini':
-               response = self.client.chat.completions.create(
-                  model=model_name,
-                  tools=self.tools,
-                  #tools=[{"type": "code_interpreter"}],
-                  messages=openai_messages,
-               #   stream=False,
-               #   stream_options={"include_usage": True}
-               )
-               usage = response.usage
-               if response.choices[0].message.content is not None:
-                  StreamingEventHandler.run_id_to_output_stream[run_id] += response.choices[0].message.content
-               tool_calls_array = response.choices[0].message.tool_calls
-               tool_calls = []
-               if tool_calls_array is not None:
-                  for tool_call in tool_calls_array:
-                     tool_calls.append({"id": tool_call.id, "type": "function", "function": {"name": tool_call.function.name, "arguments": tool_call.function.arguments}})
-            else:  
-               stream = self.client.chat.completions.create(
-                  model=model_name,
-                  **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
-                  #tools=[{"type": "code_interpreter"}],
-                  messages=openai_messages,
-                  stream=True,
-                  stream_options={"include_usage": True},
-                  **({'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {})
-               )
+            stream = self.client.chat.completions.create(
+               model=model_name,
+               **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
+               #tools=[{"type": "code_interpreter"}],
+               messages=openai_messages,
+               stream=True,
+               stream_options={"include_usage": True},
+               **({'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {})
+            )
 
-               # Collect streaming chunks f
-               usage = None
-               collected_chunks = []
-               collected_messages = []
-               tool_calls = []
-               for chunk in stream:
-                  if chunk.usage != None and chunk.choices == []:
-                     usage = chunk.usage
-                     continue
-                  if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and chunk.choices[0].delta.tool_calls is not None:
-                     tc_chunk_list = chunk.choices[0].delta.tool_calls
-                     for tc_chunk in tc_chunk_list:
-                        if len(tool_calls) <= tc_chunk.index:
-                           tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
-                        tc = tool_calls[tc_chunk.index]
-                        if tc_chunk.id is not None:
-                              tc['id'] += tc_chunk.id
-                        if tc_chunk.function is not None and tc_chunk.function.name is not None:
-                              tc['function']['name'] += tc_chunk.function.name
-                        if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
-                              tc['function']['arguments'] += tc_chunk.function.arguments
-                  if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
-                     delta_content = chunk.choices[0].delta.content
-                  #   collected_chunks.append(chunk)  # save the event response
-                  #   collected_messages.append(delta_content)  # save the message
-                     # Store partial chunks for later usage
-                  #  StreamingEventHandler.run_id_to_output_stream[
-                  #      self.assistant.id
-                  #  ] += delta_content
-            #      if run_id not in StreamingEventHandler.run_id_to_output_stream:
-            #         StreamingEventHandler.run_id_to_output_stream[run_id] = ""
-                     if delta_content is not None and isinstance(delta_content, str):
-                        StreamingEventHandler.run_id_to_output_stream[run_id] += delta_content
-
-           #       event_handler.on_chunk(delta_content)
-            # Mark run as completed
-            # collected_messages = [m for m in collected_messages if m is not None]
-            # full_reply_content = ''.join(collected_messages)
+            # Collect streaming chunks f
+            usage = None
+            collected_chunks = []
+            collected_messages = []
+            tool_calls = []
+            for chunk in stream:
+               if chunk.usage != None and chunk.choices == []:
+                  usage = chunk.usage
+                  continue
+               if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and chunk.choices[0].delta.tool_calls is not None:
+                  tc_chunk_list = chunk.choices[0].delta.tool_calls
+                  for tc_chunk in tc_chunk_list:
+                     if len(tool_calls) <= tc_chunk.index:
+                        tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                     tc = tool_calls[tc_chunk.index]
+                     if tc_chunk.id is not None:
+                           tc['id'] += tc_chunk.id
+                     if tc_chunk.function is not None and tc_chunk.function.name is not None:
+                           tc['function']['name'] += tc_chunk.function.name
+                     if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
+                           tc['function']['arguments'] += tc_chunk.function.arguments
+               if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                  delta_content = chunk.choices[0].delta.content
+                  if delta_content is not None and isinstance(delta_content, str):
+                     StreamingEventHandler.run_id_to_output_stream[run_id] += delta_content
 
             if tool_calls != []:
                self.completions_runs[run_id].tool_calls = tool_calls

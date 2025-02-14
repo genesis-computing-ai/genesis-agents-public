@@ -22,11 +22,8 @@ from genesis_bots.core.logging_config import logger
 
 class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
     all_functions_backup = None
-    _shared_completion_threads = {}  # Maps bot names to their completion threads
-    _shared_thread_working_set = {}  # Maps bot names to their thread working sets
+
     _shared_done_map = {}  # Maps bot names to their completed runs
-    _shared_first_message_map = {}  # Maps thread IDs to first message flags
-    _shared_thread_fast_mode_map = {}  # Maps thread IDs to fast mode settings
     _shared_tool_failure_map = {}  # Maps run hashes to failure counts and timestamps
 
     def __init__(self, name:str, instructions:str,
@@ -54,13 +51,9 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
         self.allowed_types_search = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts"]
         self.allowed_types_code_i = [".c", ".cs", ".cpp", ".doc", ".docx", ".html", ".java", ".json", ".md", ".pdf", ".php", ".pptx", ".py", ".rb", ".tex", ".txt", ".css", ".js", ".sh", ".ts", ".csv", ".jpeg", ".jpg", ".gif", ".png", ".tar", ".xlsx", ".xml", ".zip"]
-        self.thread_fast_mode_map = {}
-        self.first_message_map = {}
-        self.tool_failure_map = {}
-        self.thread_working_set = {}
+
         self.instructions = instructions
         self.tools = my_tools
-        self.completion_threads = {}
 
         self.mutex = Lock()
         self.active_threads = {} # active LLM conversations by thread_id
@@ -80,28 +73,10 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         self.assistant = types.SimpleNamespace()
         self.assistant.id = "no_assistant"
 
-        # Initialize shared thread working set for this bot name if needed
-        if name not in self.__class__._shared_thread_working_set:
-            self.__class__._shared_thread_working_set[name] = {}
-        self.thread_working_set = self.__class__._shared_thread_working_set[name]
-
-        # Initialize shared completion threads for this bot name if needed
-        if name not in self.__class__._shared_completion_threads:
-            self.__class__._shared_completion_threads[name] = {}
-        self.completion_threads = self.__class__._shared_completion_threads[name]
-
         # Initialize shared done_map for this bot name
         if name not in self.__class__._shared_done_map:
             self.__class__._shared_done_map[name] = {}
         self.done_map = self.__class__._shared_done_map[name]
-
-        if name not in self.__class__._shared_first_message_map:
-            self.__class__._shared_first_message_map[name] = {}
-        self.first_message_map = self.__class__._shared_first_message_map[name]
-
-        if name not in self.__class__._shared_thread_fast_mode_map:
-            self.__class__._shared_thread_fast_mode_map[name] = {}
-        self.thread_fast_mode_map = self.__class__._shared_thread_fast_mode_map[name]
 
         if name not in self.__class__._shared_tool_failure_map:
             self.__class__._shared_tool_failure_map[name] = {}
@@ -274,10 +249,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
     def create_thread(self) -> str:
         thread_id = "completion_thread_" + str(uuid.uuid4())
-        thread = thread_id
         logger.info(f"{self.bot_name} openai completion new_thread -> {thread_id}")
-        self.thread_working_set[thread_id] = thread
-        self.first_message_map[thread_id] = True
         return thread_id
 
     def _upload_files(self, files, thread_id=None):
@@ -323,50 +295,36 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         logger.debug(f"BotOsAssistantOpenAIChat:_upload_files - uploaded {len(file_ids)} files")
         return file_ids, file_map
 
-    def is_fast_mode(self, thread_id):
-        return thread_id in self.thread_fast_mode_map
-
-    def fast_mode_on(self, thread_id):
-        self.thread_fast_mode_map[input_message.thread_id] = True
-
-    def fast_mode_off(self, thread_id):
-        self.thread_fast_mode_map.pop(input_message.thread_id, None)
-
-    def preprocess(self, input_message):
+    def preprocess(self, input_message, bot_os_thread):
         '''look for special directives in the incoming message'''
         
-        if input_message.msg.endswith('<<!!FAST_MODE!!>>') or input_message.thread_id in self.thread_fast_mode_map:
+        if input_message.msg.endswith('<<!!FAST_MODE!!>>') or bot_os_thread.is_fast_mode():
             input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
 
-        if input_message.thread_id in self.first_message_map:
-            del self.first_message_map[input_message.thread_id]
-            if input_message.metadata and 'thread_ts' in input_message.metadata:
-                logger.info('openai fast mode = false (set by default for a new slack-based thread)')
-
         if input_message.msg.endswith(') says: !model') or input_message.msg=='!model':
-            if self.is_fast_mode(input_message.thread_id):
+            if bot_os_thread.is_fast_mode():
                 input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in fast mode and that the current model is: { os.getenv("OPENAI_FAST_MODEL_NAME", default="gpt-4o-mini")}')
             else:
                 input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in smart mode and that current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")}')
 
         if input_message.msg.endswith(') says: !fast on') or input_message.msg == '!fast on':
-            self.fast_mode_on(input_message.thread_id)
+            bot_os_thread.set_fast_mode(True)
             input_message.metadata['fast_mode'] = 'TRUE'
             input_message.msg = input_message.msg.replace('!fast on', f"SYSTEM MESSAGE: Tell the user that Fast mode activated for this thread. Model is now {os.getenv('OPENAI_FAST_MODEL_NAME', 'gpt-4o-mini')}")
 
         elif input_message.msg.endswith(') says: !fast off') or input_message.msg == '!fast off':
-            self.fast_mode_off(input_message.thread_id)
+            bot_os_thread.set_fast_mode(False)
             input_message.msg = input_message.msg.replace('!fast off', f"SYSTEM MESSAGE:Tell the user that Fast mode deactivated for this thread. Model is now {os.getenv('OPENAI_MODEL_NAME', 'gpt-4o')}")
 
-        elif self.is_fast_mode(input_message.thread_id):
+        elif bot_os_thread.is_fast_mode():
             input_message.metadata['fast_mode'] = 'TRUE'
             
-    def get_model(self, input_message):
+    def get_model(self, input_message, bot_os_thread):
         '''calculate model name from message content and environment variables'''
         
         model_name = (
             os.getenv("OPENAI_FAST_MODEL_NAME", "gpt-4o-mini")
-            if self.is_fast_mode(input_message.thread_id)
+            if bot_os_thread.is_fast_mode()
             else os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
         )
         if '!o1!' in input_message.msg or input_message.metadata.get('o1_override', False)==True:
@@ -408,12 +366,12 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             attachments = input_message.files
         return attachments
 
-    def get_openai_messages(self, thread_id, model_name, input_message=None):
+    def get_openai_messages(self, bot_os_thread, model_name, input_message=None):
         '''append new incoming message to the existing thread or create a new one'''
         
-        if thread_id in self.completion_threads:
+        if bot_os_thread.messages:
             # Get existing messages and append new user message
-            openai_messages = self.completion_threads[thread_id]
+            openai_messages = bot_os_thread.messages
             if input_message:
                 openai_messages.append({
                     "role": "user",
@@ -431,7 +389,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     "content": input_message.msg
                 }
             ]
-            self.completion_threads[thread_id] = openai_messages
+            bot_os_thread.messages = openai_messages
             
         openai_messages[0]["content"] = self.instructions
         return openai_messages
@@ -779,7 +737,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         with self.mutex:
             self.active_threads.pop(thread_id, None)
 
-    def add_message(self, input_message:BotOsInputMessage, event_callback):
+    def add_message(self, input_message:BotOsInputMessage, bot_os_thread, event_callback):
         thread_id = input_message.thread_id
         if thread_id is None:
             raise(Exception("thread_id is None"))
@@ -788,11 +746,11 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             return False
 
         try:
-            return self._add_message(input_message, event_callback)
+            return self._add_message(input_message, bot_os_thread, event_callback)
         finally:
             self.release_thread(thread_id)
 
-    def _add_message(self, input_message:BotOsInputMessage, event_callback):
+    def _add_message(self, input_message:BotOsInputMessage, bot_os_thread, event_callback):
         thread_id = input_message.thread_id
 
         primary_user = json.dumps({'user_id': input_message.metadata.get('user_id', 'unknown_id'),
@@ -809,11 +767,11 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         def output_event(**event):
             event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, **event, input_metadata=input_message.metadata))
 
-        self.preprocess(input_message)
+        self.preprocess(input_message, bot_os_thread)
         attachments = self.get_attachments(input_message)
-        model_name = self.get_model(input_message)
+        model_name = self.get_model(input_message, bot_os_thread)
         run_id = thread_id + "_" + str(datetime.datetime.now().timestamp())
-        openai_messages = self.get_openai_messages(thread_id, model_name, input_message)
+        openai_messages = self.get_openai_messages(bot_os_thread, model_name, input_message)
         params = {'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {}
         run = types.SimpleNamespace(
             id = run_id,
@@ -841,10 +799,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 break
 
             if not tool_calls:
-                self.completion_threads[thread_id].append({
-                    "role": "assistant",
-                    "content": output_stream
-                })
+                bot_os_thread.messages.append({"role": "assistant", "content": output_stream})
                 
                 run.status = "completed"
                 run.completed_at = datetime.datetime.now()
@@ -855,11 +810,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
             # LLM requesting us to call tool function(s) and send back the result
         
-            self.completion_threads[thread_id].append({
-                "role": "assistant",
-                "content": None,
-                "tool_calls": tool_calls
-            })
+            bot_os_thread.messages.append({"role": "assistant", "content": None, "tool_calls": tool_calls})
 
             if output_stream:
                 output_event(status=run.status, output=output_stream + " 💬", messages=None)
@@ -882,11 +833,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     output_event(status=run.status, output=f"!!! Error making tool call, exception:{str(e)}", messages=None)
                     break       
 
-                self.completion_threads[thread_id].append({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": str(func_response)
-                })
+                bot_os_thread.messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": str(func_response)})
 
                 results.append((tool_call_id, str(func_response)))
                 continue # to next tool call
@@ -901,7 +848,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 chat_history(message_type='Tool Output', message_payload=resp,
                              message_metadata={'tool_call_id': tool_call_id})
         
-            openai_messages = self.get_openai_messages(thread_id, model_name)
+            openai_messages = self.get_openai_messages(bot_os_thread, model_name)
             continue # to submit tool calls results to OpenAI
 
         return True

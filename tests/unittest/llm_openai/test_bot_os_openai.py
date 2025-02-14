@@ -8,6 +8,7 @@ Test BotOsAssistantOpenAI
 import os, shutil, tempfile
 tmp_dir = tempfile.mkdtemp(prefix='test_openai_')
 os.chdir(tmp_dir)
+os.environ['SQLITE_DB_PATH']=os.path.join(tmp_dir, 'genesis.db')
 print(f'created temp folder for test: {tmp_dir}')
 
 import sys, unittest, json
@@ -15,6 +16,7 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 import genesis_bots.llm.llm_openai.bot_os_openai
+from genesis_bots.core.bot_os import BotOsThread
 from genesis_bots.core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.connectors import get_global_db_connector
 from genesis_bots.core.bot_os_tools2 import gc_tool, ToolFuncGroup
@@ -62,7 +64,7 @@ def make_input_message(thread_id, msg) -> BotOsInputMessage:
     msg_type = 'chat_input'
     return BotOsInputMessage(thread_id, msg, files, metadata, msg_type)
 
-def round_trip(msg:str, completions_create, event_callback=None, assistant=None, thread_id=None) -> str:
+def round_trip(msg:str, completions_create, event_callback=None, assistant=None, thread=None) -> str:
     '''excercise adapter cycle: add_message() followed by check_runs()'''
 
     response = 'done'
@@ -71,14 +73,15 @@ def round_trip(msg:str, completions_create, event_callback=None, assistant=None,
         response = output_message.output
 
     assistant = assistant or make_assistant()
-    thread_id = thread_id or f'[thread_{uuid4()}]'
+    thread = thread or BotOsThread(assistant, None)
+
     completions.register_create_mock(completions_create)
-    assistant.add_message(make_input_message(thread_id, msg),
+    assistant.add_message(make_input_message(thread.thread_id, msg), bot_os_thread=thread,
                           event_callback=event_callback or default_event_callback)
-    
+
     for i in range(10):
         assistant.check_runs(event_callback or default_event_callback)
-    return response, thread_id
+    return response, thread
 
 '''OpenAI chat completions streaming response chunks'''
 def null_chunk(id):
@@ -219,17 +222,17 @@ class TestOpenAIAdapter(unittest.TestCase):
                 usage_chunk(id)
             ]
 
-        response, thread_id = round_trip('ping', openai_mock)
+        response, thread = round_trip('ping', openai_mock)
         self.assertEqual(response, 'pong')
 
-        logs = query_message_log(thread_id)
+        logs = query_message_log(thread.thread_id)
         self.assertEqual(len(logs), 2)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'ping')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Assistant Response' and logs[1]['MESSAGE_PAYLOAD'] == 'pong')
 
     def test_ping_pong2(self):
         '''simulate a thread with two runs, i.e. two request-reply trips to OpenAI'''
-        thread_id = f'[thread_{uuid4()}]'
+
         in_msg = ['11111', '22222']
         out_msg = ['33333', '44444']
 
@@ -257,13 +260,13 @@ class TestOpenAIAdapter(unittest.TestCase):
                 usage_chunk(id)
             ]
 
-        response, _ = round_trip(in_msg[0], openai_mock, thread_id=thread_id)
+        response, thread = round_trip(in_msg[0], openai_mock)
         self.assertEqual(response, out_msg[0])
 
-        response, _ = round_trip(in_msg[1], openai_mock, thread_id=thread_id)
+        response, _ = round_trip(in_msg[1], openai_mock, thread=thread)
         self.assertEqual(response, out_msg[1])
 
-        logs = query_message_log(thread_id)
+        logs = query_message_log(thread.thread_id)
         self.assertEqual(len(logs), 4)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 11111)
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Assistant Response' and logs[1]['MESSAGE_PAYLOAD'] == 33333)
@@ -352,9 +355,9 @@ class TestOpenAIAdapter(unittest.TestCase):
                 captureException(e)
                 raise
             
-        _, thread_id = round_trip('Hello! Please call my function', openai_mock, event_callback, assistant)
+        _, thread = round_trip('Hello! Please call my function', openai_mock, event_callback, assistant)
         
-        logs = query_message_log(thread_id)
+        logs = query_message_log(thread.thread_id)
         self.assertEqual(len(logs), 5)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Hello! Please call my function')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'tool_function({"x": 69})')
@@ -471,9 +474,9 @@ class TestOpenAIAdapter(unittest.TestCase):
                 captureException(e)
                 raise
             
-        _, thread_id = round_trip('Call my two functions', openai_mock, event_callback, assistant)
+        _, thread = round_trip('Call my two functions', openai_mock, event_callback, assistant)
         
-        logs = query_message_log(thread_id)
+        logs = query_message_log(thread.thread_id)
         self.assertEqual(len(logs), 7)        
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'mul2({"x": 47})')
@@ -603,9 +606,9 @@ class TestOpenAIAdapter(unittest.TestCase):
                 captureException(e)
                 raise
 
-        _, thread_id = round_trip('Let us start the loop!', openai_mock, event_callback, assistant)
+        _, thread = round_trip('Let us start the loop!', openai_mock, event_callback, assistant)
 
-        logs = query_message_log(thread_id)
+        logs = query_message_log(thread.thread_id)
         self.assertEqual(len(logs), 11)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Let us start the loop!')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'mul2({"x": 1})')

@@ -731,7 +731,7 @@ class BotOsAssistantOpenAIAsst(BotOsAssistantInterface):
 
 
 
-   def add_message(self, input_message:BotOsInputMessage, reuse_run_id=None, *, event_callback=None):
+   def add_message(self, input_message:BotOsInputMessage, reuse_run_id=None, *, bot_os_thread=None, event_callback=None):
       thread_id = input_message.thread_id
       #logger.debug("BotOsA ssistantOpenAI:add_message")
 

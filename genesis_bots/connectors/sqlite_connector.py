@@ -655,7 +655,7 @@ class SqliteConnector(DatabaseConnector):
                     openai_api_key = os.getenv("OPENAI_API_KEY")
                     client = OpenAI(api_key=openai_api_key)
                     response = client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-4o-2024-11-20",
                         messages=[
                             {
                                 "role": "user",
@@ -4059,7 +4059,7 @@ class SqliteConnector(DatabaseConnector):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What's in this image?"
 
-        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
 
         payload = {
             "model": openai_model_name,

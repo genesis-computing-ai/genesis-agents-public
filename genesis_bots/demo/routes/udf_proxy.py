@@ -732,7 +732,7 @@ def configure_llm():
                     client = get_openai_client()
                     logger.info(f"client: {client}")
                     completion = client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-4o-2024-11-20",
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys

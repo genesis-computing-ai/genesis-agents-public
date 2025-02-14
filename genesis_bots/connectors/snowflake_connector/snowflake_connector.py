@@ -4147,7 +4147,7 @@ def get_status(site):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What's in this image?"
 
-        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
 
         payload = {
             "model": openai_model_name,
@@ -4497,7 +4497,7 @@ def get_status(site):
                 logger.info("OpenAI API key is not set in the environment variables.")
                 return None
 
-            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20"))
 
             logger.info('snowpark escallation using model: ', openai_model)
             try:
@@ -4513,7 +4513,7 @@ def get_status(site):
                 )
             except Exception as e:
                 if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
-                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20")
                     logger.info('retry snowpark escallation using model: ', openai_model)
                     try:
                         client = get_openai_client()

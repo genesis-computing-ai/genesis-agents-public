@@ -233,14 +233,14 @@ tasks_config = _load_yaml_file("tasks.yaml")
 dagster_explorer = Agent(
     config=agents_config['dagster_explorer'],
     #verbose=True,
-    llm = LLM(model="gpt-4o", temperature=0.0),
+    llm = LLM(model="gpt-4o-2024-11-20", temperature=0.0),
 )
 
 rca_director = Agent(
     config=agents_config['rca_director'],
     #allow_delegation=True,
     #verbose=True,
-    llm = LLM(model="gpt-4o", temperature=0.2),
+    llm = LLM(model="gpt-4o-2024-11-20", temperature=0.2),
 )
 
 tasks = [
@@ -317,7 +317,7 @@ def create_crew(crewai_log_file=None):
         agents= [
             Agent(config=agents_config['dagster_explorer'],
                   #verbose=True,
-                  llm = LLM(model="gpt-4o", temperature=0.0),
+                  llm = LLM(model="gpt-4o-2024-11-20", temperature=0.0),
                   tools = [get_dagster_run_debug_dump, get_dagster_asset_lineage_graph, get_dagster_asset_definition_and_overview, run_snowflake_sql_query],
             ),
         ],

@@ -204,7 +204,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
       logger.debug("BotOsAssistantOpenAI:__init__")
       super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
-      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
+      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o-2024-11-20")
       self.client = get_openai_client()
 
       name = bot_id
@@ -765,7 +765,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
          if fast_mode:
             input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in fast mode and that the current model is: { os.getenv("OPENAI_FAST_MODEL_NAME", default="gpt-4o-mini")}')
          else:
-            input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in smart mode and that current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")}')
+            input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in smart mode and that current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o-2024-11-20")}')
 
       if input_message.msg.endswith(') says: !fast on') or input_message.msg == '!fast on':
             self.thread_fast_mode_map[thread_id] = True
@@ -775,7 +775,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             if thread_id in self.thread_fast_mode_map:
                del self.thread_fast_mode_map[thread_id]
             fast_mode = False
-            input_message.msg = input_message.msg.replace('!fast off', f"SYSTEM MESSAGE:Tell the user that Fast mode deactivated for this thread. Model is now {os.getenv('OPENAI_MODEL_NAME', 'gpt-4o')}")
+            input_message.msg = input_message.msg.replace('!fast off', f"SYSTEM MESSAGE:Tell the user that Fast mode deactivated for this thread. Model is now {os.getenv('OPENAI_MODEL_NAME', 'gpt-4o-2024-11-20')}")
 
       if input_message.msg.endswith(') says: !stop') or input_message.msg=='!stop':
             stopped = False
@@ -938,7 +938,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             model_name = (
                os.getenv("OPENAI_FAST_MODEL_NAME", "gpt-4o-mini")
                if fast_mode
-               else os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+               else os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
             )
             if '!o1!' in input_message.msg or input_message.metadata.get('o1_override', False)==True:
                model_name = 'o1'
@@ -1540,16 +1540,6 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                meta = StreamingEventHandler.run_id_to_metadata.get(run_id,None)
                logger.info(f'{self.bot_name} openai submit_tool_outputs submitting tool outputs len={len(tool_outputs)} ')
                run_id_to_update = run_id
-    #        import random
-    #        if random.random() < 0.33:
-    #            run_id_to_update = "Zowzers!"
-    #        else:
-    #            run_id_to_update = run_id
-
-     #       if meta and meta.get('fast_mode') == 'TRUE':
-     #          model = os.getenv('OPENAI_FAST_MODEL_NAME', 'gpt-4o-mini')
-     #       else:
-     #          model = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
 
                with self.client.beta.threads.runs.submit_tool_outputs_stream(
                       thread_id=thread_id,
@@ -2238,8 +2228,8 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                   if thread_id in self.thread_fast_mode_map:
                       model_name = os.getenv("OPENAI_FAST_MODEL_NAME", default="gpt-4o-mini")
                   else:
-                      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
-                  if model_name == "gpt-4o":
+                      model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o-2024-11-20")
+                  if model_name.startswith("gpt-4o"):
                      input_cost = 5.000 / 1000000
                      output_cost = 15.000 / 1000000
                   elif model_name == "gpt-4o-2024-08-06":

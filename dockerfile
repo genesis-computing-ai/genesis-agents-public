@@ -39,7 +39,7 @@ WORKDIR /src/app
 COPY genesis_bots ./genesis_bots
 # COPY apps/genesis_server/bot_os_multibot_1.py ./apps/genesis_server/bot_os_multibot_1.py
 # COPY apps/streamlit_gui ./apps/streamlit_gui
-# COPY apps/genesis_server/deployments/snowflake_app/entrypoint.sh /entrypoint.sh
+COPY apps/genesis_server/deployments/snowflake_app/entrypoint.sh /entrypoint.sh
 # COPY apps/demos ./apps/demos
 
 RUN apt-get update && apt-get install -y procps

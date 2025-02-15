@@ -35,10 +35,11 @@ def main():
         # Define packages to skip during compilation based on platform
         SKIP_COMPILE_PACKAGES = {
             'Windows': [
-                'dagster',
+                'dagster==1.9.5',
                 'dagster-graphql',
                 'dagster-spark',
                 'dagster-dbt',
+                'annoy==1.17.3',
             ],
             'Linux': [],
             'Darwin': [],  # macOS

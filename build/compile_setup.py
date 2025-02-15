@@ -39,6 +39,7 @@ def main():
                 'dagster-graphql',
                 'dagster-spark',
                 'dagster-dbt',
+                'dagster-sdf',
                 'annoy==1.17.3',
             ],
             'Linux': [],

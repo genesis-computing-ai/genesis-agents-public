@@ -26,7 +26,7 @@ snow spcs image-registry token --connection GENESIS-ALPHA-PROVIDER --format=JSON
 
 # In upgrade_alpha.sh
 PROJECT_ROOT=$(git rev-parse --show-toplevel)  # If this is a git repository
-python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/apps/streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
+python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/genesis_bots/apps/streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
 # Run make_alpha_sis_launch.py
 # python3 ./streamlit_gui/make_alpha_sis_launch.py
 # python3 -c "import sys; sys.path.append('../../apps/streamlit_gui'); from make_alpha_sis_launch import replace_genesis_bots; replace_genesis_bots()"
@@ -41,25 +41,25 @@ docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/co
 snow sql -c GENESIS-ALPHA-PROVIDER -q "RM @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE"
 
 # Upload streamlit files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/streamlit_gui/Genesis.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/streamlit_gui/utils.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/streamlit_gui/*.png @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/streamlit_gui/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/streamlit_gui/.streamlit/config.toml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/.streamlit AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload streamlit page files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/streamlit_gui/page_files/*.py @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE/code_artifacts/streamlit/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload SQL files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/genesis_server/deployments/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/genesis_server/deployments/snowflake_app/setup_script.sql @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload MD files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/genesis_server/deployments/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/genesis_server/deployments/snowflake_app/readme.md @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 # Upload YML files
-snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/apps/genesis_server/deployments/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c GENESIS-ALPHA-PROVIDER -q "PUT file://$DIRECTORY_PATH/genesis/genesis_bots/apps/genesis_server/deployments/snowflake_app/*.yml @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
 
 output=$(snow sql -c GENESIS-ALPHA-PROVIDER -q "ALTER APPLICATION PACKAGE GENESISAPP_APP_PKG ADD PATCH FOR VERSION V0_5 USING @GENESISAPP_APP_PKG.CODE_SCHEMA.APP_CODE_STAGE")
 
@@ -103,7 +103,7 @@ snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrar
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots_alpha.core.run_arbitrary('grant all on schema genesis_bots_alpha.APP1 to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show applications;"
 
-python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/apps/streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
+python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/genesis_bots/apps/streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
 
 echo "Upgrade complete"
 

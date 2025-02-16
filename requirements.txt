@@ -56,3 +56,4 @@ spider-client
 openpyxl
 sqlalchemy-redshift
 sqlalchemy-bigquery
+PyGithub

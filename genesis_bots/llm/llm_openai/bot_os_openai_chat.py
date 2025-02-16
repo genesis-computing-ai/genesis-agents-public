@@ -36,7 +36,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         super().__init__(name, instructions, tools, available_functions, files,
                          update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
-        model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
+        model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o-2024-11-20")
         self.client = get_openai_client()
 
         name = bot_id
@@ -306,7 +306,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             if bot_os_thread.is_fast_mode():
                 input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in fast mode and that the current model is: { os.getenv("OPENAI_FAST_MODEL_NAME", default="gpt-4o-mini")}')
             else:
-                input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in smart mode and that current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")}')
+                input_message.msg = input_message.msg.replace ('!model',f'SYSTEM MESSAGE: The User has requested to know what LLM model is running.  Respond by telling them that the system is running in smart mode and that current model is: { os.getenv("OPENAI_MODEL_NAME", default="gpt-4o-2024-11-20")}')
 
         if input_message.msg.endswith(') says: !fast on') or input_message.msg == '!fast on':
             bot_os_thread.set_fast_mode(True)
@@ -315,7 +315,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
         elif input_message.msg.endswith(') says: !fast off') or input_message.msg == '!fast off':
             bot_os_thread.set_fast_mode(False)
-            input_message.msg = input_message.msg.replace('!fast off', f"SYSTEM MESSAGE:Tell the user that Fast mode deactivated for this thread. Model is now {os.getenv('OPENAI_MODEL_NAME', 'gpt-4o')}")
+            input_message.msg = input_message.msg.replace('!fast off', f"SYSTEM MESSAGE:Tell the user that Fast mode deactivated for this thread. Model is now {os.getenv('OPENAI_MODEL_NAME', 'gpt-4o-2024-11-20')}")
 
         elif bot_os_thread.is_fast_mode():
             input_message.metadata['fast_mode'] = 'TRUE'
@@ -326,7 +326,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         model_name = (
             os.getenv("OPENAI_FAST_MODEL_NAME", "gpt-4o-mini")
             if bot_os_thread.is_fast_mode()
-            else os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+            else os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
         )
         if '!o1!' in input_message.msg or input_message.metadata.get('o1_override', False)==True:
             model_name = 'o1'
@@ -682,7 +682,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         files_in = self._store_files_locally(latest_attachments, thread_id)
             
         if os.getenv('SHOW_COST', 'false').lower() == 'true':
-            if model_name == "gpt-4o":
+            if model_name.startswith("gpt-4o"):
                 input_cost = 5.000 / 1000000
                 output_cost = 15.000 / 1000000
             elif model_name == "gpt-4o-2024-08-06":

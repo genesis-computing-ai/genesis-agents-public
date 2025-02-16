@@ -493,7 +493,8 @@ def perform_source_research_new(client, requirement, paths, bot_id):
 
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.
         '''
-
+        research_prompt = "List the first 10 prime numerbs, and THEN search metadata for data on prime numebrs, and THEN tell me a joke.  Do it in this order."
+        
         thread = str(uuid.uuid4())
         response = call_genesis_bot(client, bot_id, research_prompt, thread = thread)
 
@@ -768,6 +769,9 @@ def main():
     args = parse_arguments()
 
     server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args, args.genesis_db)
+ #  server_proxy = build_server_proxy("", "", )
+
+   # source_research = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id)
 
     global genesis_api_client
     genesis_api_client = GenesisAPI(server_proxy=server_proxy)
@@ -801,6 +805,9 @@ def main():
 
     # MAIN WORKFLOW 
     try:
+
+                        
+                
         run_number = 1;
         table_name = f"{args.genesis_db}.REQUIREMENTSPM_GXS_WORKSPACE.test_requirements"  
         
@@ -846,7 +853,8 @@ def main():
         requirements = run_snowflake_query(client, requirements_query, eve_bot_id)
 
         print("Found", len(requirements), "requirements with NEW status:")
-
+        requirements = None
+        
         if not requirements:
             requirements = [{
                 'PHYSICAL_COLUMN_NAME': 'CUSTOMER_ID',

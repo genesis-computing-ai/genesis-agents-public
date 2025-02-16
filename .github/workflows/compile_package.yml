@@ -8,8 +8,11 @@ on:
 
 jobs:
   build:
-    name: Build on ubuntu-latest
-    runs-on: ubuntu-latest
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     
     steps:
     - uses: actions/checkout@v4
@@ -32,11 +35,12 @@ jobs:
 
     - name: Build package
       env:
-        PACKAGE_VERSION: '1.0.36'
+        PACKAGE_VERSION: '1.0.37'
         COMPILE_CYTHON: true
       run: |
-        # Run build.py from the project root
-        python build/build.py --version ${PACKAGE_VERSION}
+        echo "Running: python build/build.py --version \"$PACKAGE_VERSION\""
+        python build/build.py --version "$PACKAGE_VERSION"
+      shell: bash
 
     - name: Test installation
       run: |
@@ -46,7 +50,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: dist-ubuntu-latest-py3.12
+        name: dist-${{ matrix.os }}-py3.12
         path: build/dist/
         retention-days: 5
 

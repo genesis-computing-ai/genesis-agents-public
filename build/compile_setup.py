@@ -32,6 +32,23 @@ def main():
                 '-Wno-unreachable-code-fallthrough'
             ]
 
+        # Define packages to skip during compilation based on platform
+        SKIP_COMPILE_PACKAGES = {
+            'Windows': [
+                'dagster==1.9.5',
+                'dagster-graphql',
+                'dagster-spark',
+                'dagster-dbt',
+                'dagster-sdf',
+                'annoy==1.17.3',
+            ],
+            'Linux': [],
+            'Darwin': [],  # macOS
+        }
+
+        # Get skip list for current platform
+        skip_packages = SKIP_COMPILE_PACKAGES.get(platform.system(), [])
+
         extensions = []
         compiled_files = []  # Keep track of files we've compiled
         cwd = os.getcwd()
@@ -41,6 +58,12 @@ def main():
             for file in files:
                 if file.endswith('.py'):
                     path = os.path.join(root, file)
+                    
+                    # Skip compilation if file is in a package we want to skip
+                    if any(pkg in path for pkg in skip_packages):
+                        print(f"Skipping compilation for {path} (platform-specific exclusion)")
+                        continue
+                        
                     if (not is_public_api_file(cwd, path) and
                         file != '__init__.py' and
                         path not in IGNORE_FILES):

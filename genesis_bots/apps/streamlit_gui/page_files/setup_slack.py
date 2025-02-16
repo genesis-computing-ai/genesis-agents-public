@@ -25,21 +25,21 @@ def setup_slack():
     st.session_state.setdefault("eai_reference_name", "slack_external_access")
 
     # Check if Slack External Access Integration (EAI) is available
-    if not st.session_state.slack_eai_available:
+    if not st.session_state.slack_eai_available and st.session_state.get("NativeMode", False) == True:
         try:
             eai_status = check_eai_assigned("slack_external_access")
-            if eai_status:
+            if eai_status is not None and eai_status:
                 st.session_state.slack_eai_available = True
                 st.success("Slack External Access Integration is available.")
             else:
-                # Request EAI if not available and in Native Mode
-                if st.session_state.get("NativeMode", False) == True:
-                    ref = get_references(st.session_state.eai_reference_name)
-                    if not ref:
-                        import snowflake.permissions as permissions
-                        permissions.request_reference(st.session_state.eai_reference_name)
+                # Request EAI if not available
+                ref = get_references(st.session_state.eai_reference_name)
+                if not ref:
+                    import snowflake.permissions as permissions
+                    permissions.request_reference(st.session_state.eai_reference_name)
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
+            st.session_state.slack_eai_available = False
 
     # Fetch Slack tokens and clear cached tokens
     tokens = get_slack_tokens()

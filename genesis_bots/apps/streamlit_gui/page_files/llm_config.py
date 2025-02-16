@@ -38,8 +38,17 @@ def llm_config():
         st.session_state.data_source = "snowflake"
 
     # Check External Access Integration status
-    check_eai_availability('openai', 'openai_external_access')
-    check_eai_availability('azureopenai', 'azure_openai_external_access')
+    if st.session_state.get("NativeMode", False) == True:
+        check_eai_availability('openai', 'openai_external_access')
+        check_eai_availability('azureopenai', 'azure_openai_external_access')
+    else:
+        st.session_state.update({
+            "openai_eai_available": True,
+            "eai_reference_name": 'openai_external_access',
+            "azureopenai_eai_available": True,
+            "eai_reference_name": 'azure_openai_external_access',
+            "disable_submit": False,
+        })
 
     # Get bot details and LLM info
     bot_details = get_bot_details()

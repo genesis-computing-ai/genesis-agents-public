@@ -8,7 +8,7 @@ Test BotOsAssistantOpenAI
 import os, shutil, tempfile
 tmp_dir = tempfile.mkdtemp(prefix='test_openai_')
 os.chdir(tmp_dir)
-os.environ['SQLITE_DB_PATH']=os.path.join(tmp_dir, 'genesis.db')
+#os.environ['SQLITE_DB_PATH']=os.path.join(tmp_dir, 'genesis.db')
 print(f'created temp folder for test: {tmp_dir}')
 
 import sys, unittest, json
@@ -76,8 +76,8 @@ def round_trip(msg:str, completions_create, event_callback=None, assistant=None,
     thread = thread or BotOsThread(assistant, None)
 
     completions.register_create_mock(completions_create)
-    assistant.add_message(make_input_message(thread.thread_id, msg), bot_os_thread=thread,
-                          event_callback=event_callback or default_event_callback)
+    thread.add_message(make_input_message(thread.thread_id, msg),
+                       event_callback=event_callback or default_event_callback)
 
     for i in range(10):
         assistant.check_runs(event_callback or default_event_callback)
@@ -366,6 +366,104 @@ class TestOpenAIAdapter(unittest.TestCase):
         self.assertTrue(logs[4]['MESSAGE_TYPE'] == 'Assistant Response' and
                         'Using tool: _ToolFunction_...\n\nall good' in logs[4]['MESSAGE_PAYLOAD'])
         
+        if exception:
+            raise exception
+
+    def test_tool_call_with_content(self):
+        '''simulate call to OpenAI with a tool invocation and some output'''
+
+        exception = None
+        def captureException(e):
+            nonlocal exception
+            if exception == None:
+                exception = e
+
+        gr1_tag = ToolFuncGroup("group1", "this is group 1")
+        @gc_tool(_group_tags_=[gr1_tag], x="this is param x")
+        def tool_function(x: int):
+            "this is the sample_function description"
+            try:
+                self.assertEqual(x, 69)
+                return x * 2
+            except Exception as e:
+                captureException(e)
+                raise
+
+        assistant = make_assistant()
+        assistant.all_functions['tool_function'] = tool_function
+        assistant.tools = [tool_function.gc_tool_descriptor.to_llm_description_dict()]
+
+        call_count = 0
+        call_id = f'call_{uuid4()}'
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            try:
+                nonlocal call_count
+                nonlocal call_id
+                call_count += 1
+                id = f'chatcmpl-{uuid4()}'
+                self.assertEqual(tools, [
+                    {'type': 'function', 'function':
+                     {'name': 'tool_function',
+                      'description': 'this is the sample_function description',
+                      'parameters': {
+                          'type': 'object',
+                          'properties': {
+                              'x': {'type': 'integer', 'description': 'this is param x'}},
+                          'required': ['x']}}}])
+                if call_count == 1:
+                    self.assertEqual(messages, [
+                        {'role': 'system', 'content': 'bot_instructions'},
+                        {'role': 'user', 'content': 'Hello! Please call my function'}])
+                    return [
+                        null_chunk(id),
+                        content_chunk(id, 'some content too!'),
+                        function_name_chunk(id, 0, 'tool_function', call_id),
+                        function_arguments_chunk(id, 0, json.dumps({'x': 69})),
+                        finish_reason_chunk(id, 'tool_calls'),
+                        usage_chunk(id)
+                    ]
+                else:
+                    self.assertEqual(messages, [
+                        {'role': 'system', 'content': 'bot_instructions'},
+                        {'role': 'user', 'content': 'Hello! Please call my function'},
+                        {'role': 'assistant', 'content': None, 'tool_calls': [
+                            {'id': call_id, 'type': 'function',
+                             'function': {'name': 'tool_function', 'arguments': '{"x": 69}'}}]},
+                        {'role': 'tool', 'tool_call_id': call_id, 'content': '138'}])
+                    return [
+                        null_chunk(id),
+                        content_chunk(id, 'all good'),
+                        finish_reason_chunk(id, 'stop'),
+                        usage_chunk(id)
+                    ]
+            except Exception as e:
+                captureException(e)
+                raise
+
+        event_count = 0
+        def event_callback(session_id, output_message: BotOsOutputMessage):
+            try:
+                nonlocal event_count
+                event_count += 1
+                self.assertTrue('some content too!' in output_message.output.lower())
+                self.assertTrue('using tool:' in output_message.output.lower() if event_count > 1 else True)
+                self.assertTrue('toolfunction' in output_message.output.lower() if event_count > 1 else True)
+                self.assertTrue('all good' in  output_message.output.lower() if event_count > 2 else True)
+            except Exception as e:
+                captureException(e)
+                raise
+
+        _, thread = round_trip('Hello! Please call my function', openai_mock, event_callback, assistant)
+
+        logs = query_message_log(thread.thread_id)
+        self.assertEqual(len(logs), 5)
+        self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Hello! Please call my function')
+        self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'tool_function({"x": 69})')
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'User Prompt' and logs[2]['MESSAGE_PAYLOAD'] == 'Tool call completed, results')
+        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'Tool Output' and logs[3]['MESSAGE_PAYLOAD'] == 138)
+        self.assertTrue(logs[4]['MESSAGE_TYPE'] == 'Assistant Response' and
+                        'Using tool: _ToolFunction_...\n\nall good' in logs[4]['MESSAGE_PAYLOAD'])
+
         if exception:
             raise exception
 

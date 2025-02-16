@@ -47,7 +47,7 @@ class BotOsThread:
                 self.is_active = True
                 return False
 
-    def release_thread(self, thread_id):
+    def release_thread(self):
         with self.mutex:
             self.is_active = False
 

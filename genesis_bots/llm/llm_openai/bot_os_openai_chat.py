@@ -28,9 +28,13 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
     def __init__(self, name:str, instructions:str,
                  tools:list[dict] = [], available_functions={}, files=[],
-                 update_existing=False, log_db_connector=None, bot_id='default_bot_id', bot_name='default_bot_name', all_tools:list[dict]=[], all_functions={},all_function_to_tool_map={}, skip_vectors=False, assistant_id = None) -> None:
+                 update_existing=False, log_db_connector=None, bot_id='default_bot_id',
+                 bot_name='default_bot_name', all_tools:list[dict]=[],
+                 all_functions={},all_function_to_tool_map={}, skip_vectors=False,
+                 assistant_id = None) -> None:
         logger.debug("BotOsAssistantOpenAIChat:__init__")
-        super().__init__(name, instructions, tools, available_functions, files, update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
+        super().__init__(name, instructions, tools, available_functions, files,
+                         update_existing, skip_vectors=False, bot_id=bot_id, bot_name=bot_name)
 
         model_name = os.getenv("OPENAI_MODEL_NAME", default="gpt-4o")
         self.client = get_openai_client()
@@ -398,53 +402,37 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         usage = None
         tool_calls = []
         
-        if model_name == 'o1' or model_name == 'o1-mini':
-            response = self.client.chat.completions.create(
-                model=model_name,
-                tools=self.tools,
-                messages=openai_messages
-            )
-            usage = response.usage
-            if response.choices[0].message.content is not None:
-                content += response.choices[0].message.content
-            tool_calls_array = response.choices[0].message.tool_calls
-            tool_calls = []
-            if tool_calls_array is not None:
-                for tool_call in tool_calls_array:
-                    tool_calls.append({"id": tool_call.id, "type": "function", "function": {
-                        "name": tool_call.function.name, "arguments": tool_call.function.arguments}})
-        else:
-            stream = self.client.chat.completions.create(
-                model=model_name,
-                **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
-                messages=openai_messages,
-                stream=True,
-                stream_options={"include_usage": True},
-                **params
-            )
+        stream = self.client.chat.completions.create(
+            model=model_name,
+            **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
+            messages=openai_messages,
+            stream=True,
+            stream_options={"include_usage": True},
+            **params
+        )
 
-            # Collect streaming response
-            for chunk in stream:
-                if chunk.usage != None and chunk.choices == []:
-                    usage = chunk.usage
-                    continue
-                if (len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and
-                    chunk.choices[0].delta.tool_calls is not None):
-                    tc_chunk_list = chunk.choices[0].delta.tool_calls
-                    for tc_chunk in tc_chunk_list:
-                        if len(tool_calls) <= tc_chunk.index:
-                            tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
-                        tc = tool_calls[tc_chunk.index]
-                        if tc_chunk.id is not None:
-                            tc['id'] += tc_chunk.id
-                        if tc_chunk.function is not None and tc_chunk.function.name is not None:
-                            tc['function']['name'] += tc_chunk.function.name
-                        if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
-                            tc['function']['arguments'] += tc_chunk.function.arguments
-                if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
-                    delta_content = chunk.choices[0].delta.content
-                    if delta_content is not None and isinstance(delta_content, str):                            
-                        content += delta_content
+        # Collect streaming response
+        for chunk in stream:
+            if chunk.usage != None and chunk.choices == []:
+                usage = chunk.usage
+                continue
+            if (len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and
+                chunk.choices[0].delta.tool_calls is not None):
+                tc_chunk_list = chunk.choices[0].delta.tool_calls
+                for tc_chunk in tc_chunk_list:
+                    if len(tool_calls) <= tc_chunk.index:
+                        tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                    tc = tool_calls[tc_chunk.index]
+                    if tc_chunk.id is not None:
+                        tc['id'] += tc_chunk.id
+                    if tc_chunk.function is not None and tc_chunk.function.name is not None:
+                        tc['function']['name'] += tc_chunk.function.name
+                    if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
+                        tc['function']['arguments'] += tc_chunk.function.arguments
+            if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                delta_content = chunk.choices[0].delta.content
+                if delta_content is not None and isinstance(delta_content, str):
+                    content += delta_content
 
         return output_stream + content, usage, tool_calls
 
@@ -758,7 +746,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         output_stream = ''
         
         while True:
-            try:            
+            try:
                 output_stream, usage, tool_calls = self.call_openai(openai_messages, model_name, params, output_stream)        
             except Exception as e:
                 logger.error(f"Error during OpenAI streaming call: {e}")

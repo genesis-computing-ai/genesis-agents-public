@@ -283,6 +283,7 @@ def manage_processes(
             process_details['process_instructions'] = chat_completion(tidy_process_instructions, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
         if action == "CREATE":
+            logger.info("Received CREATE action")
             return {
                 "Success": False,
                 "Cleaned up instructions": process_details['process_instructions'],
@@ -342,6 +343,7 @@ def manage_processes(
     process_id_created = False
     if process_id is None:
         if action == "CREATE":
+            logger.info("CREATE action with no process_id")
             process_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
             process_id_created = True
         else:
@@ -356,6 +358,7 @@ def manage_processes(
     if action in ["CREATE"] and any(
         field not in process_details for field in required_fields_create
     ):
+        logger.info("CREATE action miswsing fields - tell user")
         missing_fields = [
             field
             for field in required_fields_create
@@ -386,6 +389,7 @@ def manage_processes(
         }
 
     try:
+        logger.info(f"Received CREATE action with{'' if db_adapter.schema else 'out' } db_adapter.schema")
         if action == "CREATE":
             insert_query = f"""
                 INSERT INTO {db_adapter.schema}.PROCESSES (
@@ -420,6 +424,7 @@ def manage_processes(
             # Get process_name from process_details if available, otherwise set to "Unknown"
             process_name = process_details.get('process_name', "Unknown")
             db_adapter.client.commit()
+            logger.info("Successfully CREATED process {process_name} with process_id: {process_id_with_suffix}")
             return {
                 "Success": True,
                 "Message": f"process successfully created.",

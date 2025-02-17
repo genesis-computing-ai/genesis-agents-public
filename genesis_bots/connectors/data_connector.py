@@ -637,8 +637,8 @@ class DatabaseConnector:
             success = self.add_connection(
                 connection_id="test_snowflake",
                 connection_string=test_conn_string,
-                bot_id="test_bot",
-                allowed_bot_ids=["test_bot"],
+                bot_id="Eve",
+                allowed_bot_ids=["Eve"],
                 description="Demo Snowflake connection"
             )
 

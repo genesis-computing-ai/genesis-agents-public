@@ -35,7 +35,7 @@ process_manager_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process, HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes, or TIME to get current system time. If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process. ALLOW_CODE is used to bypass the restriction that code must be added as a note",
+        description="The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, HIDE_PROCESS, UNHIDE_PROCESS LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process, HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes, or TIME to get current system time. If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process",
         required=True,
         llm_type_desc=dict(
             type="string",
@@ -49,7 +49,6 @@ process_manager_tools = ToolFuncGroup(
                 "CREATE_PROCESS_CONFIG",
                 "UPDATE_PROCESS_CONFIG",
                 "DELETE_PROCESS_CONFIG",
-                "ALLOW_CODE",
                 "HIDE_PROCESS",
                 "UNHIDE_PROCESS",
                 "LIST",
@@ -67,6 +66,7 @@ process_manager_tools = ToolFuncGroup(
     process_instructions="DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
     process_config="Configuration string used by process when running.",
     hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
+    allow_code="If true, the process will be allowed to include code directly in the process instructions.  This is not recommended, but is allowed for short code snippets or for testing purposes.  It preferred that code exists in notes",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[process_manager_tools],
@@ -80,6 +80,7 @@ def manage_processes(
     process_name: str = None,
     process_config: str = None,
     hidden: bool = False,
+    allow_code: bool = False,
 ) -> dict:
     """
     Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
@@ -103,6 +104,8 @@ def manage_processes(
         process_details['process_config'] = process_config
     if hidden:
         process_details['hidden'] = hidden
+    if allow_code:
+        process_details['allow_code'] = allow_code
 
     # If process_name is specified but not in process_details, add it to process_details
     # if process_name and process_details and 'process_name' not in process_details:
@@ -124,16 +127,16 @@ def manage_processes(
     ]
 
     action = action.upper()
-    include_code = False
+    # include_code = False
 
-    if action == "ALLOW_CODE":
-        include_code = True
-        return {
-            "Success": True,
-            "Message": "User has confirmed that code will be allowed in the process instructions.",
-            "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best practices are to create a note",
-            "Reminder": "  Allow code to be included in the process instructions.  Run manage_process with the action CREATE_CONFIRMED to create the process.",
-        }
+    # if action == "ALLOW_CODE":
+    #     include_code = True
+    #     return {
+    #         "Success": True,
+    #         "Message": "User has confirmed that code will be allowed in the process instructions.",
+    #         "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best pratices are to create a note",
+    #         "Reminder": "  Allow code to be included in the process instructions.  Run manage_process with the action CREATE_CONFIRMED to create the process.",
+    #     }
 
     if action == "TIME":
         return {
@@ -249,7 +252,7 @@ def manage_processes(
             Do not create multiple options for the instructions, as whatever you return will be used immediately.
             Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-            if not include_code:
+            if process_details['allow_code']:
                 tidy_process_instructions = f"""
 
             Since the process contains either sql or snowpark_python code, you will need to ask the user if they want

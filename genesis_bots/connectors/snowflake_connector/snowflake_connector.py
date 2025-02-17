@@ -178,7 +178,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         return one_time_db_fixes(self)
 
     def get_processes_list(self, bot_id='all'):
-        return get_processes_list(bot_id)
+        return get_processes_list(self,bot_id)
 
     def get_process_info(self, bot_id, process_name):
         return get_process_info(self, bot_id, process_name)

@@ -76,6 +76,10 @@ class GithubConnector:
                 pr_number: Optional[int] = None,
                 labels: Optional[List[str]] = None,
                 assignees: Optional[List[str]] = None,
+                file_path: Optional[str] = None,
+                content: Optional[str] = None,
+                file_content: Optional[str] = None,
+                commit_message: Optional[str] = None,
                 thread_id = None
             ) -> Dict[str, Any]:
         """
@@ -174,6 +178,38 @@ class GithubConnector:
                 repos = list(user.get_repos())
                 return {"repos": [{"name": r.name, "url": r.html_url} for r in repos]}
 
+            # File Operations
+            elif action == "CREATE_FILE":
+                if not all([file_path, branch]):
+                    return {"error": "file_path and branch are required for CREATE_FILE"}
+                
+                # Use file_content if provided, fall back to content
+                content_to_write = file_content if file_content is not None else content
+                if content_to_write is None:
+                    return {"error": "Either content or file_content is required for CREATE_FILE"}
+
+                try:
+                    # First ensure the branch exists
+                    try:
+                        repo.get_branch(branch)
+                    except:
+                        # Create branch if it doesn't exist
+                        source = repo.get_branch("main")
+                        repo.create_git_ref(f"refs/heads/{branch}", source.commit.sha)
+                    
+                    # Create or update file
+                    commit_msg = commit_message or f"Add/Update {file_path}"
+                    try:
+                        # Try to get existing file
+                        contents = repo.get_contents(file_path, ref=branch)
+                        repo.update_file(contents.path, commit_msg, content_to_write, contents.sha, branch=branch)
+                    except:
+                        # File doesn't exist, create it
+                        repo.create_file(file_path, commit_msg, content_to_write, branch=branch)
+                    return {"status": "success", "path": file_path}
+                except Exception as e:
+                    return {"error": f"Failed to create/update file: {str(e)}"}
+
             else:
                 return {"error": f"Unknown action: {action}"}
 
@@ -189,17 +225,96 @@ github_connector_tools = ToolFuncGroup(
 )
 
 @gc_tool(
-    action="""The action to perform: GET_REPO_INFO, CREATE_REPO, DELETE_REPO, CREATE_ISSUE, UPDATE_ISSUE, CLOSE_ISSUE, 
-            CREATE_PR, UPDATE_PR, MERGE_PR, LIST_BRANCHES, CREATE_BRANCH, DELETE_BRANCH, GET_USER_INFO, LIST_USER_REPOS""",
-    repo_name="The name of the repository",
-    owner="The owner (user or organization) of the repository",
-    title="Title for issue or PR",
-    body="Body content for issue, PR, or repo description",
-    branch="Branch name for PR or branch operations",
-    issue_number="Issue number for operations on existing issues",
-    pr_number="PR number for operations on existing PRs",
-    labels="List of labels to apply to issues",
-    assignees="List of users to assign to issues",
+    action=ToolFuncParamDescriptor(
+        name="action",
+        description="The GitHub action to perform",
+        required=True,
+        llm_type_desc=dict(
+            type="string",
+            enum=["GET_REPO_INFO", "CREATE_REPO", "DELETE_REPO", "CREATE_ISSUE", 
+                  "UPDATE_ISSUE", "CLOSE_ISSUE", "CREATE_PR", "UPDATE_PR", "MERGE_PR", 
+                  "LIST_BRANCHES", "CREATE_BRANCH", "DELETE_BRANCH", "GET_USER_INFO", 
+                  "LIST_USER_REPOS", "CREATE_FILE"],
+        ),
+    ),
+    repo_name=ToolFuncParamDescriptor(
+        name="repo_name",
+        description="The name of the repository",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    owner=ToolFuncParamDescriptor(
+        name="owner",
+        description="The owner (user or organization) of the repository",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    title=ToolFuncParamDescriptor(
+        name="title",
+        description="Title for issue or PR",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    body=ToolFuncParamDescriptor(
+        name="body",
+        description="Body content for issue, PR, or repo description",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    branch=ToolFuncParamDescriptor(
+        name="branch",
+        description="Branch name for PR or branch operations",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    issue_number=ToolFuncParamDescriptor(
+        name="issue_number",
+        description="Issue number for operations on existing issues",
+        required=False,
+        llm_type_desc=dict(type="integer"),
+    ),
+    pr_number=ToolFuncParamDescriptor(
+        name="pr_number",
+        description="PR number for operations on existing PRs",
+        required=False,
+        llm_type_desc=dict(type="integer"),
+    ),
+    labels=ToolFuncParamDescriptor(
+        name="labels",
+        description="List of labels to apply to issues",
+        required=False,
+        llm_type_desc=dict(type="array", items=dict(type="string")),
+    ),
+    assignees=ToolFuncParamDescriptor(
+        name="assignees",
+        description="List of users to assign to issues",
+        required=False,
+        llm_type_desc=dict(type="array", items=dict(type="string")),
+    ),
+    file_path=ToolFuncParamDescriptor(
+        name="file_path",
+        description="Path to the file in the repository",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    content=ToolFuncParamDescriptor(
+        name="content",
+        description="Content to write to the file",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    file_content=ToolFuncParamDescriptor(
+        name="file_content",
+        description="Content from an uploaded file",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    commit_message=ToolFuncParamDescriptor(
+        name="commit_message",
+        description="Message to use when committing changes",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[github_connector_tools],
 )
@@ -214,25 +329,31 @@ def github_connector(
     pr_number: int = None,
     labels: List[str] = None,
     assignees: List[str] = None,
+    file_path: str = None,
+    content: str = None,
+    file_content: str = None,
+    commit_message: str = None,
     thread_id: str = None,
 ) -> Dict[str, Any]:
     """
     Main interface for GitHub operations.
 
     Args:
-        action: One of GET_REPO_INFO, CREATE_REPO, DELETE_REPO, CREATE_ISSUE, UPDATE_ISSUE, 
-               CLOSE_ISSUE, CREATE_PR, UPDATE_PR, MERGE_PR, LIST_BRANCHES, CREATE_BRANCH, 
-               DELETE_BRANCH, GET_USER_INFO, LIST_USER_REPOS
-        repo_name: The name of the repository
-        owner: The owner (user or organization) of the repository
-        title: Title for issue or PR
-        body: Body content for issue, PR, or repo description
-        branch: Branch name for PR or branch operations
-        issue_number: Issue number for operations on existing issues
-        pr_number: PR number for operations on existing PRs
-        labels: List of labels to apply to issues
-        assignees: List of users to assign to issues
-        thread_id: Thread identifier for the conversation
+        action: GitHub operation (GET_REPO_INFO, CREATE_REPO, etc.)
+        repo_name: Repository name
+        owner: Repository owner
+        title: Issue/PR title
+        body: Content for issue/PR/repo
+        branch: Branch name
+        issue_number: Issue number
+        pr_number: PR number
+        labels: Issue labels
+        assignees: Issue assignees
+        file_path: File path
+        content: File content
+        file_content: File content
+        commit_message: Commit message
+        thread_id: Thread ID
 
     Returns:
         Dict containing operation results
@@ -248,6 +369,10 @@ def github_connector(
         pr_number=pr_number,
         labels=labels,
         assignees=assignees,
+        file_path=file_path,
+        content=content,
+        file_content=file_content,
+        commit_message=commit_message,
         thread_id=thread_id
     )
 

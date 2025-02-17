@@ -4,6 +4,8 @@ import time
 import re
 import os
 import threading
+import math
+import openai
 from genesis_bots.core.bot_os_corpus import FileCorpus
 from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI
@@ -38,6 +40,8 @@ class BotOsThread:
         self.fast_mode = False
         self.mutex = threading.Lock()
         self.is_active = False
+        self.run_trim = False
+        self.run_messg_count = 0
 
     def is_thread_active(self):
         with self.mutex:
@@ -60,6 +64,9 @@ class BotOsThread:
     def add_chat_message(self, message, event_callback):
         if self.is_thread_active():
             return False
+
+        self.run_trim = False
+        self.run_messg_count = len(self.messages)
 
         try:
             return self.assistant_impl.add_message(message, self, event_callback)
@@ -94,6 +101,61 @@ class BotOsThread:
             task_meta=task_meta,
         )
 
+    def get_tgt_pcnt(self):
+        '''get target percentage to trim messages'''
+
+        tgt_pcnt_env_name = 'CTX_TRIM_TARGET_PCNT'
+        tgt_pcnt_env_val = os.getenv(tgt_pcnt_env_name, 50)
+
+        try:
+            tgt_pcnt = int(tgt_pcnt_env_val)
+            return tgt_pcnt
+        except ValueError:
+            logger.error(f'invalid value: env var {tgt_pcnt_env_name}=\'{tgt_pcnt_env_val}\' must be number between 1 and 100')
+            return None
+
+    def recover(self, e):
+        '''
+        Attempt to recover from exception caught during OpenAI call.
+        The only recovery available currently is to automatically trim messages list
+        to keep it under the LLM context window limmit.
+        We use rolling window strategy: eliminate messages starting with oldest until we reduce
+        overall byte size to target percentage (configured).
+        Do not delete current run messages.
+        '''
+
+        if not isinstance(e, openai.APIError):
+            return False
+
+        if e.code != 'context_length_exceeded':
+            return False
+
+        # trim messages only once per run (1 run == 1 add_message())
+        if self.run_trim:
+            return False
+        self.run_trim = True
+
+        tgt_pcnt = self.get_tgt_pcnt()
+        if tgt_pcnt == None:
+            return False
+
+        messg_bytes = list(map(lambda messg: len(json.dumps(messg)), self.messages))
+        total_bytes = sum(messg_bytes)
+        tgt_bytes = math.ceil((total_bytes * tgt_pcnt) / 100)
+
+        messages = self.messages[:1]
+
+        # don't delete instruction and current run messages
+        for messg, bytes in zip(self.messages[1:self.run_messg_count],
+                                messg_bytes[1:self.run_messg_count]):
+            if total_bytes > tgt_bytes:
+                total_bytes -= bytes
+                continue
+
+            messages.append(messg)
+
+        self.messages = messages + self.messages[self.run_messg_count:]
+        return True
 
 def _get_future_datetime(delta_string: str) -> datetime.datetime:
     # Regular expression to extract number and time unit from the string

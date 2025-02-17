@@ -17,6 +17,7 @@ from typing_extensions import override
 import traceback
 from genesis_bots.bot_genesis.make_baby_bot import (  get_bot_details )
 from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
+import openai
 
 from genesis_bots.core.logging_config import logger
 
@@ -747,8 +748,11 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         
         while True:
             try:
-                output_stream, usage, tool_calls = self.call_openai(openai_messages, model_name, params, output_stream)        
+                output_stream, usage, tool_calls = self.call_openai(openai_messages, model_name, params, output_stream)
             except Exception as e:
+                if bot_os_thread.recover(e):
+                    continue
+
                 logger.error(f"Error during OpenAI streaming call: {e}")
                 input_message.metadata['openai_error_info'] = str(e)        
 

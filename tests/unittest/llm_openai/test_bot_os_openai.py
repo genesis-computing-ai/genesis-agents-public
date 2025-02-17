@@ -15,6 +15,7 @@ import sys, unittest, json
 from uuid import uuid4
 from datetime import datetime, timedelta
 from types import SimpleNamespace
+import openai
 import genesis_bots.llm.llm_openai.bot_os_openai
 from genesis_bots.core.bot_os import BotOsThread
 from genesis_bots.core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
@@ -723,6 +724,63 @@ class TestOpenAIAdapter(unittest.TestCase):
 
         if exception:
             raise exception
+
+    def test_context_length_exceeded(self):
+        '''simulate openAI reaching its context window limit'''
+
+        call_count = 0;
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            nonlocal call_count
+            call_count += 1
+            id = f'chatcmpl-{uuid4()}'
+            in_msg = messages[len(messages)-1]['content']
+
+            if call_count == 3:
+                err = openai.APIError('error: exceeded context window max length', None, body=None)
+                err.code='context_length_exceeded'
+                err.type='invalid_request_error'
+                err.param='messages'
+                raise err
+
+            return [
+                null_chunk(id),
+                content_chunk(id, f'openai response to {in_msg}'),
+                finish_reason_chunk(id, 'stop'),
+                usage_chunk(id)
+            ]
+
+        thread = None
+        for i in range(3):
+            response, thread = round_trip(f'user prompt {i}', openai_mock, thread=thread)
+
+            if i == 0:
+                self.assertEqual(thread.messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'user prompt 0'},
+                    {'role': 'assistant', 'content': 'openai response to user prompt 0'}])
+            elif i == 1:
+                self.assertEqual(thread.messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'user prompt 0'},
+                    {'role': 'assistant', 'content': 'openai response to user prompt 0'},
+                    {'role': 'user', 'content': 'user prompt 1'},
+                    {'role': 'assistant', 'content': 'openai response to user prompt 1'}])
+            else:
+                # four messages get removed in response to APIError:context_length_exceeded
+                self.assertEqual(thread.messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'user prompt 2'},
+                    {'role': 'assistant', 'content': 'openai response to user prompt 2'}])
+
+        logs = query_message_log(thread.thread_id)
+        self.assertEqual(len(logs), 6)
+        self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'user prompt 0')
+        self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Assistant Response' and logs[1]['MESSAGE_PAYLOAD'] == 'openai response to user prompt 0')
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'User Prompt' and logs[2]['MESSAGE_PAYLOAD'] == 'user prompt 1')
+        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'Assistant Response' and logs[3]['MESSAGE_PAYLOAD'] == 'openai response to user prompt 1')
+        self.assertTrue(logs[4]['MESSAGE_TYPE'] == 'User Prompt' and logs[4]['MESSAGE_PAYLOAD'] == 'user prompt 2')
+        self.assertTrue(logs[5]['MESSAGE_TYPE'] == 'Assistant Response' and logs[5]['MESSAGE_PAYLOAD'] == 'openai response to user prompt 2')
+
 
 if __name__ == '__main__':
     unittest.main()

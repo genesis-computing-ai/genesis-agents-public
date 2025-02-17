@@ -57,9 +57,11 @@ No one likes an employee bot that doesn't work, so make every attempt to always 
 Always make suggestions for what you can do next.  Don't make people ask you to take the next step.
 """
 
-BASE_BOT_PRE_VALIDATION_INSTRUCTIONS = """
-AUTOMATED MESSAGE FOR ASSISTANT: Always first come up with a plan before you begin answering and use that plan to reach your objective.
-"""
+#BASE_BOT_PRE_VALIDATION_INSTRUCTIONS = """
+#AUTOMATED MESSAGE FOR ASSISTANT: Always first come up with a plan before you begin answering and use that plan to reach your objective.
+#"""
+
+BASE_BOT_PRE_VALIDATION_INSTRUCTIONS = ""
 
 
 BASE_BOT_VALIDATION_INSTRUCTIONS = """

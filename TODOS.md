@@ -2,7 +2,9 @@
 GENESIS BOT TODOS
 =================
 
-
+fix gxs
+work on system prompt
+o3 needs dev prompt first, others need system prompt first?
 bulk add todos
 streamlit page to see projects and todos
 prompter loop to work on projects when enabled

@@ -427,7 +427,7 @@ class TestOpenAIAdapter(unittest.TestCase):
                     self.assertEqual(messages, [
                         {'role': 'system', 'content': 'bot_instructions'},
                         {'role': 'user', 'content': 'Hello! Please call my function'},
-                        {'role': 'assistant', 'content': None, 'tool_calls': [
+                        {'role': 'assistant', 'content': 'some content too!', 'tool_calls': [
                             {'id': call_id, 'type': 'function',
                              'function': {'name': 'tool_function', 'arguments': '{"x": 69}'}}]},
                         {'role': 'tool', 'tool_call_id': call_id, 'content': '138'}])
@@ -781,6 +781,154 @@ class TestOpenAIAdapter(unittest.TestCase):
         self.assertTrue(logs[4]['MESSAGE_TYPE'] == 'User Prompt' and logs[4]['MESSAGE_PAYLOAD'] == 'user prompt 2')
         self.assertTrue(logs[5]['MESSAGE_TYPE'] == 'Assistant Response' and logs[5]['MESSAGE_PAYLOAD'] == 'openai response to user prompt 2')
 
+    def test_context_length_exceeded_tools(self):
+        '''
+        simulate openAI reaching its context window limit;
+        check that tool messages get properly cleaned up when their associated tool_calls message is deleted
+        '''
+
+        gr1_tag = ToolFuncGroup("group1", "this is group 1")
+        @gc_tool(_group_tags_=[gr1_tag], x="this is an int param x")
+        def mul2(x: int):
+            "double the argument"
+            return x * 2
+
+        @gc_tool(_group_tags_=[gr1_tag], s="this is a string param s")
+        def conc(s: str):
+            "concatenate"
+            return {'answer': f'{s}+{s}'}
+
+        assistant = make_assistant()
+        assistant.all_functions['mul2'] = mul2
+        assistant.all_functions['conc'] = conc
+        assistant.tools = [mul2.gc_tool_descriptor.to_llm_description_dict(),
+                           conc.gc_tool_descriptor.to_llm_description_dict()]
+
+        call_id = [f'call_{uuid4()}', f'call_{uuid4()}']
+
+        call_count = 0
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            nonlocal call_count
+            call_count += 1
+            id = f'chatcmpl-{uuid4()}'
+
+            if call_count == 1:
+                self.assertEqual(messages, [{'role': 'system', 'content': 'bot_instructions'},
+                                            {'role': 'user', 'content': 'user prompt 0'}])
+
+                return [
+                    null_chunk(id),
+                    function_name_chunk(id, 0, 'mul2', call_id[0]),
+                    function_arguments_chunk(id, 0, json.dumps({'x': 47})),
+                    function_name_chunk(id, 1, 'conc', call_id[1]),
+                    function_arguments_chunk(id, 1, json.dumps({'s': 'adapt'})),
+                    finish_reason_chunk(id, 'tool_calls'),
+                    usage_chunk(id)
+                ]
+
+            elif call_count == 2:
+                self.assertEqual(messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'user prompt 0'},
+                    {'role': 'assistant', 'content': None, 'tool_calls': [
+                        {'id': call_id[0], 'type': 'function',
+                         'function': {'name': 'mul2', 'arguments': '{"x": 47}'}},
+                        {'id': call_id[1], 'type': 'function',
+                         'function': {'name': 'conc', 'arguments': '{"s": "adapt"}'}}]},
+                    {'role': 'tool', 'tool_call_id': call_id[0], 'content': '94'},
+                    {'role': 'tool', 'tool_call_id': call_id[1], 'content': "{'answer': 'adapt+adapt'}"}])
+
+                return [
+                    null_chunk(id),
+                    content_chunk(id, f'openai response {call_count}'),
+                    finish_reason_chunk(id, 'stop'),
+                    usage_chunk(id)
+                ]
+
+            elif call_count == 3:
+                self.assertEqual(messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'user prompt 0'},
+                    {'role': 'assistant', 'content': None, 'tool_calls': [
+                        {'id': call_id[0], 'type': 'function',
+                         'function': {'name': 'mul2', 'arguments': '{"x": 47}'}},
+                        {'id': call_id[1], 'type': 'function',
+                         'function': {'name': 'conc', 'arguments': '{"s": "adapt"}'}}]},
+                    {'role': 'tool', 'tool_call_id': call_id[0], 'content': '94'},
+                    {'role': 'tool', 'tool_call_id': call_id[1], 'content': "{'answer': 'adapt+adapt'}"},
+                    {'role': 'assistant', 'content': 'openai response 2'},
+                    {'role': 'user', 'content': 'user prompt 1'}])
+
+                err = openai.APIError('error: exceeded context window max length', None, body=None)
+                err.code='context_length_exceeded'
+                err.type='invalid_request_error'
+                err.param='messages'
+                raise err
+
+            else:
+                if call_count == 4:
+                    # four messages deleted after context_length_exceeded in prev step
+                    self.assertEqual(messages, [
+                        {'role': 'system', 'content': 'bot_instructions'},
+                        {'role': 'assistant', 'content': 'openai response 2'},
+                        {'role': 'user', 'content': 'user prompt 1'}])
+
+                if call_count == 5:
+                    self.assertEqual(messages, [
+                        {'role': 'system', 'content': 'bot_instructions'},
+                        {'role': 'assistant', 'content': 'openai response 2'},
+                        {'role': 'user', 'content': 'user prompt 1'},
+                        {'role': 'assistant', 'content': 'openai response 4'},
+                        {'role': 'user', 'content': 'user prompt 2'}])
+
+                return [
+                    null_chunk(id),
+                    content_chunk(id, f'openai response {call_count}'),
+                    finish_reason_chunk(id, 'stop'),
+                    usage_chunk(id)
+                ]
+
+        thread = None
+        for i in range(3):
+            response, thread = round_trip(f'user prompt {i}', openai_mock, assistant=assistant, thread=thread)
+
+            if i == 0:
+                self.assertTrue('Using tool:' in response and
+                                'mul2' in response.lower() and
+                                'conc' in response.lower() and
+                                'openai response 2' in response)
+
+                self.assertEqual(thread.messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'user prompt 0'},
+                    {'role': 'assistant', 'content': None, 'tool_calls': [
+                        {'id': call_id[0], 'type': 'function',
+                         'function': {'name': 'mul2', 'arguments': '{"x": 47}'}},
+                        {'id': call_id[1], 'type': 'function',
+                         'function': {'name': 'conc', 'arguments': '{"s": "adapt"}'}}]},
+                    {'role': 'tool', 'tool_call_id': call_id[0], 'content': '94'},
+                    {'role': 'tool', 'tool_call_id': call_id[1], 'content': "{'answer': 'adapt+adapt'}"},
+                    {'role': 'assistant', 'content': 'openai response 2'}])
+
+            if i == 1:
+                self.assertEqual(response, 'openai response 4')
+
+                # four messages deleted from thread because of context_length_exceeded
+                self.assertEqual(thread.messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'assistant', 'content': 'openai response 2'},
+                    {'role': 'user', 'content': 'user prompt 1'},
+                    {'role': 'assistant', 'content': 'openai response 4'}])
+
+            if i == 2:
+                self.assertEqual(response, 'openai response 5')
+                self.assertEqual(thread.messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'assistant', 'content': 'openai response 2'},
+                    {'role': 'user', 'content': 'user prompt 1'},
+                    {'role': 'assistant', 'content': 'openai response 4'},
+                    {'role': 'user', 'content': 'user prompt 2'},
+                    {'role': 'assistant', 'content': 'openai response 5'}])
 
 if __name__ == '__main__':
     unittest.main()

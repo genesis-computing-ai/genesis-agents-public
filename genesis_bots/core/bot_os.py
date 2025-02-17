@@ -139,22 +139,35 @@ class BotOsThread:
         if tgt_pcnt == None:
             return False
 
-        messg_bytes = list(map(lambda messg: len(json.dumps(messg)), self.messages))
+        messg_bytes = [len(json.dumps(messg)) for messg in self.messages]
         total_bytes = sum(messg_bytes)
         tgt_bytes = math.ceil((total_bytes * tgt_pcnt) / 100)
+        logger.info(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}, {len(self.messages)} messages, {total_bytes} bytes, {tgt_bytes=}')
 
         messages = self.messages[:1]
+        count = 0
+        tools = set()
 
         # don't delete instruction and current run messages
         for messg, bytes in zip(self.messages[1:self.run_messg_count],
                                 messg_bytes[1:self.run_messg_count]):
+
+            # clean up tool messages associated with deleted tool_calls
+            if messg.get('role') == 'tool' and messg.get('tool_call_id') in tools:
+                total_bytes -= bytes
+                count += 1
+                continue
+
             if total_bytes > tgt_bytes:
                 total_bytes -= bytes
+                count += 1
+                tools.update([tool['id'] for tool in messg.get('tool_calls', [])])
                 continue
 
             messages.append(messg)
 
         self.messages = messages + self.messages[self.run_messg_count:]
+        logger.info(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}, deleted {count} messages, {total_bytes} bytes in messages now')
         return True
 
 def _get_future_datetime(delta_string: str) -> datetime.datetime:

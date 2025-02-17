@@ -396,7 +396,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         openai_messages[0]["content"] = self.instructions
         return openai_messages
 
-    def call_openai(self, openai_messages, model_name, params, output_stream=''):
+    def call_openai(self, openai_messages, model_name, params):
         '''call requested OpenAI model and return the response as a tuple: (content, usage, tool_calls)'''
 
         content = ''
@@ -435,7 +435,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 if delta_content is not None and isinstance(delta_content, str):
                     content += delta_content
 
-        return output_stream + content, usage, tool_calls
+        return content, usage, tool_calls
 
     def decode_tool_response(self, run, thread_id, func_name, func_args, func_response):
         '''postprocess response received from a tool function call'''
@@ -748,9 +748,10 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         
         while True:
             try:
-                output_stream, usage, tool_calls = self.call_openai(openai_messages, model_name, params, output_stream)
+                content, usage, tool_calls = self.call_openai(openai_messages, model_name, params)
             except Exception as e:
                 if bot_os_thread.recover(e):
+                    openai_messages = self.get_openai_messages(bot_os_thread, model_name)
                     continue
 
                 logger.error(f"Error during OpenAI streaming call: {e}")
@@ -763,18 +764,19 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 break
 
             if not tool_calls:
-                bot_os_thread.messages.append({"role": "assistant", "content": output_stream})
+                bot_os_thread.messages.append({"role": "assistant", "content": content})
                 
                 run.status = "completed"
                 run.completed_at = datetime.datetime.now()
                 run.usage = usage
                 
-                self.send_response_to_user(run, thread_id, output_stream, chat_history, output_event)
+                self.send_response_to_user(run, thread_id, output_stream + content, chat_history, output_event)
                 break
 
             # LLM requesting us to call tool function(s) and send back the result
         
-            bot_os_thread.messages.append({"role": "assistant", "content": None, "tool_calls": tool_calls})
+            bot_os_thread.messages.append({"role": "assistant", "content": content if content != '' else None, "tool_calls": tool_calls})
+            output_stream += content
 
             if output_stream:
                 output_event(status=run.status, output=output_stream + " 💬", messages=None)

@@ -107,9 +107,6 @@ def manage_processes(
     if allow_code:
         process_details['allow_code'] = allow_code
 
-
-    code_found_in_process = False
-
     # If process_name is specified but not in process_details, add it to process_details
     # if process_name and process_details and 'process_name' not in process_details:
     #     process_details['process_name'] = process_name
@@ -130,16 +127,6 @@ def manage_processes(
     ]
 
     action = action.upper()
-    # include_code = False
-
-    # if action == "ALLOW_CODE":
-    #     include_code = True
-    #     return {
-    #         "Success": True,
-    #         "Message": "User has confirmed that code will be allowed in the process instructions.",
-    #         "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best pratices are to create a note",
-    #         "Reminder": "  Allow code to be included in the process instructions.  Run manage_process with the action CREATE_CONFIRMED to create the process.",
-    #     }
 
     if action == "TIME":
         return {
@@ -191,16 +178,6 @@ def manage_processes(
                 "process_id": process_id,
             }
 
-        if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
-            check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
-            actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
-            If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
-            neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
-            result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
-
-            if result != 'NO CODE':
-                code_found_in_process = True
-
         if action == "CREATE" or action == "CREATE_CONFIRMED":
             # Check for dupe name
             sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
@@ -242,6 +219,13 @@ def manage_processes(
             #         "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
             #     }
 
+            check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
+            actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
+            If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
+            neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
+
+            result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
+
             # Send process_instructions to 2nd LLM to check it and format nicely
             tidy_process_instructions = f"""
             Below is a process that has been submitted by a user.  Please review it to insure it is something
@@ -251,17 +235,16 @@ def manage_processes(
             Do not create multiple options for the instructions, as whatever you return will be used immediately.
             Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-            if code_found_in_process:
+            if result == 'NO CODE'::
                 tidy_process_instructions = f"""
-
             Since the process contains either sql or snowpark_python code, you will need to ask the user if they want
             to allow code in the process.  If they do, go ahead and allow the code to remain in the process.
             If they do not, extract the code and create a new note with
-            your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.
+            your manage_notebook tool, making sure to specify the note_type field as either 'sql or 'snowpark_python'.
             Then replace the code in the process with the note_id of the new note.  Do not
             include the note contents in the process, just include an instruction to run the note with the note_id."""
 
-            tidy_process_instructions = f"""
+            tidy_process_instructions += f"""
 
             If the process wants to send an email to a default email, or says to send an email but doesn't specify
             a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {sys_default_email}.

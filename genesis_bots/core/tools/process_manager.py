@@ -131,7 +131,7 @@ def manage_processes(
         return {
             "Success": True,
             "Message": "User has confirmed that code will be allowed in the process instructions.",
-            "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best pratices are to create a note",
+            "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best practices are to create a note",
             "Reminder": "  Allow code to be included in the process instructions.  Run manage_process with the action CREATE_CONFIRMED to create the process.",
         }
 

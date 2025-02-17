@@ -1434,13 +1434,17 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
                logger.info(f"Waiting for parallel tool call {tc_id} to complete")
                return
 
-
          if thread_id in self.completion_threads:
+            tool_outputs = []
             for tc_id in self.tool_completion_status[run_id]:
                self.completion_threads[thread_id].append({
-                  "role": "tool",
+                  "role": "tool", 
                   "tool_call_id": tc_id,
                   "content": str(self.tool_completion_status[run_id][tc_id])
+               })
+               tool_outputs.append({
+                  'tool_call_id': tc_id,
+                  'output': str(self.tool_completion_status[run_id][tc_id])
                })
          # Set run status to completed in completions_runs map
          if run_id in self.completions_runs:
@@ -1457,7 +1461,7 @@ class BotOsAssistantOpenAI(BotOsAssistantInterface):
             self.add_message(BotOsInputMessage(thread_id=thread_id, msg='Tool call completed, results', metadata=metadata), reuse_run_id=run_id)   # self.completions_runs[run_id].usage = usage
 
             # tool_outputs and meta are needed for adding row to message_log table
-            tool_outputs = [{'tool_call_id': key, 'output': str(self.tool_completion_status[run_id][key])} for key in pending_tool_call_ids]
+          #  tool_outputs = [{'tool_call_id': key, 'output': str(self.tool_completion_status[run_id][key])} for key in pending_tool_call_ids]
             meta = metadata
             
       else: # self.use_assistants is True

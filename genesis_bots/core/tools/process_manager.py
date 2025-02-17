@@ -107,6 +107,9 @@ def manage_processes(
     if allow_code:
         process_details['allow_code'] = allow_code
 
+
+    code_found_in_process = False
+
     # If process_name is specified but not in process_details, add it to process_details
     # if process_name and process_details and 'process_name' not in process_details:
     #     process_details['process_name'] = process_name
@@ -188,19 +191,15 @@ def manage_processes(
                 "process_id": process_id,
             }
 
-        # if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
-        #     check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
-        #     actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
-        #     If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
-        #     neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
-        #     result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
+        if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
+            check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
+            actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
+            If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
+            neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
+            result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
 
-        #     if result != 'NO CODE':
-        #         return {
-        #             "Success": True,
-        #             "Suggestion": "Explain to the user that any SQL or Python code should be separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.  Ask the user oif they would like to create a note.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.  If the user does not want to create a note, run CREATE_CONFIRMED to add the process with the code included.",
-        #             "Reminder": f"Ask the user of they would like to remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.   If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.  If the user does not want to create a note, run CREATE_CONFIRMED to add the process with the code included."
-        #         }
+            if result != 'NO CODE':
+                code_found_in_process = True
 
         if action == "CREATE" or action == "CREATE_CONFIRMED":
             # Check for dupe name
@@ -252,7 +251,7 @@ def manage_processes(
             Do not create multiple options for the instructions, as whatever you return will be used immediately.
             Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-            if process_details['allow_code']:
+            if code_found_in_process:
                 tidy_process_instructions = f"""
 
             Since the process contains either sql or snowpark_python code, you will need to ask the user if they want
@@ -358,7 +357,7 @@ def manage_processes(
     if action in ["CREATE"] and any(
         field not in process_details for field in required_fields_create
     ):
-        logger.info("CREATE action miswsing fields - tell user")
+        logger.info("CREATE action missing fields - tell user")
         missing_fields = [
             field
             for field in required_fields_create

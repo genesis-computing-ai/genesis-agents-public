@@ -199,18 +199,23 @@ def handle_azure_openai_configuration():
 
 def assign_eai_to_genesis():
     if st.session_state.eai_reference_name:
-        eai_type = st.session_state.eai_reference_name.split('_')[0].upper()
-        upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
-        if upgrade_result:
-            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-            st.session_state.update({
-                "assign_disabled": True,
-                f"{st.session_state.llm_type}_eai_available": True,
-                "disable_submit": False,
-            })
-            st.rerun()
+        # Add safety check before using upper()
+        eai_type = st.session_state.eai_reference_name.split('_')[0]
+        if eai_type:  # Make sure we have a value before calling upper()
+            eai_type = eai_type.upper()
+            upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
+            if upgrade_result:
+                st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                st.session_state.update({
+                    "assign_disabled": True,
+                    f"{st.session_state.llm_type}_eai_available": True,
+                    "disable_submit": False,
+                })
+                st.rerun()
+            else:
+                st.error("Upgrade services failed to return a valid response.")
         else:
-            st.error("Upgrade services failed to return a valid response.")
+            st.error("Invalid EAI reference name format")
     else:
         st.error("No EAI reference set")
 

@@ -812,6 +812,13 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 func_args = tool_call['function']['arguments']
                 tool_call_id = tool_call['id']
 
+                if bot_os_thread.stop_signal:
+                    logger.info(f'bot={self.bot_id} {thread_id=} received stop signal')
+                    run.status = 'completed'
+                    run.completed_at = datetime.datetime.now()
+                    output_event(status=run.status, output=f'stopped {thread_id=}', messages=None)
+                    break
+
                 output_stream = self.record_tool_call(run, thread_id, func_name, func_args, tool_call_id,
                                                       output_stream, chat_history, output_event)
                 

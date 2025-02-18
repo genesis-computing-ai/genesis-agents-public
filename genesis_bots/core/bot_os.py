@@ -42,6 +42,7 @@ class BotOsThread:
         self.is_active = False
         self.run_trim = False
         self.run_messg_count = 0
+        self.stop_signal = False
 
     def is_thread_active(self):
         with self.mutex:
@@ -62,16 +63,22 @@ class BotOsThread:
         self.fast_mode = flag
 
     def add_chat_message(self, message, event_callback):
+        if message.msg.endswith(') says: !stop') or message.msg=='!stop':
+            self.stop_signal = True
+            return True
+
         if self.is_thread_active():
             return False
 
         self.run_trim = False
         self.run_messg_count = len(self.messages)
+        self.stop_signal = False
 
         try:
             return self.assistant_impl.add_message(message, self, event_callback)
         finally:
             self.release_thread()
+            return True
 
     def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
         thread_id = message.thread_id

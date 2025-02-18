@@ -930,5 +930,63 @@ class TestOpenAIAdapter(unittest.TestCase):
                     {'role': 'user', 'content': 'user prompt 2'},
                     {'role': 'assistant', 'content': 'openai response 5'}])
 
+    def test_stop_signal(self):
+        '''stop Genesis thread'''
+
+        assistant = make_assistant()
+        thread = BotOsThread(assistant, None)
+
+        gr1_tag = ToolFuncGroup("group1", "this is group 1")
+        @gc_tool(_group_tags_=[gr1_tag], x="this is an int param x")
+        def one(x: int):
+            "double the argument"
+            # signal thread to stop after this function tool call
+            thread.add_message(make_input_message(thread.thread_id, '!stop'))
+            return x * 2
+
+        @gc_tool(_group_tags_=[gr1_tag], s="this is a string param s")
+        def two(s: str):
+            "concatenate"
+            return {'answer': f'{s}+{s}'}
+
+        assistant.all_functions['one'] = one
+        assistant.all_functions['two'] = two
+        assistant.tools = [one.gc_tool_descriptor.to_llm_description_dict(),
+                           two.gc_tool_descriptor.to_llm_description_dict()]
+
+        call_count = 0
+        call_id = [f'call_{uuid4()}', f'call_{uuid4()}']
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            nonlocal call_count
+            nonlocal call_id
+            call_count += 1
+            id = f'chatcmpl-{uuid4()}'
+            self.assertEqual(call_count, 1)
+            return [
+                null_chunk(id),
+                function_name_chunk(id, 0, 'one', call_id[0]),
+                function_arguments_chunk(id, 0, json.dumps({'x': 47})),
+                function_name_chunk(id, 1, 'two', call_id[1]),
+                function_arguments_chunk(id, 1, json.dumps({'s': 'adapt'})),
+                finish_reason_chunk(id, 'tool_calls'),
+                usage_chunk(id)
+            ]
+
+        event_count = 0
+        def event_callback(session_id, output_message: BotOsOutputMessage):
+            nonlocal event_count
+            event_count += 1
+            if event_count == 1:
+                assertTrue('using tool:' in output_message.output and 'one' in output_message.output)
+            if event_count == 2:
+                assertEqual(output_message.output, f"stopped thread_id='{thread.thread_id}'")
+
+        round_trip('Call my two functions', openai_mock, event_callback=event_callback, assistant=assistant, thread=thread)
+
+        logs = query_message_log(thread.thread_id)
+        self.assertEqual(len(logs), 2)
+        self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
+        self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'one({"x": 47})')
+
 if __name__ == '__main__':
     unittest.main()

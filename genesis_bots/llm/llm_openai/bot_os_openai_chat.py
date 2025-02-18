@@ -824,7 +824,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
                 output_stream = self.record_tool_call(run, thread_id, func_name, func_args, tool_call_id,
                                                       output_stream, chat_history, output_event)
-                
+
                 try:
                     func_response = self.run_tool_function(run, thread_id, func_name, func_args, tool_call_id)
                 except Exception as e:

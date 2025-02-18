@@ -977,16 +977,121 @@ class TestOpenAIAdapter(unittest.TestCase):
             nonlocal event_count
             event_count += 1
             if event_count == 1:
-                assertTrue('using tool:' in output_message.output and 'one' in output_message.output)
+                self.assertTrue('using tool:' in output_message.output.lower() and 'one' in output_message.output.lower())
             if event_count == 2:
-                assertEqual(output_message.output, f"stopped thread_id='{thread.thread_id}'")
+                self.assertEqual(output_message.output, f"stopped thread_id='{thread.thread_id}'")
 
         round_trip('Call my two functions', openai_mock, event_callback=event_callback, assistant=assistant, thread=thread)
+
+        self.assertEqual(event_count, 2)
 
         logs = query_message_log(thread.thread_id)
         self.assertEqual(len(logs), 2)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'one({"x": 47})')
+
+    def test_stop_signal_with_recovery(self):
+        '''stop Genesis thread'''
+
+        assistant = make_assistant()
+        thread = BotOsThread(assistant, None)
+
+        gr1_tag = ToolFuncGroup("group1", "this is group 1")
+        @gc_tool(_group_tags_=[gr1_tag], x="this is an int param x")
+        def one(x: int):
+            "double the argument"
+            # signal thread to stop after this function tool call
+            thread.add_message(make_input_message(thread.thread_id, '!stop'))
+            return x * 2
+
+        @gc_tool(_group_tags_=[gr1_tag], s="this is a string param s")
+        def two(s: str):
+            "concatenate"
+            return {'answer': f'{s}+{s}'}
+
+        assistant.all_functions['one'] = one
+        assistant.all_functions['two'] = two
+        assistant.tools = [one.gc_tool_descriptor.to_llm_description_dict(),
+                           two.gc_tool_descriptor.to_llm_description_dict()]
+
+        call_count = 0
+        call_id = [f'call_{uuid4()}', f'call_{uuid4()}']
+        def openai_mock(*, messages, model, stream, stream_options, tools=None):
+            nonlocal call_count
+            nonlocal call_id
+            call_count += 1
+            id = f'chatcmpl-{uuid4()}'
+
+            if call_count == 1:
+                self.assertEqual(messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'Call my two functions'}])
+
+                return [
+                    null_chunk(id),
+                    function_name_chunk(id, 0, 'one', call_id[0]),
+                    function_arguments_chunk(id, 0, json.dumps({'x': 47})),
+                    function_name_chunk(id, 1, 'two', call_id[1]),
+                    function_arguments_chunk(id, 1, json.dumps({'s': 'adapt'})),
+                    finish_reason_chunk(id, 'tool_calls'),
+                    usage_chunk(id)
+                ]
+
+            if call_count == 2:
+                self.assertEqual(messages, [
+                    {'role': 'system', 'content': 'bot_instructions'},
+                    {'role': 'user', 'content': 'Call my two functions'},
+                    {'role': 'assistant', 'content': None, 'tool_calls': [
+                        {'id': call_id[0], 'type': 'function', 'function': {
+                            'name': 'one', 'arguments': '{"x": 47}'}},
+                        {'id': call_id[1], 'type': 'function', 'function': {
+                            'name': 'two', 'arguments': '{"s": "adapt"}'}}]},
+                    {'role': 'tool', 'tool_call_id': call_id[0], 'content': '94'},
+                    {'role': 'user', 'content': 'second time with incomplete tool outputs'}])
+
+                err = openai.APIError("'tool_calls' must be followed by tool messages responding to each 'tool_call_id'",
+                                      None, body=None)
+                err.code=None
+                err.type='invalid_request_error'
+                err.param='messages'
+                raise err
+
+            # after deleting mismatched tool calls
+            self.assertEqual(messages, [
+                {'role': 'system', 'content': 'bot_instructions'},
+                {'role': 'user', 'content': 'Call my two functions'},
+                {'role': 'user', 'content': 'second time with incomplete tool outputs'}])
+
+            return [
+                null_chunk(id),
+                content_chunk(id, f'openai response {call_count}'),
+                finish_reason_chunk(id, 'stop'),
+                usage_chunk(id)
+            ]
+
+        event_count = 0
+        def event_callback(session_id, output_message: BotOsOutputMessage):
+            nonlocal event_count
+            event_count += 1
+
+            if event_count == 1:
+                self.assertTrue('using tool:' in output_message.output.lower() and 'one' in output_message.output.lower())
+            if event_count == 2:
+                self.assertEqual(output_message.output, f"stopped thread_id='{thread.thread_id}'")
+            if event_count == 3:
+                self.assertEqual(output_message.output, 'openai response 3')
+
+        round_trip('Call my two functions', openai_mock, event_callback=event_callback, assistant=assistant, thread=thread)
+        round_trip('second time with incomplete tool outputs', openai_mock, event_callback=event_callback, assistant=assistant, thread=thread)
+
+        self.assertEqual(event_count, 3)
+
+        logs = query_message_log(thread.thread_id)
+        self.assertEqual(len(logs), 4)
+        self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
+        self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'one({"x": 47})')
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'User Prompt' and logs[2]['MESSAGE_PAYLOAD'] == 'second time with incomplete tool outputs')
+        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'Assistant Response' and logs[3]['MESSAGE_PAYLOAD'] == 'openai response 3')
 
 if __name__ == '__main__':
     unittest.main()

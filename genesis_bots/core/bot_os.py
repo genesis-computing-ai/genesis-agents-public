@@ -133,18 +133,59 @@ class BotOsThread:
     def recover(self, e):
         '''
         Attempt to recover from exception caught during OpenAI call.
-        The only recovery available currently is to automatically trim messages list
-        to keep it under the LLM context window limmit.
-        We use rolling window strategy: eliminate messages starting with oldest until we reduce
-        overall byte size to target percentage (configured).
-        Do not delete current run messages.
+        return True if action is taken and we should try sending corrected messages back to LLM
+        return False otherwise
         '''
 
         if not isinstance(e, openai.APIError):
             return False
 
-        if e.code != 'context_length_exceeded':
-            return False
+        if e.code == 'context_length_exceeded':
+            return self.trim_messages()
+
+        # unfortunately we do not get a specific error code from OpenAI when tool calls are mismatched
+        return self.fix_tool_calls()
+
+    def fix_tool_calls(self):
+        '''delete tool call messages that do not have a complete set of responses'''
+
+        count = 0
+        messages = []
+        tools = {}
+
+        for messg in reversed(self.messages):
+            if messg.get('role') == 'tool':
+                tools[messg.get('tool_call_id')] = messg
+                continue
+
+            if messg.get('role') == 'assistant' and messg.get('tool_calls'):
+                tool_calls = messg.get('tool_calls', [])
+
+                if (len(tool_calls) == len(tools) and
+                    all([tools.get(tool.get('id')) for tool in tool_calls])):
+                    for tool in tools.values():
+                        messages.insert(0, tool)
+                    messages.insert(0, messg);
+                else:
+                    count += 1 + len(tools)
+
+                tools = {}
+                continue
+
+            messages.insert(0, messg)
+
+        logger.info(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}, deleted {count} mismatched tool call messages')
+        self.messages = messages
+        return count > 0
+
+    def trim_messages(self):
+        '''
+        Trim messages list by deleting entries
+        to keep it under the LLM context window limmit.
+        We use rolling window strategy: eliminate messages starting with oldest until we reduce
+        overall byte size to target percentage (configured).
+        Do not delete current run messages nor instructions.
+        '''
 
         # trim messages only once per run (1 run == 1 add_message())
         if self.run_trim:

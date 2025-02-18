@@ -226,6 +226,8 @@ def manage_processes(
 
             result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
 
+            print(f"Result of check_for_code_instructions: {result}")
+
             # Send process_instructions to 2nd LLM to check it and format nicely
             tidy_process_instructions = f"""
             Below is a process that has been submitted by a user.  Please review it to insure it is something

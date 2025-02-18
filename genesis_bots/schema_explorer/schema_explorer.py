@@ -524,22 +524,35 @@ class SchemaExplorer:
             sql = sql.replace('!database_name!', database_name)
             try:
                 schemas = connector.query_database(connection_id=matching_connection['connection_id'], bot_id='system', query=sql, bot_id_override=True, database_name=database_name)
-                if isinstance(schemas, list):
-                    # Extract schema names from result set based on first column
-                    schemas = [row[0] for row in schemas if row[0]]
-                elif isinstance(schemas, dict) and 'rows' in schemas:
-                    # Extract schema names from rows in dictionary result
-                    schemas_out = []
-                    for row in schemas['rows']:
-                        if row[0]:
-                            if isinstance(row[0], list):
-                                schemas_out.extend(row[0])
-                            else:
-                                schemas_out.append(row[0])
-                    schemas = schemas_out
+                
+                if db_type == 'snowflake' and matching_connection['connection_id'] != 'Snowflake':
+                    # For Snowflake, find the 'name' column index
+                    name_col = 1  # Default to 1 which is typical for SHOW SCHEMAS
+                    if isinstance(schemas, dict) and 'columns' in schemas:
+                        for i, col in enumerate(schemas['columns']):
+                            if isinstance(col, str) and col.lower() == 'name':
+                                name_col = i
+                                break
+                    # Update rows to use the correct name column
+                    if 'rows' in schemas:
+                        schemas = [row[name_col] for row in schemas['rows']]
                 else:
-                    logger.info(f"Unexpected schema query result format for {db_type}")
-                    schemas = []
+                    if isinstance(schemas, list):
+                        # Extract schema names from result set based on first column
+                        schemas = [row[0] for row in schemas if row[0]]
+                    elif isinstance(schemas, dict) and 'rows' in schemas:
+                        # Extract schema names from rows in dictionary result
+                        schemas_out = []
+                        for row in schemas['rows']:
+                            if row[0]:
+                                if isinstance(row[0], list):
+                                    schemas_out.extend(row[0])
+                                else:
+                                    schemas_out.append(row[0])
+                        schemas = schemas_out
+                    else:
+                        logger.info(f"Unexpected schema query result format for {db_type}")
+                        schemas = []
             except Exception as e:
                 logger.info(f"Error getting schemas for {db_type}: {e}")
                 schemas = []
@@ -688,12 +701,19 @@ class SchemaExplorer:
                     database_name=dataset['database_name']
                 )
 
+                # Find the column index containing the column names
+                col_num = 0
+                if 'columns' in result and result['columns']:
+                    for i, col in enumerate(result['columns']):
+                        if col.lower() == 'column_name' or col.lower() == 'name':
+                            col_num = i
+                            break
                 if isinstance(result, dict) and result.get('success'):
                     # Extract column names from the result
                     columns = []
                     for row in result['rows']:
-                        if row[0] is not None:  # Check for None values
-                            columns.append(str(row[0]))  # Convert to string
+                        if row[col_num] is not None:  # Check for None values
+                            columns.append(str(row[col_num]))  # Convert to string
                     return columns
 
                 return []
@@ -809,10 +829,16 @@ class SchemaExplorer:
                             database_name=database_name
                         )
 
+                        col_num = 0
+                        if 'columns' in result_tables and result_tables['columns']:
+                            for i, col in enumerate(result_tables['columns']):
+                                if col.lower() == 'name':
+                                    col_num = i
+                                    break
                         if isinstance(result_tables, dict) and result_tables.get('success'):
                             for row in result_tables['rows']:
                                 potential_objects.append({
-                                    'name': row[0],
+                                    'name': row[col_num],
                                     'object_type': 'TABLE'
                                 })
 
@@ -830,11 +856,16 @@ class SchemaExplorer:
                             bot_id_override=True,
                             database_name=database_name
                         )
-
+                        col_num = 0
+                        if 'columns' in result_views and result_views['columns']:
+                            for i, col in enumerate(result_views['columns']):
+                                if col.lower() == 'name':
+                                    col_num = i
+                                    break
                         if isinstance(result_views, dict) and result_views.get('success'):
                             for row in result_views['rows']:
                                 potential_objects.append({
-                                    'name': row[0],
+                                    'name': row[col_num],
                                     'object_type': 'VIEW'
                                 })
                 except Exception as e:

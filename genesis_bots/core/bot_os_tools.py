@@ -75,7 +75,7 @@ class ToolBelt:
         self.recurse_stack = []
         self.recurse_level = 1
         self.process_id = {}
-        self.include_code = False
+        # self.include_code = False
         self.sys_default_email = get_sys_email()
 
         if os.getenv("SNOWFLAKE_METADATA", "False").lower() == "false":

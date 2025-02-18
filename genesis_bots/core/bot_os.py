@@ -4,12 +4,9 @@ import time
 import re
 import os
 import threading
-import math
-import openai
 from genesis_bots.core.bot_os_corpus import FileCorpus
 from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI
-from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAIChat
 from genesis_bots.llm.llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 
 # from bot_os_reka import BotOsAssistantReka
@@ -36,43 +33,6 @@ class BotOsThread:
         #self.input_adapter.thread_id = self.thread_id # JL COMMENT OUT FOR NOW
         self.validated = False
 
-        self.messages = []
-        self.fast_mode = False
-        self.mutex = threading.Lock()
-        self.is_active = False
-        self.run_trim = False
-        self.run_messg_count = 0
-
-    def is_thread_active(self):
-        with self.mutex:
-            if self.is_active:
-                return True
-            else:
-                self.is_active = True
-                return False
-
-    def release_thread(self):
-        with self.mutex:
-            self.is_active = False
-
-    def is_fast_mode(self):
-        return self.fast_mode
-
-    def set_fast_mode(self, flag):
-        self.fast_mode = flag
-
-    def add_chat_message(self, message, event_callback):
-        if self.is_thread_active():
-            return False
-
-        self.run_trim = False
-        self.run_messg_count = len(self.messages)
-
-        try:
-            return self.assistant_impl.add_message(message, self, event_callback)
-        finally:
-            self.release_thread()
-
     def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
         thread_id = message.thread_id
         
@@ -80,8 +40,6 @@ class BotOsThread:
             self.assistant_impl = current_assistant
         if isinstance(self.assistant_impl, BotOsAssistantSnowflakeCortex):
             ret = self.assistant_impl.add_message(message, event_callback=event_callback)
-        elif isinstance(self.assistant_impl, BotOsAssistantOpenAIChat):
-            ret = self.add_chat_message(message, event_callback)
         else:
             ret = self.assistant_impl.add_message(message)
         #ret = self.assistant_impl.add_message(message)
@@ -101,74 +59,6 @@ class BotOsThread:
             task_meta=task_meta,
         )
 
-    def get_tgt_pcnt(self):
-        '''get target percentage to trim messages'''
-
-        tgt_pcnt_env_name = 'CTX_TRIM_TARGET_PCNT'
-        tgt_pcnt_env_val = os.getenv(tgt_pcnt_env_name, 50)
-
-        try:
-            tgt_pcnt = int(tgt_pcnt_env_val)
-            return tgt_pcnt
-        except ValueError:
-            logger.error(f'invalid value: env var {tgt_pcnt_env_name}=\'{tgt_pcnt_env_val}\' must be number between 1 and 100')
-            return None
-
-    def recover(self, e):
-        '''
-        Attempt to recover from exception caught during OpenAI call.
-        The only recovery available currently is to automatically trim messages list
-        to keep it under the LLM context window limmit.
-        We use rolling window strategy: eliminate messages starting with oldest until we reduce
-        overall byte size to target percentage (configured).
-        Do not delete current run messages.
-        '''
-
-        if not isinstance(e, openai.APIError):
-            return False
-
-        if e.code != 'context_length_exceeded':
-            return False
-
-        # trim messages only once per run (1 run == 1 add_message())
-        if self.run_trim:
-            return False
-        self.run_trim = True
-
-        tgt_pcnt = self.get_tgt_pcnt()
-        if tgt_pcnt == None:
-            return False
-
-        messg_bytes = [len(json.dumps(messg)) for messg in self.messages]
-        total_bytes = sum(messg_bytes)
-        tgt_bytes = math.ceil((total_bytes * tgt_pcnt) / 100)
-        logger.info(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}, {len(self.messages)} messages, {total_bytes} bytes, {tgt_bytes=}')
-
-        messages = self.messages[:1]
-        count = 0
-        tools = set()
-
-        # don't delete instruction and current run messages
-        for messg, bytes in zip(self.messages[1:self.run_messg_count],
-                                messg_bytes[1:self.run_messg_count]):
-
-            # clean up tool messages associated with deleted tool_calls
-            if messg.get('role') == 'tool' and messg.get('tool_call_id') in tools:
-                total_bytes -= bytes
-                count += 1
-                continue
-
-            if total_bytes > tgt_bytes:
-                total_bytes -= bytes
-                count += 1
-                tools.update([tool['id'] for tool in messg.get('tool_calls', [])])
-                continue
-
-            messages.append(messg)
-
-        self.messages = messages + self.messages[self.run_messg_count:]
-        logger.info(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}, deleted {count} messages, {total_bytes} bytes in messages now')
-        return True
 
 def _get_future_datetime(delta_string: str) -> datetime.datetime:
     # Regular expression to extract number and time unit from the string

@@ -515,7 +515,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 schema_inclusions = []
 
             # Validate database and schema names for Snowflake source
-            if source_name == 'Snowflake':
+            if source_name == 'Snowflake' and self.source_name == 'Snowflake':
                 databases = self.get_visible_databases()
                 if database_name not in databases:
                     return {
@@ -565,7 +565,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 if connection_id not in valid_connections:
                     return {
                         "Success": False,
-                        "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools."
+                        "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools.",
+                        "Valid Connections": str(valid_connections)
                     }
 
             if self.source_name != 'Snowflake':

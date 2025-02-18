@@ -92,6 +92,7 @@ class DatabaseConnector:
             thread_id: Optional thread identifier for logging/tracking
         """
         try:
+            processed_conn_string = None
             allowed_bots_str = ','.join(allowed_bot_ids) if isinstance(allowed_bot_ids, list) and allowed_bot_ids else ''
 
             # Check if allowed_bots_str is empty
@@ -216,6 +217,7 @@ class DatabaseConnector:
                     'success': True,
                     'message': f"Connection {connection_id} {'updated' if existing else 'added'} successfully",
                     'connection_string': connection_string,
+                    **(None if processed_conn_string is None else {'processed_connection_string': processed_conn_string}),
                     'allowed_bot_ids': allowed_bots_str,
                     'description': description,
                     'note': "Remember: All bots that need access should be in a comma-separated string in allowed_bot_ids if more than one, including yourself if applicable (e.g. 'bot1,bot2'), or wildcard '*' to allow all bots",
@@ -229,8 +231,12 @@ class DatabaseConnector:
             logger.error(f"Error adding connection: {str(e)}")
             resp =  {
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                **(None if connection_string is None else {'original_connection_string': connection_string}),
+                **(None if processed_conn_string is None else {'processed_connection_string': processed_conn_string})
             }
+            if 'redshift' in str(connection_string).lower():
+                resp['note'] = "For Redshift with IAM authentication, use format: postgresql+psycopg2://iam@<endpoint>:5439/<database>"
             if '/mnt/data' in connection_string:
                 resp['hint'] = "Don't use /mnt/data, just provide the full or relative file path as provided by the user"
             return resp
@@ -1056,6 +1062,8 @@ class DatabaseConnector:
         if '://' not in conn_string:
             raise ValueError("Connection string must include protocol (e.g., postgresql://, mysql://, etc.)")
         
+        if conn_string.startswith('redshift'):
+            conn_string = 'postgresql+psycopg2' + conn_string[conn_string.index('://'):]
         # Return unmodified connection string if not PostgreSQL
         if not conn_string.startswith('postgresql'):
             return conn_string
@@ -1079,8 +1087,12 @@ class DatabaseConnector:
             'redshift-serverless.amazonaws.com',
             'redshift.amazonaws.com'
         ])
+
         
         # Handle Redshift IAM authentication
+        # Replace <user> with 'iam' for Redshift IAM auth
+        if is_redshift and ':' in auth:
+            auth = 'iam'
         if is_redshift and auth.lower() == 'iam':
             # Get workgroup/cluster name from host
             identifier = host_port.split('.')[0]
@@ -1124,10 +1136,10 @@ class DatabaseConnector:
             if is_local:
                 conn_params.append("sslmode=disable")  # Disable SSL for local connections
             else:
-                conn_params.extend([
-                    "sslmode=verify-full",
-                    "sslrootcert=system"
-                ])
+                if "sslmode" not in conn_string and "sslmode" not in ' '.join(conn_params):
+                    conn_params.append("sslmode=verify-full")
+                if "sslrootcert" not in conn_string and "sslrootcert" not in ' '.join(conn_params):
+                    conn_params.append("sslrootcert=system")
         
         # Add any existing parameters from the original connection string
         if '?' in conn_string:

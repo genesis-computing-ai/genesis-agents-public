@@ -9,7 +9,7 @@ import time
 import random
 import types
 
-from threading import Lock
+from threading import Lock, Thread
 from genesis_bots.core import global_flags
 from genesis_bots.core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_DB_CONDUCT_INSTRUCTIONS,BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,BASE_BOT_SLACK_TOOLS_INSTRUCTIONS,BASE_BOT_OPENAI_INSTRUCTIONS
@@ -84,7 +84,17 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             self.__class__._shared_tool_failure_map[name] = {}
         self.tool_failure_map = self.__class__._shared_tool_failure_map[name]
 
-        
+        self.flush_interval = 2
+        self.flush_map = {}
+        self.flush_thread = Thread(target=self.flush_func, daemon=True)
+        self.flush_thread.start()
+
+    def flush_func(self):
+        while True:
+            time.sleep(self.flush_interval)
+            for func in self.flush_map.values():
+                func()
+
     @override
     def is_active(self) -> deque:
         return deque()
@@ -394,44 +404,61 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         openai_messages[0]["content"] = self.instructions
         return openai_messages
 
-    def call_openai(self, openai_messages, model_name, params):
+    def call_openai(self, openai_messages, model_name, params, thread_id, output_event):
         '''call requested OpenAI model and return the response as a tuple: (content, usage, tool_calls)'''
 
         content = ''
         usage = None
         tool_calls = []
-        
-        stream = self.client.chat.completions.create(
-            model=model_name,
-            **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
-            messages=openai_messages,
-            stream=True,
-            stream_options={"include_usage": True},
-            **params
-        )
+        last_flush_time = None
 
-        # Collect streaming response
-        for chunk in stream:
-            if chunk.usage != None and chunk.choices == []:
-                usage = chunk.usage
-                continue
-            if (len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and
-                chunk.choices[0].delta.tool_calls is not None):
-                tc_chunk_list = chunk.choices[0].delta.tool_calls
-                for tc_chunk in tc_chunk_list:
-                    if len(tool_calls) <= tc_chunk.index:
-                        tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
-                    tc = tool_calls[tc_chunk.index]
-                    if tc_chunk.id is not None:
-                        tc['id'] += tc_chunk.id
-                    if tc_chunk.function is not None and tc_chunk.function.name is not None:
-                        tc['function']['name'] += tc_chunk.function.name
-                    if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
-                        tc['function']['arguments'] += tc_chunk.function.arguments
-            if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
-                delta_content = chunk.choices[0].delta.content
-                if delta_content is not None and isinstance(delta_content, str):
-                    content += delta_content
+        def flush_output():
+            nonlocal content
+            nonlocal output_event
+            nonlocal last_flush_time
+            if content:
+                output_event(status='in_progress', output=content + " 💬", messages=None)
+                last_flush_time = time.time()
+
+        self.flush_map[thread_id] = flush_output
+
+        try:
+            stream = self.client.chat.completions.create(
+                model=model_name,
+                **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
+                messages=openai_messages,
+                stream=True,
+                stream_options={"include_usage": True},
+                **params
+            )
+
+            # Collect streaming response
+            for chunk in stream:
+                if chunk.usage != None and chunk.choices == []:
+                    usage = chunk.usage
+                    continue
+                if (len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and
+                    chunk.choices[0].delta.tool_calls is not None):
+                    tc_chunk_list = chunk.choices[0].delta.tool_calls
+                    for tc_chunk in tc_chunk_list:
+                        if len(tool_calls) <= tc_chunk.index:
+                            tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                        tc = tool_calls[tc_chunk.index]
+                        if tc_chunk.id is not None:
+                            tc['id'] += tc_chunk.id
+                        if tc_chunk.function is not None and tc_chunk.function.name is not None:
+                            tc['function']['name'] += tc_chunk.function.name
+                        if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
+                            tc['function']['arguments'] += tc_chunk.function.arguments
+                if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                    delta_content = chunk.choices[0].delta.content
+                    if delta_content is not None and isinstance(delta_content, str):
+                        content += delta_content
+        finally:
+            self.flush_map.pop(thread_id, None)
+
+        if content and last_flush_time != None:
+            time.sleep(max(0, self.flush_interval - (time.time() - last_flush_time)))
 
         return content, usage, tool_calls
 
@@ -746,7 +773,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         
         while True:
             try:
-                content, usage, tool_calls = self.call_openai(openai_messages, model_name, params)
+                content, usage, tool_calls = self.call_openai(openai_messages, model_name, params, thread_id, output_event)
             except Exception as e:
                 if bot_os_thread.recover(e):
                     openai_messages = self.get_openai_messages(bot_os_thread, model_name)

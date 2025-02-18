@@ -4,21 +4,21 @@ Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Ge
 2.  Sign up for an M365 developer account.  This is required to deploy a bot to Teams.
 3.  Make sure the Azure command line interface (CLI) is installed on your local device.  Run 'az --version' on your command line to verify
 4.  Log in using 'az login' and follow the prompts.
-5.  Make sure your Azure account is connected to at least one subscription.  Set the subscription id using az cli or UI.  For az cli:  
+5.  Make sure your Azure account is connected to at least one subscription.  Set the subscription id using az cli or UI.  For az cli:
     az account set --subscription "<subscription_name_or_id>"
-6.  Create a resource group on Azure using az cli or UI:  
+6.  Create a resource group on Azure using az cli or UI:
     az group create --name <your_resource_group_name> --location <your_location>
 7.  To get a list of regions:
     az account list-locations -o table
-8.  Verify resource group creation:  
+8.  Verify resource group creation:
     az group show --name <your_resource_group_name>
-9.  Create a bot on Azure:   
+9.  Create a bot on Azure:
     -- Add specifics here --
-10.  Download the .zip archive of the Genesis Azure Adapter and unzip.
-11.  Replace the private key file with your own RSA private key file
+10.  Download folder msft_teams_adapter from the Genesis Samples Golden folder
+11.  Add a private key file with your own RSA private key
 12.  Update the required values in the .env file with your own information including the name of the private key file from the previous step
 13.  Delete the original .zip file and re-zip the extracted files (with overwritten .env and private key files)
-14.  Use the following Azure CLI commands to setup and deploy an Azure Web App:  
+14.  Use the following Azure CLI commands to setup and deploy an Azure Web App:
     az appservice plan create \
       --resource-group "<your_resource_group_name>" \
       --name "<your_plan_name>" \
@@ -30,7 +30,7 @@ Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Ge
       --resource-group "<your_resource_group_name>" \
       --plan "<your_plan_name>" \
       --name "<your_app_name>" \
-      --runtime "PYTHON:3.10"            
+      --runtime "PYTHON:3.10"
 
     az webapp log config \
       --resource-group "<your_resource_group_name>" \
@@ -53,7 +53,7 @@ Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Ge
 
     az webapp config set --resource-group <your_resource_group_name>  --name <your_app_name> --startup-file "python app.py"
 
-    rm -f bot.zip     
+    rm -f bot.zip
     zip -r bot.zip app.py bot.py requirements.txt .env <private_key_file>
 
     az webapp deploy \
@@ -72,5 +72,5 @@ Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Ge
         --src-path bot.zip \
         --type zip
 
-15. You can 'tail' the logs from the deployed container on the command line.  You can also view the logs on the Azure UI by navigating to Web Apps -> Log Stream:  
+15. You can 'tail' the logs from the deployed container on the command line.  You can also view the logs on the Azure UI by navigating to Web Apps -> Log Stream:
     az webapp log tail --name "<your_app_name>" --resource-group "<your_resource_group_name>"

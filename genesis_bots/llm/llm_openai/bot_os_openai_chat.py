@@ -1,3 +1,6 @@
+'''
+  Implements OpenAI interface based on Chat Completions API
+'''
 import json
 import os, uuid, re
 
@@ -28,10 +31,10 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
     _shared_tool_failure_map = {}  # Maps run hashes to failure counts and timestamps
 
     def __init__(self, name:str, instructions:str,
-                 tools:list[dict] = [], available_functions={}, files=[],
+                 tools:list[dict] = None, available_functions=None, files=None,
                  update_existing=False, log_db_connector=None, bot_id='default_bot_id',
-                 bot_name='default_bot_name', all_tools:list[dict]=[],
-                 all_functions={},all_function_to_tool_map={}, skip_vectors=False,
+                 bot_name='default_bot_name', all_tools:list[dict]=None,
+                 all_functions=None,all_function_to_tool_map=None, skip_vectors=False,
                  assistant_id = None) -> None:
         logger.debug("BotOsAssistantOpenAIChat:__init__")
         super().__init__(name, instructions, tools, available_functions, files,
@@ -43,14 +46,14 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         name = bot_id
         logger.info(f"-> OpenAI Model == {model_name}")
         self.file_storage = {}
-        self.available_functions = available_functions
-        self.all_tools = all_tools
-        self.all_functions = all_functions
+        self.available_functions = available_functions or {}
+        self.all_tools = all_tools or []
+        self.all_functions = all_functions or {}
         if BotOsAssistantOpenAIChat.all_functions_backup == None and all_functions is not None:
             BotOsAssistantOpenAIChat.all_functions_backup = all_functions
-        self.all_function_to_tool_map = all_function_to_tool_map
+        self.all_function_to_tool_map = all_function_to_tool_map or {}
         self.log_db_connector = log_db_connector
-        my_tools = tools
+        my_tools = tools or []
         self.my_tools = my_tools
         self.clear_access_cache = False
 

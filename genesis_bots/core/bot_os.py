@@ -1,3 +1,9 @@
+'''
+  This module provides two core primitives for Genesis:
+
+  BotOsThread - encapsulates conversation thread with LLM
+  BotOsSession - underpins active genbot session
+'''
 import datetime
 import random
 import time
@@ -8,8 +14,7 @@ import math
 import openai
 from genesis_bots.core.bot_os_corpus import FileCorpus
 from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
-from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI
-from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAIChat
+from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI, BotOsAssistantOpenAIChat
 from genesis_bots.llm.llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
 
 # from bot_os_reka import BotOsAssistantReka
@@ -45,6 +50,10 @@ class BotOsThread:
         self.stop_signal = False
 
     def is_thread_active(self):
+        '''
+        Return True is this thread is already active (processing other messages)
+        otherwise set it to active and return False so calling thread can proceed
+        '''
         with self.mutex:
             if self.is_active:
                 return True

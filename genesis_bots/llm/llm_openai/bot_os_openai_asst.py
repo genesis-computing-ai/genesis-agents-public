@@ -1,3 +1,6 @@
+'''
+  Implements OpenAI interface based on Assistants API
+'''
 import json
 import os, uuid, re
 from typing import TypedDict

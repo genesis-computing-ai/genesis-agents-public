@@ -86,12 +86,12 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
         
     @override
-    def is_active(self) -> bool:
-        return True
+    def is_active(self) -> deque:
+        return deque()
 
     @override
-    def is_processing_runs(self) -> bool:
-        return self.is_active()
+    def is_processing_runs(self) -> deque:
+        return deque()
 
     @override
     def get_done_map(self) -> dict:

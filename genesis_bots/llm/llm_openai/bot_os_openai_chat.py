@@ -87,9 +87,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         
     @override
     def is_active(self) -> bool:
-        with self.mutex:
-            return len(self.active_threads) > 0
-
+        return True
 
     @override
     def is_processing_runs(self) -> bool:

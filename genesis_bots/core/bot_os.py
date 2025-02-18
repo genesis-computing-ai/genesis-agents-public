@@ -45,7 +45,8 @@ class BotOsThread:
         self.fast_mode = False
         self.mutex = threading.Lock()
         self.is_active = False
-        self.run_trim = False
+        self.run_trim = False # attempt this trim once per run
+        self.run_tool_fix = False # attempt this fix once per run
         self.run_messg_count = 0
         self.stop_signal = False
 
@@ -80,6 +81,7 @@ class BotOsThread:
             return False
 
         self.run_trim = False
+        self.run_tool_fix = False
         self.run_messg_count = len(self.messages)
         self.stop_signal = False
 
@@ -148,6 +150,11 @@ class BotOsThread:
 
     def fix_tool_calls(self):
         '''delete tool call messages that do not have a complete set of responses'''
+
+        # fix mismatched tool messages only once per run (1 run == 1 add_message())
+        if self.run_tool_fix:
+            return False
+        self.run_tool_fix = True
 
         count = 0
         messages = []

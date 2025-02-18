@@ -1120,6 +1120,54 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             json_file.write(creds_json)
         return True
 
+    def get_model_params(self):
+        """
+        Retrieves the model and embedding model names for the active LLM from the database.
+
+        Returns:
+            dict: A dictionary containing:
+                - Success (bool): Whether the operation was successful
+                - Data (str): JSON string containing model_name and embedding_model_name if successful,
+                            or error message if unsuccessful
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        try:
+            if self.source_name.lower() == "snowflake":
+                query = f"""
+                SELECT model_name, embedding_model_name 
+                FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
+                WHERE runner_id = %s AND llm_type = 'openai'
+                """
+                cursor = self.client.cursor()
+                cursor.execute(query, (runner_id,))
+                result = cursor.fetchone()
+            else:
+                query = """
+                SELECT model_name, embedding_model_name 
+                FROM llm_tokens
+                WHERE runner_id = ? AND llm_type = 'openai'
+                """
+                cursor = self.client.cursor()
+                cursor.execute(query, (runner_id,))
+                result = cursor.fetchone()
+
+            if result:
+                model_name, embedding_model_name = result
+                json_data = json.dumps({
+                    'model_name': model_name,
+                    'embedding_model_name': embedding_model_name
+                })
+                return {"Success": True, "Data": json_data}
+            else:
+                return {"Success": False, "Data": "No active model parameters found"}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving model parameters: {e}"
+            return {"Success": False, "Data": err}
+
+
+
     def update_model_params(self, model_name, embedding_model_name):
         """
         Updates or inserts the model and embedding model names for the LLM in the database.

@@ -237,8 +237,8 @@ def manage_processes(
             Do not create multiple options for the instructions, as whatever you return will be used immediately.
             Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-            if result == 'NO CODE':
-                tidy_process_instructions = f"""
+            if result != 'NO CODE':
+                tidy_process_instructions += f"""
             Since the process contains either sql or snowpark_python code, you will need to ask the user if they want
             to allow code in the process.  If they do, go ahead and allow the code to remain in the process.
             If they do not, extract the code and create a new note with

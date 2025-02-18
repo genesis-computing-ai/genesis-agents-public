@@ -327,7 +327,8 @@ def main():
         req = client.submit_message(bot_id, msg, thread_id=th_id)
         response = client.get_response(bot_id, req.request_id, print_stream=True)
 
-        print("------------- DONE -------------")
+        print("\n\n------------- DONE -------------")
+        print(f"You can now inspect the catalog changes in the stage directory: {sample_catalog.stage_dir}\n\n")
 
 
 if __name__ == "__main__":

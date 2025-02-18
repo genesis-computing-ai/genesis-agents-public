@@ -1091,7 +1091,7 @@ class DatabaseConnector:
         
         # Handle Redshift IAM authentication
         # Replace <user> with 'iam' for Redshift IAM auth
-        if is_redshift and ':' in auth:
+        if is_redshift and auth.startswith('iam:'):
             auth = 'iam'
         if is_redshift and auth.lower() == 'iam':
             # Get workgroup/cluster name from host

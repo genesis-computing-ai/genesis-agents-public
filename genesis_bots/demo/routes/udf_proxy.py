@@ -728,11 +728,20 @@ def configure_llm():
                 os.environ["OPENAI_API_KEY"] = llm_key
                 os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_endpoint
                 # logger.info(f"key: {llm_key}, endpoint: {llm_endpoint}")
+
                 try:
+                    # Get current model params
+                    model_params = genesis_app.db_adapter.get_model_params()
+                    if model_params["Success"] and llm_endpoint is not None and llm_endpoint != "":
+                        model_data = json.loads(model_params["Data"])
+                        model_name = model_data.get("model_name", "gpt-4o")
+                    else:
+                        model_name = "gpt-4o"
+
                     client = get_openai_client()
                     logger.info(f"client: {client}")
                     completion = client.chat.completions.create(
-                        model="gpt-4o-2024-11-20",
+                        model=model_name,
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys

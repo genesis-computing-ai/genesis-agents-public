@@ -101,12 +101,12 @@ git_action_grp = ToolFuncGroup(
         required=False,
         llm_type_desc=dict(type="integer"),
     ),
-    kwargs=ToolFuncParamDescriptor(
-        name="kwargs",
-        description="Additional arguments needed for the specific action",
-        required=True,
-        llm_type_desc=dict(type="object"),
-    ),
+  #  kwargs=ToolFuncParamDescriptor(
+  #      name="kwargs",
+  #      description="Additional arguments needed for the specific action",
+  #      required=True,
+  #      llm_type_desc=dict(type="object"),
+  #  ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[git_action_grp],

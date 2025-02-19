@@ -48,8 +48,8 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
     mime_type="The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
     include_genesis_logo="Include Genesis logo in email body - boolean",
     save_as_artifact="Save output email as an artifact - boolean",
-    bot_id="The bot_id that invoked this tool",
-    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[send_email_tools],
 )
 def send_email(

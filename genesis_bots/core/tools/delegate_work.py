@@ -35,11 +35,11 @@ delegate_work = ToolFuncGroup(
     target_bot="The bot ID or name to delegate the work to",
     max_retries="The maximum number of retries to wait for a valid JSON response",
     timeout_seconds="The maximum number of seconds to wait for a valid JSON response",
-    status_update_callback="The callback function to update the status of the delegation",
-    session_id="The session ID for the delegation",
-    input_metadata="The input metadata for the delegation",
-    run_id="The run ID for the delegation",
-    callback_id="The callback ID for the delegation",
+ #   status_update_callback="The callback function to update the status of the delegation",
+ #   session_id="The session ID for the delegation",
+  #  input_metadata="The input metadata for the delegation",
+  #  run_id="The run ID for the delegation",
+# callback_id="The callback ID for the delegation",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[delegate_work],
@@ -81,6 +81,8 @@ def _delegate_work(
             "text": msg
         }
         if run_id is not None:
+            if run_id not in StreamingEventHandler.run_id_to_messages:
+                StreamingEventHandler.run_id_to_messages[run_id] = []
             StreamingEventHandler.run_id_to_messages[run_id].append(message_obj)
 
             # Initialize the array for this run_id if it doesn't exist

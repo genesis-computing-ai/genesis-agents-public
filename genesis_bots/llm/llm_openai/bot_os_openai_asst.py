@@ -1034,7 +1034,7 @@ class BotOsAssistantOpenAIAsst(BotOsAssistantInterface):
             openai_messages[0]["content"] = self.instructions
 
             stream = self.client.chat.completions.create(
-               model=model_name,
+               model=model_name if model_name else 'gpt-4o',
                **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
                #tools=[{"type": "code_interpreter"}],
                messages=openai_messages,

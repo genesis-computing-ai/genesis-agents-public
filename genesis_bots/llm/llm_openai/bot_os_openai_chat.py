@@ -109,7 +109,10 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         while True:
             time.sleep(self.flush_interval)
             for func in self.get_flush_funcs():
-                func()
+                try:
+                    func()
+                except Exception as e:
+                    logger.error(f"bot={self.bot_id} exception in flush func: {e}")
 
     @override
     def is_active(self) -> deque:

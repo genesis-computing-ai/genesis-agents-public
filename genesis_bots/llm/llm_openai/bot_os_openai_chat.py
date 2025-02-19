@@ -89,13 +89,26 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
         self.flush_interval = 2
         self.flush_map = {}
+        self.flush_mutex = Lock()
         self.flush_thread = Thread(target=self.flush_func, daemon=True)
         self.flush_thread.start()
+
+    def add_flush_func(self, thread_id, flush_func):
+        with self.flush_mutex:
+            self.flush_map[thread_id] = flush_func
+
+    def rm_flush_func(self, thread_id):
+        with self.flush_mutex:
+            self.flush_map.pop(thread_id, None)
+
+    def get_flush_funcs(self):
+        with self.flush_mutex:
+            return list(self.flush_map.values())
 
     def flush_func(self):
         while True:
             time.sleep(self.flush_interval)
-            for func in self.flush_map.values():
+            for func in self.get_flush_funcs():
                 func()
 
     @override
@@ -407,7 +420,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         openai_messages[0]["content"] = self.instructions
         return openai_messages
 
-    def call_openai(self, openai_messages, model_name, params, thread_id, output_event):
+    def call_openai(self, openai_messages, model_name, params, thread_id, output_stream, output_event):
         '''call requested OpenAI model and return the response as a tuple: (content, usage, tool_calls)'''
 
         content = ''
@@ -420,10 +433,10 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             nonlocal output_event
             nonlocal last_flush_time
             if content:
-                output_event(status='in_progress', output=content + " 💬", messages=None)
+                output_event(status='in_progress', output=output_stream + content + " 💬", messages=None)
                 last_flush_time = time.time()
 
-        self.flush_map[thread_id] = flush_output
+        self.add_flush_func(thread_id, flush_output)
 
         try:
             stream = self.client.chat.completions.create(
@@ -458,7 +471,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     if delta_content is not None and isinstance(delta_content, str):
                         content += delta_content
         finally:
-            self.flush_map.pop(thread_id, None)
+            self.rm_flush_func(thread_id)
 
         if content and last_flush_time != None:
             time.sleep(max(0, self.flush_interval - (time.time() - last_flush_time)))
@@ -776,7 +789,8 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         
         while True:
             try:
-                content, usage, tool_calls = self.call_openai(openai_messages, model_name, params, thread_id, output_event)
+                content, usage, tool_calls = self.call_openai(openai_messages, model_name, params,
+                                                              thread_id, output_stream, output_event)
             except Exception as e:
                 if bot_os_thread.recover(e):
                     openai_messages = self.get_openai_messages(bot_os_thread, model_name)
@@ -797,7 +811,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 run.status = "completed"
                 run.completed_at = datetime.datetime.now()
                 run.usage = usage
-                
+
                 self.send_response_to_user(run, thread_id, output_stream + content, chat_history, output_event)
                 break
 

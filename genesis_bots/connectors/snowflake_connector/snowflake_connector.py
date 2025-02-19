@@ -3255,7 +3255,7 @@ def get_status(site):
         """
 
         available_tools_string = json.dumps(available_tools)
-        files_string = json.dumps(files)
+        files_string = json.dumps(files) if files else ''
 
         # validate certain params
         bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None

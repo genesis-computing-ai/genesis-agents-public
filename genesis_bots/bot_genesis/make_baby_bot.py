@@ -1007,7 +1007,7 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
 
 def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
                         auth_url, auth_state, udf_active, slack_active, files, bot_implementation):
-    files_json = json.dumps(files)
+    files_json = json.dumps(files) if files else None
     if files_json == 'null':
         files_json = None
     bb_db_connector = get_global_db_connector()

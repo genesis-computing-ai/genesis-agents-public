@@ -63,8 +63,8 @@ google_drive_tools = ToolFuncGroup(
     g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
     g_sheet_query="Query string to run and save the results to a Google Sheet.",
     g_sheet_anchor="The anchor tag which specifies the cell where the comment is located.",
-    user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id
-        ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.""",
+    # user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id
+    #     ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.""",
     thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
     _group_tags_=[google_drive_tools],
 )
@@ -78,7 +78,7 @@ def google_drive(
     g_file_name: str = None,
     g_sheet_query: str = None,
     g_sheet_anchor: str = None,
-    user: str = None,
+    # user: str = None,
     thread_id: str = None,
 ) -> None:
     """

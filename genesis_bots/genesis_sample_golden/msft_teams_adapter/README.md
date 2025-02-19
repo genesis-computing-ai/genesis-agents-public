@@ -16,8 +16,10 @@ Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Ge
     -- Add specifics here --
 10.  Download folder msft_teams_adapter from the Genesis Samples Golden folder
 11.  Add a private key file with your own RSA private key
-12.  Update the required values in the .env file with your own information including the name of the private key file from the previous step
-13.  Delete the original .zip file and re-zip the extracted files (with overwritten .env and private key files)
+12.  Update the required values in the envTemplate file with your own information including the name of the private key file from the
+     previous step.  Copy the file and rename to .env.  This file is excluded in .gitignore.
+13.  Zip the files and name the archive bot.zip
+     zip -r bot.zip app.py bot.py requirements.txt .env <your_key_file_path>
 14.  Use the following Azure CLI commands to setup and deploy an Azure Web App:
     az appservice plan create \
       --resource-group "<your_resource_group_name>" \

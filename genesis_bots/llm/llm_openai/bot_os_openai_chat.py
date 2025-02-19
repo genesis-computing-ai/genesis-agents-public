@@ -639,7 +639,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         output_event(status=run.status, output=output_stream + " 💬", messages=None)
         return output_stream
 
-    def run_tool_function(self, run, thread_id, func_name, func_args, tool_call_id):
+    def run_tool_function(self, run, thread_id, func_name, func_args, tool_call_id, event_callback):
         '''run openai-requested tool function'''
         
         func_args_dict = json.loads(func_args)
@@ -691,7 +691,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         # Execute the tool function
         execute_function(func_name, func_args, self.all_functions, callback,
                          thread_id = thread_id, bot_id=self.bot_id,
-                         status_update_callback=None,
+                         status_update_callback=event_callback if event_callback else None,
                          session_id=self.assistant.id if self.assistant.id is not None else None,
                          input_metadata=run.metadata if run.metadata is not None else None, run_id = run.id)
 
@@ -843,7 +843,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                                                       output_stream, chat_history, output_event)
 
                 try:
-                    func_response = self.run_tool_function(run, thread_id, func_name, func_args, tool_call_id)
+                    func_response = self.run_tool_function(run, thread_id, func_name, func_args, tool_call_id, event_callback)
                 except Exception as e:
                     logger.info(f'Error making tool call:\n{traceback.format_exc()}')
                     run.status = 'completed'

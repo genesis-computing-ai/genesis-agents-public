@@ -1,9 +1,9 @@
-from   genesis_bots.api         import GenesisAPI, RESTGenesisServerProxy, EmbeddedGenesisServerProxy
-from   langsmith                import Client, traceable
+#from   langsmith                import Client, traceable
 
 
 from   pprint                   import pprint
 from   textwrap                 import dedent, indent
+from flask.cli import F
 import yaml
 
 from   genesis_bots.core.logging_config \
@@ -12,23 +12,28 @@ from   typing                   import Dict, List, Mapping
 
 from   genesis_bots.core.logging_config \
                                 import logger
+import uuid
+
+import argparse
+from   genesis_bots.api         import GenesisAPI, build_server_proxy
+from   genesis_bots.api.utils   import add_default_argparse_options
 
 # Initialize LangSmith client at the top of your file
-langsmith_client = Client()
+#langsmith_client = Client()
 
-@traceable(name="genesis_bot_call")
-def _call_genesis_bot(gclient, bot_id, request):
+# @traceable(name="genesis_bot_call")
+def _call_genesis_bot(gclient, bot_id, request, thread_id):
     """Wait for a complete response from the bot, streaming partial results."""
     try:
         print(f"\n\033[94m{'='*80}\033[0m")  # Blue separators
         print(f"\033[92mBot:\033[0m {bot_id}")  # Green label
         print(f"\033[92mPrompt:\033[0m {request}")  # Green label
-        print(f"\033[94m{'-'*80}\033[0m")  # Blue separator
-        print("\033[92mResponse:\033[0m")  # Green label for response section
 
-        request = gclient.submit_message(bot_id, request)
+
+        print(f"\033[94m{'-'*80}\033[0m")  # Blue separator
+        request = gclient.submit_message(bot_id, request, thread_id=thread_id)
         with log_level_ctx("ERROR"):
-            response = gclient.get_response(bot_id, request["request_id"])
+            response = gclient.get_response(bot_id, request["request_id"],  print_stream=True) # with print_stream=True, the response is streamed to the console
 
         print(f"\n\033[94m{'-'*80}\033[0m")  # Blue separator
         print("\033[93mResponse complete\033[0m")  # Yellow status
@@ -37,6 +42,11 @@ def _call_genesis_bot(gclient, bot_id, request):
     except Exception as e:
         raise e
 
+
+# def _call_genesis_bot(gclient, bot_id, request, thread_id) -> str:
+#     req = gclient.submit_message(bot_id, request, thread_id=thread_id)
+#     response = gclient.get_response(bot_id, req.request_id, print_stream=True)
+#     return response
 
 # Need this to override the default Genesis prompt. We should make this unvessary by distinguishing between the two or support full flexibility in configuraiton.
 NON_INTERACTIVE_PROMPT_SUFFIX = ('NOTE: You are running in a non-interactive mode, so when asked to perform a task do not request '
@@ -80,7 +90,7 @@ RCA_REPORT_STRUCTURE = dedent(
 Bot_DagsterExplorer_yaml = dedent(
         f'''
         BOT_ID: DagsterExplorer
-        AVAILABLE_TOOLS: '[ "dagster_tools", ]'
+        AVAILABLE_TOOLS: '[]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -120,7 +130,7 @@ Bot_DagsterExplorer_yaml = dedent(
 Bot_DBTExplorer_yaml = dedent(
         f'''
         BOT_ID: DBTExplorer
-        AVAILABLE_TOOLS: '[ "dagster_tools", "data_connector_tools", "snowflake_tools"]'
+        AVAILABLE_TOOLS: '["data_connector_tools", "snowflake_tools"]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -145,7 +155,7 @@ Bot_DagsterRCADetective_yaml = dedent(
     f"""
         BOT_ID: DagsterRCADetective
         BOT_NAME: DagsterRCADetective
-        AVAILABLE_TOOLS: '[ "dagster_tools", "data_connector_tools", "snowflake_tools"]'
+        AVAILABLE_TOOLS: '["data_connector_tools", "snowflake_tools"]'
         BOT_AVATAR_IMAGE: null
         BOT_IMPLEMENTATION: openai
         BOT_INSTRUCTIONS: >
@@ -265,7 +275,7 @@ class _FlowBase:
                                      for definition in self.get_bot_defs()}
 
         self._bot_registration_required = bot_registration_required
-
+        self._thread_id = uuid.uuid4() # same genesis thread ID used for the entire flow (across all bots)
 
     # pure virtual method
     def get_bot_defs(self) -> List[Dict]:
@@ -279,12 +289,12 @@ class _FlowBase:
     def call_genesis_bot(self, bot_id, request):
         """Wait for a complete response from the bot, streaming partial results."""
         assert bot_id in self._bot_definitions_map, f"{bot_id} definition not found"
-        return _call_genesis_bot(self._gclient, bot_id, request)
+        return _call_genesis_bot(self._gclient, bot_id, request, thread_id=self._thread_id)
 
 
     def run(self):
         self.register_bots() # only once
-        self._run()
+        return self._run()
 
 
     def register_bots(self):
@@ -293,11 +303,58 @@ class _FlowBase:
         for bot_def in self.get_bot_defs():
             logger.info(f"Registering bot with BOT_ID={bot_def['BOT_ID']} with GenesisAPI")
             self._gclient.register_bot(bot_def)
+            # We are registering dagster tools as client tools, so we add them explicitly here (if they were genesis tools we could have listed them as a group in the bots definitions)
+            # Note: we add those to all the bots, except for the manager bot
+            # Since gc_dagster was moves to this non-package directory, we resolbe its import 'manually' for now.
+            import importlib.util
+            import os
+            module_name = "gc_dagster"
+            module_path = os.path.join(os.path.dirname(__file__), f"{module_name}.py")
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            gc_dagster = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gc_dagster)
+
+            get_dagster_tool_functions = gc_dagster.get_dagster_tool_functions
+            dagster_tools = get_dagster_tool_functions()
+            bot_id = bot_def["BOT_ID"]
+            for toolfunc in dagster_tools:
+                if bot_id != "DagsterRCAMgr": # HACK; we need a more robust way to determine who gets the tools. Right now, only the 'manager' bot does NOT get all the dagster tools
+                    self._gclient.register_client_tool(bot_id, toolfunc)
         self._bot_registration_required = False
 
 
-class DagsterRCAFlow1(_FlowBase):
 
+class DagsterRCAFlow0(_FlowBase):
+    # used for testing that the setup even works - just fetch the dagster failure info using one bot
+    # This flow uses the DagsterExplorer only
+
+    def __init__(self, run_id:str, gclient: GenesisAPI, bot_registration_required: bool=True):
+        self.run_id = run_id
+        super().__init__(gclient=gclient, bot_registration_required=bot_registration_required)
+
+
+    # pure virtual method
+    def get_bot_defs(self):
+        defs = load_all_bots_definitions()
+        return [defs["DagsterExplorer"]]
+
+
+    #@traceable(name="task_perform_full_rca")
+    def task_summarize_run_info(self, run_id):
+        summary = self.call_genesis_bot('DagsterExplorer', dedent(
+        f'''
+        Summarize the status of the Dagster run id {run_id}.
+        ''')
+        )
+        return summary
+
+
+    def _run(self):
+        report = self.task_summarize_run_info(run_id=self.run_id)
+        return report
+
+class DagsterRCAFlow1(_FlowBase):
+    # This flow uses the DagsterExplorer and DagsterRCADetective bots
     def __init__(self, run_id:str, gclient: GenesisAPI, bot_registration_required: bool=True):
         self.run_id = run_id
         super().__init__(gclient=gclient, bot_registration_required=bot_registration_required)
@@ -310,7 +367,7 @@ class DagsterRCAFlow1(_FlowBase):
                 for bot_id in ["DagsterExplorer", "DagsterRCADetective"] ]
 
 
-    @traceable(name="task_collect_run_id_failure_data")
+    #@traceable(name="task_collect_run_id_failure_data")
     def task_collect_run_id_failure_data(self, run_id):# -> Anyr:
 
         #TASK: fetch_failed_run_debug_information
@@ -339,7 +396,7 @@ class DagsterRCAFlow1(_FlowBase):
         )
         return report
 
-    @traceable(name="task_perform_full_rca")
+    #@traceable(name="task_perform_full_rca")
     def task_perform_full_rca(self, run_id, run_debug_summary):
         report = self.call_genesis_bot('DagsterRCADetective', dedent(
         f'''
@@ -459,7 +516,7 @@ class DagsterRCAFlow1(_FlowBase):
 
 
 class DagsterRCAFlow2(_FlowBase):
-
+    # This flow uses the DagsterExplorer, DBTExplorer and DagsterRCAMgr bots
     def __init__(self, run_id:str, gclient: GenesisAPI, bot_registration_required: bool=True):
         self.run_id = run_id
         super().__init__(gclient=gclient, bot_registration_required=bot_registration_required)
@@ -472,7 +529,7 @@ class DagsterRCAFlow2(_FlowBase):
                 for bot_id in ["DagsterExplorer", "DBTExplorer", "DagsterRCAMgr"] ]
 
 
-    @traceable(name="task_perform_full_rca")
+    #@traceable(name="task_perform_full_rca")
     def task_perform_full_rca(self, run_id):
         report = self.call_genesis_bot('DagsterRCAMgr', dedent(
         f'''
@@ -487,32 +544,34 @@ class DagsterRCAFlow2(_FlowBase):
         return rca_report
 
 
+def parse_arguments():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="A simple CLI chat interface to Genesis bots")
+    add_default_argparse_options(parser)
+    parser.add_argument('--dagster_run_id', '-r', type=str, required=True,
+                        help='Dagster run ID to perform RCA on')
+    return parser.parse_args()
+
 def main():
+    args = parse_arguments()
+    server_proxy = build_server_proxy(args.server_url, args.snowflake_conn_args, args.genesis_db)
+
     print("---------------------------------")
     print("  DAGSTER RCA DEMO BEGIN")
     print("---------------------------------")
 
-    # choose which server proxy mode to use
-    #server_proxy = EmbeddedGenesisServerProxy(fast_start=True)
-    server_proxy = RESTGenesisServerProxy() # default to localhost
     with GenesisAPI(server_proxy=server_proxy) as gclient:
-        # Registering the dagster tools offline:
-        # 1) had to run the full server (flask mode) to update the various tables (AVAILABE TOOLS)
-        # 2) Ran this offline to add the tools:
-        #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set  AVAILABLE_TOOLS = '[\"data_connector_tools\", \"snowflake_tools\", \"dagster_tools\"]' where bot_name = 'DagsterExplorer'
-        #
-        # Turning off  Janice (to save time creating the session): (to restore, set it to 'snowflake-1')
-        #    >> snow sql -c GENESIS_CVB  -q "update GENESIS_TEST.GENESIS_AD.BOT_SERVICING set RUNNER_ID=NULL  where BOT_ID='Janice'"
-        #
-
-        run_id = '975f848d-11f2-4655-8970-740bbf66edda' # Dagster RUN_ID
-        #flow = DagsterRCAFlow1(gclient=gclient, run_id=run_id)
-        flow = DagsterRCAFlow2(gclient=gclient, run_id=run_id)
+        #run_id = '975f848d-11f2-4655-8970-740bbf66edda' # Dagster RUN_ID
+        run_id = args.dagster_run_id
+        #flow = DagsterRCAFlow0(gclient=gclient, run_id=run_id)
+        flow = DagsterRCAFlow1(gclient=gclient, run_id=run_id)
+        #flow = DagsterRCAFlow2(gclient=gclient, run_id=run_id)
         result = flow.run()
-        print("---------------------------------")
-        print("          FINAL RESULT:")
-        print("---------------------------------")
-        pprint(result)
+        if False: # we print the outout stream so no need to print the final result for now
+            print("---------------------------------")
+            print("          FINAL RESULT:")
+            print("---------------------------------")
+            pprint(result)
 
 
 if __name__ == "__main__":

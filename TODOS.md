@@ -2,6 +2,10 @@
 GENESIS BOT TODOS
 =================
 
+test new bot on yuly branch
+x data connections list with snowflake
+can you deploy a new bot files = []
+existing snowflake deployment has no Snowflaek database connection listed (dev)
 x fix gxs
 x work on system prompt
 o3 needs dev prompt first, others need system prompt first?

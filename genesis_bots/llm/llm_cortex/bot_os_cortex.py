@@ -1041,15 +1041,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         new_ts = datetime.datetime.now()
         if isinstance(results, (dict, list)):
             results = json.dumps(results, default=custom_serializer)
+        else:
+            results = str(results)
 
 
         prefix = ""
-
         prefix = 'SYSTEM MESSAGE: Here are the results of the tool call. Note that the end user has not seen these details:\n\n'
 
         message_object = {
             "message_type": "user",
-            "content": prefix+results,
+            "content": str(prefix) + results, # Convert both to strings explicitly
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata,
         }

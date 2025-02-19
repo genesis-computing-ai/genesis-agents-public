@@ -101,7 +101,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             self.user = "local"
             self.role = 'default'
         else:
-            logger.warning('Using Snowflake for connection...')
+            logger.info('Using Snowflake for connection...')
             account, database, user, password, warehouse, role = [None] * 6
 
             if bot_database_creds:

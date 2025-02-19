@@ -7,6 +7,7 @@ from   sqlalchemy               import create_engine, text
 from   urllib.parse             import quote_plus
 import boto3
 import time
+from datetime import datetime
 
 from genesis_bots.google_sheets.g_sheets     import (
     create_google_sheet_from_export,
@@ -694,6 +695,11 @@ class DatabaseConnector:
             thread_id: Optional thread identifier for logging/tracking
         """
         try:
+            if connection_id == 'Snowflake':
+                return {
+                    'success': False,
+                    'error': "The native Snowflake connection cannot be removed"
+                }
             cursor = self.db_adapter.client.cursor()
             try:
                 # Check ownership
@@ -707,7 +713,10 @@ class DatabaseConnector:
                 result = cursor.fetchone()
 
                 if not result:
-                    return False
+                    return {
+                        "success": False,
+                        "error": f"Connection '{connection_id}' not found"
+                    }
 
                 if result[0] != bot_id:
                     raise ValueError("Only the owner bot can delete this connection")
@@ -866,8 +875,8 @@ class DatabaseConnector:
                         'connection_id': row[0],
                         'db_type': row[1],
                         'owner_bot_id': row[2],
-                        'created_at': row[4],
-                        'updated_at': row[5],
+                        'created_at': str(row[4]),
+                        'updated_at': str(row[5]),
                         'description': row[6]
                     }
                     if row[2] == bot_id or bot_id_override:
@@ -882,7 +891,12 @@ class DatabaseConnector:
                         connections.append({
                             'connection_id': 'Snowflake',
                             'db_type': 'Snowflake',
-                            'description': 'Snowflake database connection'
+                            'owner_bot_id': 'System',
+                            'created_at': str(datetime(2025, 1, 1)),
+                            'updated_at': str(datetime(2025, 1, 1)),
+                            'description': 'Snowflake database connection',
+                            'allowed_bot_ids': ['*'],
+                            'connection_string': 'Native'
                         })
 
                 return {

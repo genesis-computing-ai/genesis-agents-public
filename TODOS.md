@@ -2,17 +2,18 @@
 GENESIS BOT TODOS
 =================
 
-fix gxs
-work on system prompt
+x fix gxs
+x work on system prompt
 o3 needs dev prompt first, others need system prompt first?
 bulk add todos
 streamlit page to see projects and todos
 prompter loop to work on projects when enabled
-finish redhsift, and bigquery
-Yuly - context length compression
+x finish redhsift
+do docs for bigquery
+test-Yuly - context length compression
 test-snowpark function being called oddly, and libraries
 dont load Janice processes into table when in sqlite mode
-claude/cortex: catch when token window is exceeded and compress the history
+Yuly-claude/cortex: catch when token window is exceeded and compress the history
 (pr) email collector / telemetry on local vers
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
 (test) harvester on standalone snowflake connection

@@ -1,11 +1,12 @@
 from genesis_bots.core.bot_os_tools2 import (BOT_ID_IMPLICIT_FROM_CONTEXT, THREAD_ID_IMPLICIT_FROM_CONTEXT,
                                             ToolFuncGroup, gc_tool)
-import http.client
 import json
 from spider import Spider
 from genesis_bots.connectors import get_global_db_connector
 from genesis_bots.core.logging_config import logger
 import os
+import requests
+
 
 # Define tool group for web access functions
 web_access_tools = ToolFuncGroup(
@@ -62,16 +63,15 @@ class WebAccess(object):
                 return {'success': True, 'data': 'API key set successfully'}
             return {'success': False, 'error': f'Failed to set API key: {result.get("Error", "Unknown error")}'}
         if self.serper_api_key is not None or self.set_serper_api_key():
-            conn = http.client.HTTPSConnection("google.serper.dev")
+            url = f"https://google.serper.dev/{search_type}"
             payload = json.dumps({"q": query})
             headers = {
                 'X-API-KEY': self.serper_api_key,
                 'Content-Type': 'application/json'
             }
-            conn.request("POST", f"/{search_type}", payload, headers)
-            res = conn.getresponse()
-            data = res.read()
-            logger.debug(data.decode("utf-8"))
+            response = requests.request("POST", url, headers=headers, data=payload)
+            data = response.text
+            logger.debug(data)
             return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,
@@ -80,16 +80,13 @@ class WebAccess(object):
 
     def serper_scrape_api(self, url):
         if self.serper_api_key is not None or self.set_serper_api_key():
-            conn = http.client.HTTPSConnection("scrape.serper.dev")
             payload = json.dumps({"url": url})
             headers = {
                 'X-API-KEY': self.serper_api_key,
                 'Content-Type': 'application/json'
             }
-            conn.request("POST", "/", payload, headers)
-            res = conn.getresponse()
-            data = res.read()
-            logger.debug(data.decode("utf-8"))
+            response = requests.request("POST", "https://scrape.serper.dev", headers=headers, data=payload)
+            data = response.text
             return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,

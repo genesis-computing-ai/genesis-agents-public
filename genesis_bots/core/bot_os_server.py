@@ -139,6 +139,9 @@ class BotOsServer:
         if genesis_app.sessions:  # Check if sessions exists and is not None
             matching_sessions = [session for session in genesis_app.sessions if session.bot_id == bot_id]
             new_session = matching_sessions[0] if matching_sessions else None
+        # Check if session exists in server_sessions and add if not
+
+        self.add_session(new_session, replace_existing=True)
 
         if new_session:
             logger.info(f"Session for bot {bot_id} created")

@@ -12,7 +12,8 @@ from   dagster_graphql          import (DagsterGraphQLClient,
 from   pathlib                  import Path
 import requests
 
-from   genesis_bots.core.bot_os_tools2       import ToolFuncGroup, gc_tool
+from   genesis_bots.core.bot_os_tools2       import ToolFuncGroup, gc_tool # if used for genesis internal tools
+from   genesis_bots.api         import bot_client_tool # if use as client tools
 
 # relative location to the files with the graphql queries used by the tools
 GRAPHQL_QUERIES_DIR = Path(__file__).parent / "graphql"
@@ -117,10 +118,10 @@ def _get_content_of_web_file(url, token):
             except (OSError, ValueError) as e:
                 return f"Error processing file: {e}"
 
-
-dagster_tools_tag = ToolFuncGroup(name="dagster_tools",
-                                  description="Tools to interact with Dagster Cloud",
-                                  lifetime="PERSISTENT")
+# The dagster tools group if used as a genesis built-in tool
+# dagster_tools_tag = ToolFuncGroup(name="dagster_tools",
+#                                   description="Tools to interact with Dagster Cloud",
+#                                   lifetime="PERSISTENT")
 
 
 # def list_gctool_decorated_functions():
@@ -156,9 +157,10 @@ def run_dagster_graphql_file(filename, variables=None):
         return f"Error reading or executing query from file: {e}"
 
 
-@gc_tool(
+#@gc_tool(
+@bot_client_tool(
     run_id="The run_id to fetch status for",
-    _group_tags_= [dagster_tools_tag]
+#   _group_tags_= [dagster_tools_tag]
 )
 def get_dagster_run_status(run_id: str):
     '''
@@ -168,12 +170,13 @@ def get_dagster_run_status(run_id: str):
                                   use_https=True,
                                   headers={"Dagster-Cloud-Api-Token": DagsterConfig().DAGSTER_USER_TOKEN})
     status: DagsterRunStatus = client.get_run_status(run_id)
-    return status
+    return str(status) # status is an enum, convert to string for the LLM
 
 
-@gc_tool(
+#@gc_tool(
+@bot_client_tool(
     run_id="The run_id to fetch status for",
-    _group_tags_= [dagster_tools_tag]
+#   _group_tags_= [dagster_tools_tag]
 )
 def get_dagster_run_debug_dump(run_id: str):
     '''
@@ -187,9 +190,10 @@ def get_dagster_run_debug_dump(run_id: str):
     return _get_content_of_web_file(run_debug_file_url, DagsterConfig().DAGSTER_USER_TOKEN)
 
 
-@gc_tool(
+#@gc_tool(
+@bot_client_tool(
     asset_key='the asset key, using "/" as path separeator (e.g. foo/bar for asset key ["foo", "bar"])',
-    _group_tags_= [dagster_tools_tag]
+#   _group_tags_= [dagster_tools_tag]
 )
 def get_dagster_asset_definition_and_overview(asset_key: str):
     '''
@@ -208,7 +212,10 @@ def get_dagster_asset_definition_and_overview(asset_key: str):
     return run_dagster_graphql_file(GRAPHQL_QUERIES_DIR / "dagster_asset_definition_and_overview.graphql",
                                       dict(assetKey=ak.to_graphql_input()))
 
-@gc_tool(_group_tags_= [dagster_tools_tag])
+#@gc_tool(
+@bot_client_tool(
+#    _group_tags_= [dagster_tools_tag]
+)
 def get_dagster_asset_lineage_graph():
     '''
     Fetch asset lineage for the entire dagster repository.
@@ -219,7 +226,6 @@ def get_dagster_asset_lineage_graph():
                                     {})
 
 # holds the list of all dagster tool functions
-# NOTE: Update this list when adding new dagster tools (TODO: automate this by scanning the module?)
 _all_dagster_tool_functions = [get_dagster_run_status,
                                get_dagster_run_debug_dump,
                                get_dagster_asset_definition_and_overview,

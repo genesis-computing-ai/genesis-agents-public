@@ -1,10 +1,12 @@
 from genesis_bots.core.bot_os_tools2 import (BOT_ID_IMPLICIT_FROM_CONTEXT, THREAD_ID_IMPLICIT_FROM_CONTEXT,
                                             ToolFuncGroup, gc_tool)
-import http.client
 import json
 from spider import Spider
 from genesis_bots.connectors import get_global_db_connector
 from genesis_bots.core.logging_config import logger
+import os
+import requests
+
 
 # Define tool group for web access functions
 web_access_tools = ToolFuncGroup(
@@ -14,7 +16,7 @@ web_access_tools = ToolFuncGroup(
 )
 
 class WebAccess(object):
-    _instance = None  
+    _instance = None
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(WebAccess, cls).__new__(cls)
@@ -28,25 +30,31 @@ class WebAccess(object):
 
     def set_serper_api_key(self):
         if self.serper_api_key is None:
-            query = f"""SELECT value FROM {self.db_adapter.schema}.EXT_SERVICE_CONFIG 
+            query = f"""SELECT value FROM {self.db_adapter.schema}.EXT_SERVICE_CONFIG
                       WHERE ext_service_name = 'serper' AND parameter = 'api_key';"""
             rows = self.db_adapter.run_query(query)
             if rows:
                 self.serper_api_key = rows[0]['VALUE']
                 return True
+            if os.environ.get('SERPER_API_KEY', None):
+                self.serper_api_key = os.environ.get('SERPER_API_KEY')
+                return True
             return False
 
     def set_spider_api_key(self):
         if self.spider_api_key is None:
-            query = f"""SELECT value FROM {self.db_adapter.schema}.EXT_SERVICE_CONFIG 
+            query = f"""SELECT value FROM {self.db_adapter.schema}.EXT_SERVICE_CONFIG
                       WHERE ext_service_name = 'spider' AND parameter = 'api_key';"""
             rows = self.db_adapter.run_query(query)
             if rows:
                 self.spider_api_key = rows[0]['VALUE']
                 self.spider_app = Spider(api_key=self.spider_api_key)
                 return True
+            if os.environ.get('SPIDER_API_KEY', None):
+                self.serper_api_key = os.environ.get('SPIDER_API_KEY')
+                return True
             return False
-        
+
     def serper_search_api(self, query, search_type):
         if search_type == 'set_key':
             result = self.db_adapter.set_api_config_params('serper', json.dumps({"api_key": query}))
@@ -55,34 +63,30 @@ class WebAccess(object):
                 return {'success': True, 'data': 'API key set successfully'}
             return {'success': False, 'error': f'Failed to set API key: {result.get("Error", "Unknown error")}'}
         if self.serper_api_key is not None or self.set_serper_api_key():
-            conn = http.client.HTTPSConnection("google.serper.dev")
+            url = f"https://google.serper.dev/{search_type}"
             payload = json.dumps({"q": query})
             headers = {
                 'X-API-KEY': self.serper_api_key,
                 'Content-Type': 'application/json'
             }
-            conn.request("POST", f"/{search_type}", payload, headers)
-            res = conn.getresponse()
-            data = res.read()
-            logger.debug(data.decode("utf-8"))
+            response = requests.request("POST", url, headers=headers, data=payload)
+            data = response.text
+            logger.debug(data)
             return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,
             'error': 'Serper API key not set. You can ask the user to obtain a free key at https://serper.dev and then give it to you, and then you can set the key programmatically by calling this function with search_type="set_key" and passing the API key as the query parameter if the user provides it to you.'
         }
-    
+
     def serper_scrape_api(self, url):
         if self.serper_api_key is not None or self.set_serper_api_key():
-            conn = http.client.HTTPSConnection("scrape.serper.dev")
             payload = json.dumps({"url": url})
             headers = {
                 'X-API-KEY': self.serper_api_key,
                 'Content-Type': 'application/json'
             }
-            conn.request("POST", "/", payload, headers)
-            res = conn.getresponse()
-            data = res.read()
-            logger.debug(data.decode("utf-8"))
+            response = requests.request("POST", "https://scrape.serper.dev", headers=headers, data=payload)
+            data = response.text
             return {'success': True, 'data': json.loads(data)}
         return {
             'success': False,
@@ -91,7 +95,7 @@ class WebAccess(object):
 
 
 
-    def scrape_url(self, url): 
+    def scrape_url(self, url):
         if self.spider_api_key is not None or self.set_spider_api_key():
             scraped_data = self.spider_app.scrape_url(url)
             return {
@@ -138,10 +142,10 @@ def _search_google(
         - places: returns Google place results
         - maps: returns Google map results
         - news: returns Google news results
-        - shopping: returns Google shopping results        
+        - shopping: returns Google shopping results
         - scholar: returns Google scholar results
         - patent: returns Google patent results
-    
+
     Returns:
         dict: Google search results including organic results, knowledge graph, etc.
     """
@@ -160,7 +164,7 @@ def _scrape_url(
 ) -> dict:
     """
     Scrape content from a specific URL using Serper API
-    
+
     Returns:
         dict: Scraped content from the webpage
     """
@@ -181,7 +185,7 @@ def _crawl_url(
 ) -> dict:
     """
     Crawl a URL and its linked pages using Spider API
-    
+
     Returns:
         dict: Crawl results including content from multiple pages
     """

@@ -976,19 +976,21 @@ class TestOpenAIAdapter(unittest.TestCase):
         def event_callback(session_id, output_message: BotOsOutputMessage):
             nonlocal event_count
             event_count += 1
+
             if event_count == 1:
                 self.assertTrue('using tool:' in output_message.output.lower() and 'one' in output_message.output.lower())
             if event_count == 2:
-                self.assertEqual(output_message.output, f"stopped thread_id='{thread.thread_id}'")
+                self.assertTrue(f'stopped' in output_message.output)
 
         round_trip('Call my two functions', openai_mock, event_callback=event_callback, assistant=assistant, thread=thread)
 
         self.assertEqual(event_count, 2)
 
         logs = query_message_log(thread.thread_id)
-        self.assertEqual(len(logs), 2)
+        self.assertEqual(len(logs), 3)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'one({"x": 47})')
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'Assistant Response' and 'stopped' in logs[2]['MESSAGE_PAYLOAD'])
 
     def test_stop_signal_with_recovery(self):
         '''stop Genesis thread'''
@@ -1077,7 +1079,7 @@ class TestOpenAIAdapter(unittest.TestCase):
             if event_count == 1:
                 self.assertTrue('using tool:' in output_message.output.lower() and 'one' in output_message.output.lower())
             if event_count == 2:
-                self.assertEqual(output_message.output, f"stopped thread_id='{thread.thread_id}'")
+                self.assertTrue(f'stopped' in output_message.output)
             if event_count == 3:
                 self.assertEqual(output_message.output, 'openai response 3')
 
@@ -1087,11 +1089,12 @@ class TestOpenAIAdapter(unittest.TestCase):
         self.assertEqual(event_count, 3)
 
         logs = query_message_log(thread.thread_id)
-        self.assertEqual(len(logs), 4)
+        self.assertEqual(len(logs), 5)
         self.assertTrue(logs[0]['MESSAGE_TYPE'] == 'User Prompt' and logs[0]['MESSAGE_PAYLOAD'] == 'Call my two functions')
         self.assertTrue(logs[1]['MESSAGE_TYPE'] == 'Tool Call' and logs[1]['MESSAGE_PAYLOAD'] == 'one({"x": 47})')
-        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'User Prompt' and logs[2]['MESSAGE_PAYLOAD'] == 'second time with incomplete tool outputs')
-        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'Assistant Response' and logs[3]['MESSAGE_PAYLOAD'] == 'openai response 3')
+        self.assertTrue(logs[2]['MESSAGE_TYPE'] == 'Assistant Response' and 'stopped' in logs[2]['MESSAGE_PAYLOAD'])
+        self.assertTrue(logs[3]['MESSAGE_TYPE'] == 'User Prompt' and logs[3]['MESSAGE_PAYLOAD'] == 'second time with incomplete tool outputs')
+        self.assertTrue(logs[4]['MESSAGE_TYPE'] == 'Assistant Response' and logs[4]['MESSAGE_PAYLOAD'] == 'openai response 3')
 
 if __name__ == '__main__':
     unittest.main()

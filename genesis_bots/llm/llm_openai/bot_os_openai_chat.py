@@ -696,7 +696,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         self.postprocess_tool_response(func_name, func_args, func_response)
         return func_response
 
-    def send_response_to_user(self, run, thread_id, output_stream, chat_history, output_event):
+    def send_response_to_user(self, run, thread_id, output_stream, model_name, chat_history, output_event):
         '''send OpenAI response back to user'''
         
         messages = types.SimpleNamespace()
@@ -739,7 +739,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 output_cost = 15.000 / 1000000
             if hasattr(run, 'usage'):
                 total_cost = (run.usage.prompt_tokens * input_cost) + (run.usage.completion_tokens * output_cost)
-                output += f'  `${total_cost:.4f}`'
+                output_stream += f'  `${total_cost:.4f}`'
                 input_tokens = run.usage.prompt_tokens
                 output_tokens = run.usage.completion_tokens
 
@@ -802,7 +802,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 run.status = "completed"
                 run.completed_at = datetime.datetime.now()
 
-                self.send_response_to_user(run, thread_id, str(e), chat_history, output_event)
+                self.send_response_to_user(run, thread_id, output_stream + str(e), model_name, chat_history, output_event)
                 break
 
             if not tool_calls:
@@ -812,7 +812,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 run.completed_at = datetime.datetime.now()
                 run.usage = usage
 
-                self.send_response_to_user(run, thread_id, output_stream + content, chat_history, output_event)
+                self.send_response_to_user(run, thread_id, output_stream + content, model_name, chat_history, output_event)
                 break
 
             # LLM requesting us to call tool function(s) and send back the result
@@ -833,7 +833,8 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     logger.info(f'bot={self.bot_id} {thread_id=} received stop signal')
                     run.status = 'completed'
                     run.completed_at = datetime.datetime.now()
-                    output_event(status=run.status, output=f'stopped {thread_id=}', messages=None)
+                    self.send_response_to_user(run, thread_id, output_stream + f'..stopped!', model_name,
+                                               chat_history, output_event)
                     break
 
                 output_stream = self.record_tool_call(run, thread_id, func_name, func_args, tool_call_id,
@@ -857,10 +858,11 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 try:
                     func_response = self.run_tool_function(run, thread_id, func_name, func_args, tool_call_id, status_callback)
                 except Exception as e:
-                    logger.info(f'Error making tool call:\n{traceback.format_exc()}')
+                    logger.error(f'bot={self.bot_id} {thread_id=}: error making tool call:\n{traceback.format_exc()}')
                     run.status = 'completed'
                     run.completed_at = datetime.datetime.now()
-                    output_event(status=run.status, output=f"!!! Error making tool call, exception:{str(e)}", messages=None)
+                    self.send_response_to_user(run, thread_id, output_stream + f'\nError making tool call: {str(e)}', model_name,
+                                               chat_history, output_event)
                     break       
 
                 bot_os_thread.messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": str(func_response)})

@@ -12,6 +12,7 @@ import os
 import threading
 import math
 import openai
+import traceback
 from genesis_bots.core.bot_os_corpus import FileCorpus
 from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI, BotOsAssistantOpenAIChat
@@ -87,9 +88,11 @@ class BotOsThread:
 
         try:
             return self.assistant_impl.add_message(message, self, event_callback)
+        except Exception as e:
+            logger.error(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}: {e}\n{traceback.format_exc()}')
         finally:
             self.release_thread()
-            return True
+        return True
 
     def add_message(self, message: BotOsInputMessage, event_callback=None, current_assistant=None):
         thread_id = message.thread_id

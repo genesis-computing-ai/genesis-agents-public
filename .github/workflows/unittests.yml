@@ -32,10 +32,20 @@ jobs:
         run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
              echo $PYTHONPATH
 
-      - name: Run Unittests
+      - name: Run Unittests Sqlite
         env:
           SNOWFLAKE_METADATA: FALSE
           SPCS_MODE: FALSE
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+        run: |
+          python -m pip install pytest
+          pytest -v
+
+      - name: Run Unittests Snowflake
+        env:
+          SNOWFLAKE_METADATA: TRUE
+          SPCS_MODE: TRUE
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
         run: |

@@ -87,7 +87,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             self.__class__._shared_tool_failure_map[name] = {}
         self.tool_failure_map = self.__class__._shared_tool_failure_map[name]
 
-        self.flush_interval = 2
+        self.flush_interval = 1
         self.flush_map = {}
         self.flush_mutex = Lock()
         self.flush_thread = Thread(target=self.flush_func, daemon=True)
@@ -430,12 +430,15 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         usage = None
         tool_calls = []
 
+        last_flush_len = 0
         def flush_output():
+            nonlocal last_flush_len
             nonlocal content
             nonlocal output_event
 
-            if content:
+            if content and len(content) > last_flush_len:
                 output_event(status='in_progress', output=output_stream + content + " 💬", messages=None)
+                last_flush_len = len(content)
 
         self.add_flush_func(thread_id, flush_output)
 

@@ -429,15 +429,13 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         content = ''
         usage = None
         tool_calls = []
-        last_flush_time = None
 
         def flush_output():
             nonlocal content
             nonlocal output_event
-            nonlocal last_flush_time
+
             if content:
                 output_event(status='in_progress', output=output_stream + content + " 💬", messages=None)
-                last_flush_time = time.time()
 
         self.add_flush_func(thread_id, flush_output)
 
@@ -475,11 +473,10 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                         content += delta_content
         finally:
             self.rm_flush_func(thread_id)
+            content_resp = content
+            content = ''
 
-        if content and last_flush_time != None:
-            time.sleep(max(0, self.flush_interval - (time.time() - last_flush_time)))
-
-        return content, usage, tool_calls
+        return content_resp, usage, tool_calls
 
     def decode_tool_response(self, run, thread_id, func_name, func_args, func_response):
         '''postprocess response received from a tool function call'''

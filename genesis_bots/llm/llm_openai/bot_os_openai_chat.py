@@ -844,7 +844,6 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
                 # tool function may use below callback to update user on its progress
                 def status_callback(session_id, update_message):
-                    print(f'~~~ status_callback(): {update_message.output=}')
                     nonlocal output_stream, run
                     if output_stream.endswith('\n'):
                         output_stream += "\n"

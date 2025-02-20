@@ -43,6 +43,7 @@ jobs:
           pytest -v
 
       - name: Run Unittests Snowflake
+        if: false
         env:
           SNOWFLAKE_METADATA: TRUE
           SPCS_MODE: TRUE

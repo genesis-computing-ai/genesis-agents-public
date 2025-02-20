@@ -644,8 +644,8 @@ def add_new_tools_to_bot(bot_id, new_tools):
 
     bot_details = get_bot_details(bot_id)
     if not bot_details:
-        logger.error(f"Bot with ID {bot_id} not found.")
-        return {"success": False, "error": "Bot not found."}
+        logger.info(f"Bot with ID {bot_id} not found.")
+        return {"success": False, "error": "Bot not found.  Use list_all_bots to find the correct bot_id."}
 
     current_tools_str = bot_details.get('available_tools', '[]')
     current_tools = json.loads(current_tools_str) if current_tools_str else []

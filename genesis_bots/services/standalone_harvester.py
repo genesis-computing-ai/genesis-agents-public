@@ -137,7 +137,7 @@ def update_harvest_control_with_new_databases(connector):
     internal_db, internal_sch = internal_schema.split('.') if '.' in internal_schema else None
 
     for db in available_databases:
-        if db not in controlled_databases and db not in {'GENESISAPP_APP_PKG_EXT', 'GENESISAPP_APP_PKG'}:
+        if db not in controlled_databases and db not in {'GENESISAPP_APP_PKG_EXT', 'GENESISAPP_APP_PKG', 'SNOWFLAKE'}:
             logger.info(f"Adding new database to harvest control -- the system db is {internal_db}")
             schema_exclusions = ['INFORMATION_SCHEMA']
             if db.upper() == internal_db.upper():

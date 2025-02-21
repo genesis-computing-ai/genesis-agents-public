@@ -1,50 +1,53 @@
+from   datetime                 import datetime, timedelta
 import json
 import os
 import requests
-import time
-from datetime import datetime, timedelta
 import sys
+import time
 
 
-from flask import Flask, request, jsonify, make_response
-from genesis_bots.core.tools.process_scheduler import process_scheduler
-from genesis_bots.core.bot_os_input import BotOsInputMessage
-from genesis_bots.core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
-from genesis_bots.core.bot_os_server import BotOsServer
-from apscheduler.schedulers.background import BackgroundScheduler
+from   apscheduler.schedulers.background \
+                                import BackgroundScheduler
+from   flask                    import Flask, jsonify, make_response, request
+from   genesis_bots.core.bot_os_server \
+                                import BotOsServer
+from   genesis_bots.core.tools.process_scheduler \
+                                import process_scheduler
 # from connectors import get_global_db_connector
-from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from genesis_bots.connectors.sqlite_connector import SqliteConnector
-from genesis_bots.core.bot_os_tools import get_tools, ToolBelt
-from genesis_bots.slack.slack_bot_os_adapter import SlackBotAdapter
-from genesis_bots.bot_genesis.make_baby_bot import (
-    make_baby_bot,
-    update_slack_app_level_key,
-    set_llm_key,
-    get_llm_key,
-    get_available_persistent_tools,
-    get_ngrok_auth_token,
-    set_ngrok_auth_token,
-    get_bot_details,
-    update_bot_details,
-    list_all_bots,
-    get_all_bots_full_details,
-    get_slack_config_tokens,
-    rotate_slack_token,
-    set_slack_config_tokens,
-    test_slack_config_token,
-)
+from   genesis_bots.bot_genesis.make_baby_bot \
+                                import (get_all_bots_full_details,
+                                        get_bot_details, get_ngrok_auth_token,
+                                        get_slack_config_tokens, list_all_bots,
+                                        make_baby_bot, rotate_slack_token,
+                                        set_ngrok_auth_token,
+                                        set_slack_config_tokens,
+                                        test_slack_config_token,
+                                        update_bot_details,
+                                        update_slack_app_level_key)
+from   genesis_bots.connectors.snowflake_connector.snowflake_connector \
+                                import SnowflakeConnector
+from   genesis_bots.connectors.sqlite_connector \
+                                import SqliteConnector
+from   genesis_bots.core.bot_os_tools \
+                                import ToolBelt
+from   genesis_bots.slack.slack_bot_os_adapter \
+                                import SlackBotAdapter
 
 # from auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from genesis_bots.core.bot_os_task_input_adapter import TaskBotOsInputAdapter
+from   genesis_bots.core.bot_os_task_input_adapter \
+                                import TaskBotOsInputAdapter
 
-from genesis_bots.demo.sessions_creator import create_sessions, make_session
-from genesis_bots.auto_ngrok.auto_ngrok import launch_ngrok_and_update_bots
-from genesis_bots.core.system_variables import SystemVariables
+from   genesis_bots.auto_ngrok.auto_ngrok \
+                                import launch_ngrok_and_update_bots
+from   genesis_bots.core.system_variables \
+                                import SystemVariables
+from   genesis_bots.demo.sessions_creator \
+                                import create_sessions, make_session
 
-from genesis_bots.core.logging_config import logger
+from   genesis_bots.core.logging_config \
+                                import logger
 
-from genesis_bots.core import global_flags
+from   genesis_bots.core        import global_flags
 
 ##### TEST MODE FLAG
 #os.environ['TEST_TASK_MODE'] = 'true'

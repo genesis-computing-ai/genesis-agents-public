@@ -5387,7 +5387,8 @@ def _run_snowpark_python(
         packages=packages,
         note_id=note_id,
         bot_id=bot_id,
-        thread_id=thread_id
+        thread_id=thread_id,
+        save_artifacts=save_artifacts,
     )
 
 _all_snowflake_connector_functions = [

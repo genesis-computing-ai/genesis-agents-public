@@ -1167,6 +1167,11 @@ class SlackBotAdapter(BotOsInputAdapter):
                     except Exception as e:
                         pass
 
+                    if msg_part2 == None or len(msg_part2) == 0:
+                        channel = message.input_metadata.get("channel", self.channel_id)
+                        logger.error(f'bot={self.bot_name}: adjusting msg_part2 from "{msg_part2}" to " " {channel=} {thread_ts=}')
+                        msg_part2 = " "
+
                     posted_message = self.slack_app.client.chat_postMessage(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         thread_ts=thread_ts,
@@ -1202,6 +1207,12 @@ class SlackBotAdapter(BotOsInputAdapter):
                             )
                         if msg.count("```") % 2 != 0:
                             msg += "```"
+
+                        if msg == None or len(msg) == 0:
+                            channel = message.input_metadata.get("channel", self.channel_id)
+                            logger.error(f'bot={self.bot_name}: adjusting msg from "{msg}" to " " {channel=} {thread_ts=}')
+                            msg = " "
+
                         result = self.slack_app.client.chat_postMessage(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             thread_ts=thread_ts,

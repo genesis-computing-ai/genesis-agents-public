@@ -849,7 +849,7 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.git_action.get_git_action_functions",
                 "genesis_bots.core.tools.image_tools.get_image_functions",
                 "genesis_bots.core.tools.jira_connector.get_jira_connector_functions",
-                "genesis_bots.core.tools.github_connector.get_github_connector_functions",
+                # "genesis_bots.core.tools.github_connector.get_github_connector_functions",
                 "genesis_bots.core.bot_os_web_access.get_web_access_functions",
                 "genesis_bots.core.tools.send_email.get_send_email_functions",
                 # "core.tools.run_process.run_process_functions",

@@ -156,7 +156,7 @@ setup(
         'numpy>=1.7.0,<3.0.0',
         'Cython>=0.29.0'
     ],
-    python_requires='>=3.10',
+    python_requires='>=3.9',
     entry_points={
         'console_scripts': [
             'genesis=genesis_bots.apps.cli:main',

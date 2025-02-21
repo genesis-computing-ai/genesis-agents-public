@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 name = "genesis_bots"
 dynamic = ["version"]
 description = "Genesis Bots Package"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = {text = "SSPL"}
 dependencies = [
     # Core dependencies - order matters!

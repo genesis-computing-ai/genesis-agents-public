@@ -184,6 +184,9 @@ class JWTGenerator(object):
 global_token = None
 global_url = None
 
+conversation_history = {}
+thread_id = None
+
 class Args:
     def __init__(self):
       self.account = os.getenv('SNOWFLAKE_ACCOUNT', 'eqb52188')
@@ -219,11 +222,6 @@ def login():
         connect_to_spcs(global_token, global_url)
     else:
         print("Using NGROK platform, skipping login")
-
-def main():
-  login()
-  resp = send_message('Hi')
-  print(f"Response from login 'hi': {resp}")
 
 def _get_token(args):
   token = JWTGenerator(args.account, args.user, args.private_key_path, timedelta(minutes=args.lifetime),
@@ -269,8 +267,12 @@ def connect_to_spcs(token, url):
   logger.info("return code %s" % response.status_code)
   logger.info(response.text)
 
+def main():
+  login()
+#   resp = send_message('Hi')
+#   print(f"Response from login 'hi': {resp}")
 
-def call_submit_udf(token, url, bot_id, row_data, thread_id=None, file=None):
+def call_submit_udf(token, url, bot_id, row_data, conversation_id, thread_id=None, file=None):
     """
     Call the submit_udf endpoint with proper authentication
     
@@ -283,13 +285,12 @@ def call_submit_udf(token, url, bot_id, row_data, thread_id=None, file=None):
         file: Optional file data to include
     """
 
-    print(f'Enter call subnmit udf - url: {url} bot_id: {bot_id} row_data: {row_data} thread_id: {thread_id} file: {file}', flush=True)
+    print(f'Enter call submit udf - url: {url} bot_id: {bot_id} row_data: {row_data} thread_id: {thread_id} file: {file}', flush=True)
 
     headers = {'Authorization': f'Snowflake Token="{token}"'}
 
     # Format bot_id as JSON object
     bot_id_json = json.dumps({"bot_id": bot_id})
-
 
     data = {
         "data": [
@@ -327,11 +328,10 @@ def call_lookup_udf(token, url, bot_id, uuid):
     lookup_url = f'{url}/udf_proxy/lookup_udf'
     response = requests.post(lookup_url, headers=headers, json=data)  # Use json parameter instead of data
 
-
     return response
 
 
-def send_message(message, conversation_id=None):
+def send_message(message, conversation_id = None):
     """
     Interactive chat test function that sends messages to a bot and polls for responses
     
@@ -342,25 +342,54 @@ def send_message(message, conversation_id=None):
     import uuid
     import time
 
+    global thread_id
+
     print(f"send_messages conversation_id: {conversation_id}", flush=True)
     bot_id = os.getenv('BOT_ID', 'Eve')
-    thread_id = str(uuid.uuid4())  # Generate thread ID for conversation
+    if thread_id is None:
+        thread_id = str(uuid.uuid4())  # Generate thread ID for conversation
+        print(f"Created new thread_id: {thread_id}", flush=True)
 
     print(f"Submitting uuid: {thread_id}", flush=True)
+
+    # THIS STORES CONVERSATION HISTORY IN PROXY
+    # conversation_context = ''
+    # if conversation_id and conversation_id in conversation_history:
+    #     conversation_context = "Here is the history of our conversation:\n"
+
+    #     print(f"Conversation context 1: {conversation_context}", flush=True)
+
+    #     for msg in conversation_history[conversation_id]:
+    #         conversation_context += msg[0] + ": " + msg[2] + ", "
+
+    #     conversation_context += f"And the latest message from the user is: {message}"
+
+    #     print(f"Conversation context 2: {conversation_context}", flush=True)
+
+    #     conversation_history[conversation_id].append(['user', thread_id, message])
+    # elif conversation_id:
+    #     conversation_history[conversation_id] = [['user', thread_id, message]]
+    #     conversation_context = message
+    # else:
+    #     conversation_context = message
+
+    conversation_context = message
+
+    print(f"Submitting message: {conversation_context}", flush=True)
 
     # Submit message
     submit_response = call_submit_udf(
         token=global_token,
         url=global_url,
         bot_id=bot_id,
-        row_data=message,
-        thread_id=thread_id
+        conversation_id=conversation_id,
+        row_data=conversation_context,
+        thread_id=thread_id,
     )
 
     if submit_response.status_code != 200:
         logger.error("Failed to submit message")
         return
-
 
     # Get UUID from response
     try:
@@ -384,11 +413,19 @@ def send_message(message, conversation_id=None):
             logger.error("Failed to lookup response")
             break
 
-
         try:
             response_data = lookup_response.json()['data'][0][1]
             if response_data != "not found" and not response_data.endswith('💬'):
-                print(f"\nBot: {response_data}")
+                print(f"\nBOT RESPONSE DATA: {response_data}\n")
+                # THIS ADDS BOT RESPONSE TO CONVERSATION HISTORY
+                # if conversation_id:
+                #     if conversation_id in conversation_history:
+                #         conversation_history[conversation_id].append(['bot', thread_id, response_data])
+                #     else:
+                #         conversation_history[conversation_id] = [['bot', thread_id, response_data]]
+
+                # print(f"CONVERSATION CONTEXT: {conversation_history}")
+
                 return response_data
         except (KeyError, IndexError, json.JSONDecodeError) as e:
             logger.error(f"Failed to parse response: {e}")

@@ -49,7 +49,7 @@ dagster-spark
 dagster-dbt
 wrapt
 sqlalchemy>=1.4.0
-psycopg2-binary>=2.9.9
+psycopg2-binary==2.9.9
 pymysql
 snowflake-sqlalchemy
 spider-client

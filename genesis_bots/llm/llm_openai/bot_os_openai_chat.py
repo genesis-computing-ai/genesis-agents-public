@@ -459,7 +459,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             try:
                 new_response = {"success": False, "error": func_response}
                 func_response = new_response
-                logger.info(f'openai submit_tool_outputs string response converted call: N/A, response: {func_response}')
+                logger.info(f'openai submit_tool_outputs string response converted call: {func_name=} {func_response=}')
             except:
                 logger.info(f'openai submit_tool_outputs string response converted call to JSON.')
 

@@ -2,35 +2,26 @@
 GENESIS BOT TODOS
 =================
 
-test new bot on yuly branch
-x data connections list with snowflake
-can you deploy a new bot files = []
-existing snowflake deployment has no Snowflaek database connection listed (dev)
-x fix gxs
-x work on system prompt
-o3 needs dev prompt first, others need system prompt first?
+connecting to oracle docs
 bulk add todos
 streamlit page to see projects and todos
 prompter loop to work on projects when enabled
-x finish redhsift
-do docs for bigquery
 test-Yuly - context length compression
 test-snowpark function being called oddly, and libraries
 dont load Janice processes into table when in sqlite mode
 Yuly-claude/cortex: catch when token window is exceeded and compress the history
 (pr) email collector / telemetry on local vers
 repeated tool calls failure on 5 calls to search google when no serper key, not completing the handling right
-(test) harvester on standalone snowflake connection
-(test) harvester on oracle
-add databricks connector
-(test) axure openai, cortex on local runner via snowflake creds?
 dont return snowflake permissions suggestion if not snowflake
 signal to reset the annoy indexes when connections or connection rbac are changed
-(test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
-gxs: comment handler test it out
+(test) axure openai
+(test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
+(test) gxs: comment handler test it out
+(test) sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 
 Later:
+add databricks connector
 add an external api for email sending?
 make knowledge server and task server part of main service like harvester now is
 make config querys conf file generate if not existing
@@ -42,14 +33,22 @@ trigger immediate harvest on adding something to the harvester
 add an option on add connection to add to harvest and immediately harvest
 save connection id along with sql notes
 streamlit page to show project project
-add a database connections page to streamlit to see database connections
-test sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 add code interpreter via a dedicated assistant session
 related: generate a text file with the numebrs from 1-10, sqlite mode, genesis gui error in streamlit (doesnt return the file anymore just the text)
-x (reza) files out for generate image
 (later) make sqlite sample data load from csv files vs binary
 
 DONE:
+x (test) harvester on standalone snowflake connection
+x add a database connections page to streamlit to see database connections
+x (reza) files out for generate image
+x test new bot on yuly branch
+x data connections list with snowflake
+x can you deploy a new bot files = []
+x existing snowflake deployment has no Snowflaek database connection listed (dev)
+x fix gxs
+x work on system prompt
+n o3 needs dev prompt first, others need system prompt first?x finish redhsift
+x do docs for bigquery
 x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
 x waive 20 tool call per thread limit for claude threads
 x (aviv) test gxs with completion mode (w/git etc)

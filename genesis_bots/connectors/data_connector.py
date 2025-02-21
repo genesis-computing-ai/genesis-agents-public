@@ -1461,7 +1461,7 @@ def _search_metadata(
     schema="Schema name (not valid for Sqlite)",
     table="Table name",
     top_n="Number of rows to return",
-    knowledge_base_path="Path to the knowledge vector base",
+    #knowledge_base_path="Path to the knowledge vector base",
     connection_id="ID of the database connection to query",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,

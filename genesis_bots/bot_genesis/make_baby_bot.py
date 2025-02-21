@@ -644,8 +644,8 @@ def add_new_tools_to_bot(bot_id, new_tools):
 
     bot_details = get_bot_details(bot_id)
     if not bot_details:
-        logger.error(f"Bot with ID {bot_id} not found.")
-        return {"success": False, "error": "Bot not found."}
+        logger.info(f"Bot with ID {bot_id} not found.")
+        return {"success": False, "error": "Bot not found.  Use list_all_bots to find the correct bot_id."}
 
     current_tools_str = bot_details.get('available_tools', '[]')
     current_tools = json.loads(current_tools_str) if current_tools_str else []
@@ -1007,7 +1007,7 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
 
 def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
                         auth_url, auth_state, udf_active, slack_active, files, bot_implementation):
-    files_json = json.dumps(files)
+    files_json = json.dumps(files) if files else None
     if files_json == 'null':
         files_json = None
     bb_db_connector = get_global_db_connector()

@@ -87,33 +87,6 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             self.__class__._shared_tool_failure_map[name] = {}
         self.tool_failure_map = self.__class__._shared_tool_failure_map[name]
 
-        self.flush_interval = 1
-        self.flush_map = {}
-        self.flush_mutex = Lock()
-        self.flush_thread = Thread(target=self.flush_func, daemon=True)
-        self.flush_thread.start()
-
-    def add_flush_func(self, thread_id, flush_func):
-        with self.flush_mutex:
-            self.flush_map[thread_id] = flush_func
-
-    def rm_flush_func(self, thread_id):
-        with self.flush_mutex:
-            self.flush_map.pop(thread_id, None)
-
-    def get_flush_funcs(self):
-        with self.flush_mutex:
-            return list(self.flush_map.values())
-
-    def flush_func(self):
-        while True:
-            time.sleep(self.flush_interval)
-            for func in self.get_flush_funcs():
-                try:
-                    func()
-                except Exception as e:
-                    logger.error(f"bot={self.bot_id} exception in flush func: {e}")
-
     @override
     def is_active(self) -> deque:
         return deque()
@@ -430,56 +403,48 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         usage = None
         tool_calls = []
 
-        last_flush_len = 0
-        def flush_output():
-            nonlocal last_flush_len
-            nonlocal content
-            nonlocal output_event
+        stream = self.client.chat.completions.create(
+            model=model_name,
+            **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
+            messages=openai_messages,
+            stream=True,
+            stream_options={"include_usage": True},
+            **params
+        )
 
-            if content and len(content) > last_flush_len:
+        # Collect streaming response and periodically flush deltas to user (but not too often)
+        last_flush_time = time.monotonic()
+        flush_interval = 1 # sec
+
+        for chunk in stream:
+            if len(content) > 0 and (time.monotonic() - last_flush_time) >= flush_interval:
                 output_event(status='in_progress', output=output_stream + content + " 💬", messages=None)
-                last_flush_len = len(content)
+                last_flush_time = time.monotonic()
 
-        self.add_flush_func(thread_id, flush_output)
+            if chunk.usage != None and chunk.choices == []:
+                usage = chunk.usage
+                continue
 
-        try:
-            stream = self.client.chat.completions.create(
-                model=model_name,
-                **({'tools': self.tools} if self.tools and len(self.tools) > 0 else {}),
-                messages=openai_messages,
-                stream=True,
-                stream_options={"include_usage": True},
-                **params
-            )
+            if (len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and
+                chunk.choices[0].delta.tool_calls is not None):
+                tc_chunk_list = chunk.choices[0].delta.tool_calls
+                for tc_chunk in tc_chunk_list:
+                    if len(tool_calls) <= tc_chunk.index:
+                        tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                    tc = tool_calls[tc_chunk.index]
+                    if tc_chunk.id is not None:
+                        tc['id'] += tc_chunk.id
+                    if tc_chunk.function is not None and tc_chunk.function.name is not None:
+                        tc['function']['name'] += tc_chunk.function.name
+                    if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
+                        tc['function']['arguments'] += tc_chunk.function.arguments
 
-            # Collect streaming response
-            for chunk in stream:
-                if chunk.usage != None and chunk.choices == []:
-                    usage = chunk.usage
-                    continue
-                if (len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'tool_calls') and
-                    chunk.choices[0].delta.tool_calls is not None):
-                    tc_chunk_list = chunk.choices[0].delta.tool_calls
-                    for tc_chunk in tc_chunk_list:
-                        if len(tool_calls) <= tc_chunk.index:
-                            tool_calls.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
-                        tc = tool_calls[tc_chunk.index]
-                        if tc_chunk.id is not None:
-                            tc['id'] += tc_chunk.id
-                        if tc_chunk.function is not None and tc_chunk.function.name is not None:
-                            tc['function']['name'] += tc_chunk.function.name
-                        if tc_chunk.function is not None and tc_chunk.function.arguments is not None:
-                            tc['function']['arguments'] += tc_chunk.function.arguments
-                if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
-                    delta_content = chunk.choices[0].delta.content
-                    if delta_content is not None and isinstance(delta_content, str):
-                        content += delta_content
-        finally:
-            self.rm_flush_func(thread_id)
-            content_resp = content
-            content = ''
+            if len(chunk.choices) > 0 and hasattr(chunk.choices[0].delta, 'content') and chunk.choices[0].delta.content:
+                delta_content = chunk.choices[0].delta.content
+                if delta_content is not None and isinstance(delta_content, str):
+                    content += delta_content
 
-        return content_resp, usage, tool_calls
+        return content, usage, tool_calls
 
     def decode_tool_response(self, run, thread_id, func_name, func_args, func_response):
         '''postprocess response received from a tool function call'''
@@ -794,6 +759,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
             try:
                 content, usage, tool_calls = self.call_openai(openai_messages, model_name, params,
                                                               thread_id, output_stream, output_event)
+
             except Exception as e:
                 if bot_os_thread.recover(e):
                     openai_messages = self.get_openai_messages(bot_os_thread, model_name)

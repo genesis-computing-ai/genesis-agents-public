@@ -36,7 +36,7 @@ jobs:
 
     - name: Build package
       env:
-        PACKAGE_VERSION: '1.0.37'
+        PACKAGE_VERSION: '1.0.38'
         COMPILE_CYTHON: true
       run: |
         echo "Running: python build/build.py --version \"$PACKAGE_VERSION\""

@@ -1120,6 +1120,23 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             json_file.write(creds_json)
         return True
 
+    def create_g_drive_oauth_creds(self):
+        temp_hard_code = "jeff.davidson@genesiscomputing.ai"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{temp_hard_code}';"
+        cursor = self.client.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return False
+
+        creds_dict = {row[0]: row[1] for row in rows}
+
+        creds_json = json.dumps(creds_dict, indent=4)
+        with open(f'google_oauth_credentials.json', 'w') as json_file:
+            json_file.write(creds_json)
+        return True
+
     def get_model_params(self):
         """
         Retrieves the model and embedding model names for the active LLM from the database.
@@ -1135,7 +1152,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         try:
             if self.source_name.lower() == "snowflake":
                 query = f"""
-                SELECT model_name, embedding_model_name 
+                SELECT model_name, embedding_model_name
                 FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
                 WHERE runner_id = %s AND llm_type = 'openai'
                 """
@@ -1144,7 +1161,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 result = cursor.fetchone()
             else:
                 query = """
-                SELECT model_name, embedding_model_name 
+                SELECT model_name, embedding_model_name
                 FROM llm_tokens
                 WHERE runner_id = ? AND llm_type = 'openai'
                 """

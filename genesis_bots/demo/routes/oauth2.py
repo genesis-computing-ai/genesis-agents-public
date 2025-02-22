@@ -48,7 +48,7 @@ def google_drive_login():
 def oauth2callback():
   # Specify the state when creating the flow in the callback so that it can
     # verified in the authorization server response.
-
+    import json
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json", scopes=SCOPES, state=session_state)
     flow.redirect_uri = url_for('main_routes.oauth2callback', _external=True)
@@ -76,7 +76,7 @@ def oauth2callback():
     # granted_scopes = credentials.scopes
     # session['features'] = granted_scopes
 
-    creds_json = json.dumps(creds_dict, indent=4)
+    creds_json = json.dumps(credentials_dict, indent=4)
     with open(f'g-workspace-credentials.json', 'w') as json_file:
         json_file.write(creds_json)
     return True

@@ -10,7 +10,7 @@ from   genesis_bots.demo.app.genesis_app \
                                         DEFAULT_HTTP_ENDPOINT_PORT,
                                         DEFAULT_STREAMLIT_APP_PORT,
                                         genesis_app)
-from   genesis_bots.demo.routes import (auth_routes, main_routes,
+from   genesis_bots.demo.routes import (oauth_routes, main_routes,
                                         realtime_routes, slack_routes,
                                         udf_routes)
 
@@ -27,11 +27,15 @@ def main():
     app = Flask(__name__)
     app_https = Flask(__name__)
 
+    app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-development-secret-key')
+
     app.register_blueprint(main_routes)
     app.register_blueprint(realtime_routes)
     app.register_blueprint(slack_routes)
     app.register_blueprint(udf_routes)
-    app_https.register_blueprint(auth_routes)
+    app_https.register_blueprint(oauth_routes)
+
+    app.register_blueprint(oauth_routes, url_prefix='/oauth')
 
     SERVICE_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 

@@ -5,6 +5,21 @@ os.environ['SQLITE_DB_PATH'] = 'tests/genesis.db'
 if os.path.exists('tests/genesis.db'):
     os.remove('tests/genesis.db')
 
+SNOWFLAKE = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"
+
+if SNOWFLAKE:
+    os.environ.update(dict(
+        SNOWFLAKE_ACCOUNT_OVERRIDE='eqb52188',
+        SNOWFLAKE_DATABASE_OVERRIDE='GENESIS_TEST',
+        SNOWFLAKE_WAREHOUSE_OVERRIDE='XSMALL',
+        SNOWFLAKE_ROLE_OVERRIDE='PUBLIC',
+        SNOWFLAKE_SECURE='FALSE',
+        GENESIS_SOURCE='Snowflake',
+        GENESIS_INTERNAL_DB_SCHEMA='GENESIS_TEST.UNITTEST_RUNNER',
+        GENESIS_LOCAL_RUNNER='TRUE',
+        RUNNER_ID='snowflake-1'
+    ))
+
 import unittest
 from genesis_bots.api import GenesisAPI, build_server_proxy
 from uuid import uuid4
@@ -21,7 +36,6 @@ from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
 from genesis_bots.genesis_sample_golden.demos.cli_chat import get_available_bots
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
-SNOWFLAKE = os.getenv("SNOWFLAKE_METADATA", "False").lower() == "true"
 
 def _get_available_bot_ids(client: GenesisAPI) -> list[str]:
     all_bot_configs = client.list_available_bots()
@@ -137,6 +151,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
+        print(response)
         self.assertTrue('process' in response)
 
         prompt = f'Run manage_processes function with the following action: CREATE_CONFIRMED, bot_id: {bot_id}, process_id: {process_id}, process_name: {process_name}, process_instructions: {process_instructions}'
@@ -183,6 +198,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=40)
+        print(response)
         self.assertTrue('_ImageGeneration_' in response)
         self.assertTrue('.png' in response)
 

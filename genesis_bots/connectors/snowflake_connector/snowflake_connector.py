@@ -1131,8 +1131,9 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             return False
 
         creds_dict = {row[0]: row[1] for row in rows}
+        wrapped_creds_dict = {"web": creds_dict}
 
-        creds_json = json.dumps(creds_dict, indent=4)
+        creds_json = json.dumps(wrapped_creds_dict, indent=4)
         with open(f'google_oauth_credentials.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
@@ -4426,7 +4427,7 @@ def get_status(site):
 
         logger.info(f"Total rows with OpenAI embeddings: {total_rows_openai}")
         logger.info(f"Total rows with native embeddings: {total_rows_native}")
-        
+
         if total_rows_openai >= total_rows_native:
             embedding_column = 'embedding'
             logger.info(f"Selected embedding column: {embedding_column} (OpenAI embeddings are more or equal)")

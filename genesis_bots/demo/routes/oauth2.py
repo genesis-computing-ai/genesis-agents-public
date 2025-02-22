@@ -59,31 +59,22 @@ def oauth2callback():
 
     credentials = flow.credentials
 
-    credentials_dict = {
+    credentials_dict = {"web":{
         'token': credentials.token,
         'refresh_token': credentials.refresh_token,
         'token_uri': credentials.token_uri,
         'client_id': credentials.client_id,
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
-    }
+    }}
+
+    print(f"Credentials from OAUTH: {credentials_dict}")
+
     # session['credentials'] = credentials_dict
 
     # Check which scopes user granted
     # granted_scopes = credentials.scopes
     # session['features'] = granted_scopes
-
-    # Write credentials to keyfile
-    temp_hard_code = "jeff.davidson@genesiscomputing.ai"
-    query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{temp_hard_code}';"
-    cursor = self.client.cursor()
-    cursor.execute(query)
-    rows = cursor.fetchall()
-
-    if not rows:
-        return False
-
-    creds_dict = {row[0]: row[1] for row in rows}
 
     creds_json = json.dumps(creds_dict, indent=4)
     with open(f'g-workspace-credentials.json', 'w') as json_file:

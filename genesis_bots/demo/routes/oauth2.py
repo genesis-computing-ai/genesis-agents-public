@@ -25,7 +25,8 @@ def google_drive_login():
     user = os.getenv("USER")
 
     # Make sure this matches EXACTLY what's in Google Cloud Console
-    redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
+    # redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
+    redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
 
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json".format(user),
@@ -40,7 +41,7 @@ def google_drive_login():
     )
 
     # Store the state so we can verify it in the callback
-    session_state = state
+    session['oauth_state'] = state
 
     return redirect(authorization_url)
 
@@ -49,35 +50,51 @@ def oauth2callback():
   # Specify the state when creating the flow in the callback so that it can
     # verified in the authorization server response.
     import json
+
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+    # Get state from Flask session
+    state = session.get('oauth_state')
+    if not state:
+        return 'State not found in session', 400
+
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json", scopes=SCOPES, state=session_state)
-    flow.redirect_uri = url_for('main_routes.oauth2callback', _external=True)
 
-    # Use the authorization server's response to fetch the OAuth 2.0 tokens.
-    authorization_response = request.url
-    flow.fetch_token(authorization_response=authorization_response)
+    flow.redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
 
-    credentials = flow.credentials
+    try:
+        # Use the authorization server's response to fetch the OAuth 2.0 tokens.
+        authorization_response = request.url
+        flow.fetch_token(authorization_response=authorization_response)
 
-    credentials_dict = {"web":{
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes
-    }}
+        credentials = flow.credentials
 
-    print(f"Credentials from OAUTH: {credentials_dict}")
+        credentials_dict = {"web":{
+            'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes
+        }}
 
-    # session['credentials'] = credentials_dict
+        print(f"Credentials from OAUTH: {credentials_dict}")
 
-    # Check which scopes user granted
-    # granted_scopes = credentials.scopes
-    # session['features'] = granted_scopes
+        # session['credentials'] = credentials_dict
 
-    creds_json = json.dumps(credentials_dict, indent=4)
-    with open(f'g-workspace-credentials.json', 'w') as json_file:
-        json_file.write(creds_json)
-    return True
-    return "Authorization successful! You may close this page now"
+        # Check which scopes user granted
+        # granted_scopes = credentials.scopes
+        # session['features'] = granted_scopes
+
+        # creds_json = json.dumps(credentials_dict, indent=4)
+
+        session['credentials'] = credentials_dict
+
+        with open(f'g-workspace-credentials.json', 'w') as json_file:
+            json_file.write(creds_json)
+
+        return "Authorization successful! You may close this page now"
+
+    except Exception as e:
+        return f"Authorization failed: {str(e)}", 400

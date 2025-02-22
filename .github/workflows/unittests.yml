@@ -43,12 +43,14 @@ jobs:
           pytest -v
 
       - name: Run Unittests Snowflake
-        if: false
+        if: true
         env:
           SNOWFLAKE_METADATA: TRUE
           SPCS_MODE: TRUE
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          SNOWFLAKE_USER_OVERRIDE: ${{ secrets.SNOWFLAKE_USER_OVERRIDE }}
+          SNOWFLAKE_PASSWORD_OVERRIDE: ${{ secrets.SNOWFLAKE_PASSWORD_OVERRIDE }}
         run: |
           python -m pip install pytest
           pytest -v

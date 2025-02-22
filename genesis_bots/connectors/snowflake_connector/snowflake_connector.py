@@ -4424,10 +4424,15 @@ def get_status(site):
         total_rows_result_native = cursor.fetchone()
         total_rows_native = total_rows_result_native[0]
 
+        logger.info(f"Total rows with OpenAI embeddings: {total_rows_openai}")
+        logger.info(f"Total rows with native embeddings: {total_rows_native}")
+        
         if total_rows_openai >= total_rows_native:
             embedding_column = 'embedding'
+            logger.info(f"Selected embedding column: {embedding_column} (OpenAI embeddings are more or equal)")
         else:
             embedding_column = 'embedding_native'
+            logger.info(f"Selected embedding column: {embedding_column} (Native embeddings are more)")
 
         new_total_rows_query = f"""
             SELECT COUNT(*) as total

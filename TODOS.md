@@ -2,6 +2,8 @@
 GENESIS BOT TODOS
 =================
 
+stop app in sg region
+gxs-if file not found in git, properly trigger the retry logic
 connecting to oracle docs
 bulk add todos
 streamlit page to see projects and todos

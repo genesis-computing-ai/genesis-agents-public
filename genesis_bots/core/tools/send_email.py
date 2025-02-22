@@ -453,7 +453,7 @@ def send_email(
         assert (
             len(query_result) == 1
         )  # we expect a successful SYSTEM$SEND_EMAIL to contain a single line resultset
-        result = {"Succcess": True}
+        result = {"Success": True}
         if email_aid:
             result["Suggestion"] = (
                 f"This email was saved as an artifact with artifact_id={email_aid}. "

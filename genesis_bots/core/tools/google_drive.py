@@ -239,7 +239,7 @@ def google_drive(
         redirect_url = f"https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth2"
 
         flow = Flow.from_client_secrets_file(
-            f"credentials.json",
+            f"google_oauth_credentials.json",
             scopes=SCOPES,
             redirect_uri = redirect_url  # Your redirect URI
         )

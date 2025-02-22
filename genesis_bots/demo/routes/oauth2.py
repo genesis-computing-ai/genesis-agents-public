@@ -1,8 +1,10 @@
 
-from flask import Blueprint, request, session, redirect
+from flask import Blueprint, request, session, redirect, url_for
 import os
 from google_auth_oauthlib.flow import Flow
 import google.oauth2.credentials
+
+session_state = None
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -23,7 +25,7 @@ def google_drive_login():
     user = os.getenv("USER")
 
     # Make sure this matches EXACTLY what's in Google Cloud Console
-    redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth2"  # Changed from 127.0.0.1
+    redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
 
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json".format(user),
@@ -38,7 +40,7 @@ def google_drive_login():
     )
 
     # Store the state so we can verify it in the callback
-    session['state'] = state
+    session_state = state
 
     return redirect(authorization_url)
 
@@ -46,10 +48,9 @@ def google_drive_login():
 def oauth2callback():
   # Specify the state when creating the flow in the callback so that it can
     # verified in the authorization server response.
-    state = session['state']
 
     flow = Flow.from_client_secrets_file(
-        "google_oauth_credentials.json", scopes=SCOPES, state=state)
+        "google_oauth_credentials.json", scopes=SCOPES, state=session_state)
     flow.redirect_uri = url_for('main_routes.oauth2callback', _external=True)
 
     # Use the authorization server's response to fetch the OAuth 2.0 tokens.

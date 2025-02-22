@@ -1,6 +1,7 @@
 from glob import glob
 import os
 from functools import lru_cache
+import fnmatch
 
 
 # File patterns that should remain as Python source (.py) and not cythonized
@@ -50,7 +51,7 @@ def is_public_api_file(root_dir, file_path):
         
     # Finally check glob pattern matches
     for pattern in PUBLIC_API_FILES:
-        if '**' in pattern and glob.fnmatch.fnmatch(file_path, pattern):
+        if '**' in pattern and fnmatch.fnmatch(file_path, pattern):
             return True
             
     return False

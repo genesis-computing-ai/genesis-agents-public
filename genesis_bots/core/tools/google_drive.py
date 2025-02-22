@@ -38,7 +38,7 @@ google_drive_tools = ToolFuncGroup(
     action=dedent(
         """
         The action to be performed on Google Drive.  Possible actions are:
-            LOGIN - Used to login in to Google Workspace with OAuth2.0.  Not implemented
+            LOGIN - Used to login in to Google Workspace with OAuth2.0.
             LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
             SET_ROOT_FOLDER - Sets the root folder for the user on their drive
             GET_FILE_VERSION_NUM - Gets the version number given a g_file id
@@ -235,12 +235,13 @@ def google_drive(
             "https://www.googleapis.com/auth/drive"
         ]
 
-        redirect_url = f"{os.environ['NGROK_BASE_URL']}:8080/oauth"
+        # redirect_url = f"{os.environ['NGROK_BASE_URL']}:8080/oauth/oauth"
+        redirect_url = f"https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth2"
 
         flow = Flow.from_client_secrets_file(
             f"credentials.json",
             scopes=SCOPES,
-            redirect_uri = redirect_url #"http://127.0.0.1:8080/oauth",  # Your redirect URI
+            redirect_uri = redirect_url  # Your redirect URI
         )
         auth_url, _ = flow.authorization_url(prompt="consent")
         return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}

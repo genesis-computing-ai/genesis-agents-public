@@ -23,7 +23,7 @@ def google_drive_login():
     user = os.getenv("USER")
 
     # Make sure this matches EXACTLY what's in Google Cloud Console
-    redirect_uri = "http://localhost:8080/oauth2"  # Changed from 127.0.0.1
+    redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth2"  # Changed from 127.0.0.1
 
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json".format(user),
@@ -56,9 +56,6 @@ def oauth2callback():
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
 
-    # Store credentials in the session.
-    # ACTION ITEM: In a production app, you likely want to save these
-    #              credentials in a persistent database instead.
     credentials = flow.credentials
 
     credentials_dict = {
@@ -69,9 +66,26 @@ def oauth2callback():
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
-    session['credentials'] = credentials_dict
+    # session['credentials'] = credentials_dict
 
     # Check which scopes user granted
-    granted_scopes = credentials.scopes
-    session['features'] = granted_scopes
+    # granted_scopes = credentials.scopes
+    # session['features'] = granted_scopes
+
+    # Write credentials to keyfile
+    temp_hard_code = "jeff.davidson@genesiscomputing.ai"
+    query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{temp_hard_code}';"
+    cursor = self.client.cursor()
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    if not rows:
+        return False
+
+    creds_dict = {row[0]: row[1] for row in rows}
+
+    creds_json = json.dumps(creds_dict, indent=4)
+    with open(f'g-workspace-credentials.json', 'w') as json_file:
+        json_file.write(creds_json)
+    return True
     return "Authorization successful! You may close this page now"

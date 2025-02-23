@@ -16,6 +16,7 @@ oauth_routes = Blueprint('oauth_routes', __name__)
 
 @oauth_routes.get("/endpoint_check")
 def endpoint_check():
+    print("Endpoint check successful!")
     return "Endpoint check successful!"
 
 @oauth_routes.get("/google_drive_login")

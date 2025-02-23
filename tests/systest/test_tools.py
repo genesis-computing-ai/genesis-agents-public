@@ -33,6 +33,7 @@ from genesis_bots.bot_genesis.make_baby_bot import make_baby_bot, add_new_tools_
 from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
 from genesis_bots.core.tools.git_action import git_action
 from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
+from genesis_bots.core.tools.send_email import send_email
 from genesis_bots.genesis_sample_golden.demos.cli_chat import get_available_bots
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
@@ -211,6 +212,14 @@ class TestTools(unittest.TestCase):
         packages = ''
         response = self.db_adapter.run_python_code(purpose=purpose, packages=packages, bot_id=bot_id, code=code, thread_id=thread_id)
         self.assertTrue(response == 30)
+
+    @unittest.skipIf(not SNOWFLAKE, "Skipping test_send_email on Sqlite")
+    def test_send_email(self):
+        bot_id = self.eve_id
+        thread_id = str(uuid4())
+        response = send_email("Send email", to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest', 
+                   body='Test', bot_id=bot_id, thread_id=thread_id)
+        self.assertTrue(response['Success'])
 
     def test_git_action(self):
         bot_id = self.eve_id

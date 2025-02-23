@@ -64,7 +64,7 @@ echo "$json_data" | jq '.[-1].patch'
 version=$(echo "$json_data" | jq '.[-1].version')
 max_patch_number=$(echo "$json_data" | jq '.[-1].patch')
 version=${version//\"/}
-if [ "$max_patch_number" -eq 130 ]; then
+if [ "$max_patch_number" -ge 129 ]; then
     number_part=$(echo "$version" | sed -E 's/^V[0-9]+_([0-9]+)/\1/')
     old_version="V0_$((number_part - 1))"
     new_version="V0_$((number_part + 1))"

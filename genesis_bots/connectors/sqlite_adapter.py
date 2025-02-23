@@ -335,7 +335,7 @@ class SQLiteAdapter:
                 return
 
             import json
-            input_file = Path("genesis_bots/genesis_sample_golden/demo_data/demo_harvest_results.json")
+            input_file = Path("genesis_sample/demo_data/demo_harvest_results.json")
 
             # Check if file exists
             if not input_file.exists():

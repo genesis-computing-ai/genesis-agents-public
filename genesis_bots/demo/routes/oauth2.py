@@ -25,8 +25,9 @@ def google_drive_login():
     user = os.getenv("USER")
 
     # Make sure this matches EXACTLY what's in Google Cloud Console
-    # redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
-    redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
+    redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
+    redirect_uri_2 = url_for('oauth_routes.oauth2callback', _external=True)
+    print(f"Redirect URI: {redirect_uri_2}")
 
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json".format(user),

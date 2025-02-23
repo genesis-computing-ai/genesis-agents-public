@@ -279,7 +279,7 @@ class BotOsSession:
         validation_instructions: str = None,
         tools: list[dict] = None,
         available_functions: dict = None,
-        assistant_implementation: type = None,
+        assistant_implementation = None,
         reminder_implementation: type = RemindersTest,
         file_corpus: FileCorpus = None,
         knowledgebase_implementation: object = None,

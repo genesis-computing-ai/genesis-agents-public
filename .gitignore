@@ -74,3 +74,4 @@ apps/*
 genesis_sample/
 build/
 dist/
+genesis_bots.egg-info/

@@ -8,6 +8,7 @@ import os
 
 eve_bot_id = 'Eve'
 genesis_api_client = None
+connection_id = "Snowflake"
 
 if os.environ.get('GENESIS_API_USE_O1','FALSE').upper() == 'TRUE':
     message_prefix = '!o1!'  # Force use of o1 model
@@ -619,7 +620,7 @@ def run_snowflake_query(client, query, bot_id=None):
         tool_name="query_database", 
         params={
             "query": query,
-            "connection_id": "Snowflake",
+            "connection_id": connection_id,
             "bot_id": bot_id
         }, 
         bot_id=bot_id
@@ -649,7 +650,7 @@ def export_table_to_gsheets(client, table_name, sheet_name, bot_id=None):
         tool_name="query_database", 
         params={
             "query": query,
-            "connection_id": "Snowflake",
+            "connection_id": connection_id,
             "bot_id": bot_id,
             "export_to_google_sheet": True,
             "export_title": sheet_name,
@@ -850,6 +851,7 @@ def main():
         requirements = run_snowflake_query(client, requirements_query, eve_bot_id)
 
         print("Found", len(requirements), "requirements with NEW status:")
+        #requirements = None
 
         if not requirements:
             requirements = [{

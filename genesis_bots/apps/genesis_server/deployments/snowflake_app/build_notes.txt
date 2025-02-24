@@ -2,7 +2,18 @@
 
 // local
 docker build --rm -t genesis_app:latest .
-docker run --env-file ./snowflake_app/docker.env -p 8501:8501 -p 8000:8000 genesis_app:latest
+docker rm -f genesis && docker run --name genesis --env-file ./snowflake_app/docker.env -p 8501:8501 -p 8080:8080 genesis_app:latest
+
+// push to docker hub
+export DOCKER_REPO_NAME=mattglickman # set this to your docker repo name
+docker buildx build --platform linux/amd64,linux/arm64 -t genesis_app:latest .
+docker tag genesis_app:latest ${DOCKER_REPO_NAME}/genesis_app:latest
+docker push ${DOCKER_REPO_NAME}/genesis_app:latest
+
+// run from docker hub
+export DOCKER_REPO_NAME=mattglickman # set this to your docker repo name
+mkdir -p $HOME/test_docker
+docker rm -f genesis && docker run -p 8501:8501 -p 8080:8080 --name genesis -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db ${DOCKER_REPO_NAME}/genesis_app:latest
 
 // remote 
 docker build --rm -t genesis_app:latest --platform linux/amd64 .

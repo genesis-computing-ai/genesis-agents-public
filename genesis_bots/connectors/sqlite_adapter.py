@@ -261,11 +261,18 @@ class SQLiteAdapter:
                     logger.info("Added description column to CUST_DB_CONNECTIONS table")
 
                 # Define the connections to check/create
+                # NOTE: Do not change the connection_string to point to the golden demo data. 
+                #       Run "./genesis setup" prior to running in local mode.
+                # Determine which path to use for each database
+                baseball_path = "./genesis_sample/demo_data/baseball.sqlite" if os.path.exists("./genesis_sample/demo_data/baseball.sqlite") else "./genesis_bots/genesis_sample_golden/demo_data/baseball.sqlite"
+                formula1_path = "./genesis_sample/demo_data/formula_1.sqlite" if os.path.exists("./genesis_sample/demo_data/formula_1.sqlite") else "./genesis_bots/genesis_sample_golden/demo_data/formula_1.sqlite"
+
+                # Define the connections to check/create
                 connections = [
                     {
                         'connection_id': 'baseball_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./genesis_bots/genesis_sample_golden/demo_data/baseball.sqlite',
+                        'connection_string': f'sqlite:///{baseball_path}',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Baseball data up to 2015'
@@ -273,7 +280,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'formula_1_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./genesis_bots/genesis_sample_golden/demo_data/formula_1.sqlite',
+                        'connection_string': f'sqlite:///{formula1_path}',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Formula 1 data up to 2024'

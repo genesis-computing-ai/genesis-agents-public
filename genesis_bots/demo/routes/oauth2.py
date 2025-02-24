@@ -29,7 +29,7 @@ def google_drive_login():
     # Make sure this matches EXACTLY what's in Google Cloud Console
     redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
     redirect_uri_2 = url_for('oauth_routes.oauth2callback', _external=True)
-    print(f"Redirect URI: {redirect_uri_2}")
+    logger.info(f"Redirect URI for Google Drive Login: {redirect_uri_2}")
 
     flow = Flow.from_client_secrets_file(
         "google_oauth_credentials.json".format(user),
@@ -66,9 +66,11 @@ def oauth2callback():
 
     flow.redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
 
+    logger.info('Flow redirect URI: ', flow.redirect_uri)
     try:
         # Use the authorization server's response to fetch the OAuth 2.0 tokens.
-        authorization_response = request.url
+        authorization_response = request.url.replace("http://", "https://")
+        logger.info('request.url: ', authorization_response)
         flow.fetch_token(authorization_response=authorization_response)
 
         credentials = flow.credentials
@@ -82,7 +84,7 @@ def oauth2callback():
             'scopes': credentials.scopes
         }}
 
-        print(f"Credentials from OAUTH: {credentials_dict}")
+        logger.info(f"Credentials from OAUTH: {credentials_dict}")
 
         # session['credentials'] = credentials_dict
 

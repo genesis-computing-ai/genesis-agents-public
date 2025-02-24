@@ -14,6 +14,7 @@ import math
 import openai
 import traceback
 from genesis_bots.core.bot_os_corpus import FileCorpus
+from genesis_bots.core.bot_os_assistant_base import get_tgt_pcnt
 from genesis_bots.core.bot_os_input import BotOsInputAdapter, BotOsInputMessage, BotOsOutputMessage
 from genesis_bots.llm.llm_openai.bot_os_openai import BotOsAssistantOpenAI, BotOsAssistantOpenAIChat
 from genesis_bots.llm.llm_cortex.bot_os_cortex import BotOsAssistantSnowflakeCortex
@@ -29,7 +30,6 @@ import pickle
 import json
 
 from genesis_bots.core.logging_config import logger
-
 
 class BotOsThread:
     def __init__(self, assistant_implementaion, input_adapter, thread_id=None) -> None:
@@ -122,19 +122,6 @@ class BotOsThread:
             task_meta=task_meta,
         )
 
-    def get_tgt_pcnt(self):
-        '''get target percentage to trim messages'''
-
-        tgt_pcnt_env_name = 'CTX_TRIM_TARGET_PCNT'
-        tgt_pcnt_env_val = os.getenv(tgt_pcnt_env_name, 50)
-
-        try:
-            tgt_pcnt = int(tgt_pcnt_env_val)
-            return tgt_pcnt
-        except ValueError:
-            logger.error(f'invalid value: env var {tgt_pcnt_env_name}=\'{tgt_pcnt_env_val}\' must be number between 1 and 100')
-            return None
-
     def recover(self, e):
         '''
         Attempt to recover from exception caught during OpenAI call.
@@ -202,7 +189,7 @@ class BotOsThread:
             return False
         self.run_trim = True
 
-        tgt_pcnt = self.get_tgt_pcnt()
+        tgt_pcnt = get_tgt_pcnt()
         if tgt_pcnt == None:
             return False
 

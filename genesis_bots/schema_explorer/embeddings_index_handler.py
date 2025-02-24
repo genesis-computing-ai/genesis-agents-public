@@ -187,6 +187,7 @@ def make_and_save_index(table_id, bot_id=None):
         annoy_index = create_annoy_index(embeddings)
     except Exception as e:
         logger.info('Error on create_index: ',e)
+        return None, None
 
     logger.info("saving index to file...")
 

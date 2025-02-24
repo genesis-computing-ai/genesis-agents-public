@@ -1,3 +1,6 @@
+[![GitHub CI](https://github.com/genesis-gh-jlangseth/genesis/actions/workflows/unittests.yml/badge.svg)](https://github.com/genesis-gh-jlangseth/genesis/actions/workflows/unittests.yml/badge.svg)
+
+
 # Genesis App
 
 ### Local Deployement

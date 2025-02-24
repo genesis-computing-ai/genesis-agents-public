@@ -19,7 +19,7 @@ git_manager = GitFileManager()
 
 git_action_grp = ToolFuncGroup(
     name="git_action",
-    description="",
+    description="Git repository file management operations",
     lifetime="PERSISTENT",
 )
 
@@ -31,7 +31,8 @@ git_action_grp = ToolFuncGroup(
         required=True,
         llm_type_desc=dict(
             type="string",
-            enum=["list_files", "read_file", "write_file", "commit", "diff", "branch"],
+            enum=["list_files", "read_file", "write_file", "generate_diff", "apply_diff",
+             "commit", "get_history", "create_branch", "switch_branch", "get_branch", "get_status"],
         ),
     ),
     file_path=ToolFuncParamDescriptor(

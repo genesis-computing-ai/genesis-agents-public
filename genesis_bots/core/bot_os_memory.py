@@ -11,7 +11,7 @@ import traceback
 import re
 import sys
 #import spacy
-from genesis_bots.connectors.bigquery_connector import BigQueryConnector
+#from genesis_bots.connectors.bigquery_connector import BigQueryConnector
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from genesis_bots.connectors.sqlite_connector import SqliteConnector
 from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
@@ -119,12 +119,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
 
         if self.source_name  == 'BigQuery':
-            credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS',default=".secrets/gcp.json")
-            with open(credentials_path) as f:
-                connection_info = json.load(f)
-            # Initialize BigQuery client
-            self.meta_database_connector = BigQueryConnector(connection_info,'BigQuery')
-            self.project_id = connection_info["project_id"]
+            raise NotImplementedError("BigQueryConnector is not implemented")
         elif self.source_name  == 'Sqlite':
             self.meta_database_connector = SqliteConnector(connection_name='Sqlite')
             self.project_id = self.meta_database_connector.database
@@ -317,7 +312,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
 
 
 
-    def find_memory(self, query, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, connection_id=None, full_ddl='false') -> list | dict:
+    def find_memory(self, query=None, scope="database_metadata", top_n=15, verbosity="low", database=None, schema=None, table=None, connection_id=None, full_ddl='false') -> list | dict:
         """
         Find relevant metadata using a combination of structural filtering and vector similarity search.
 

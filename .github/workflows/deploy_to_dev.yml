@@ -67,7 +67,7 @@ jobs:
           PRIVATE_KEY_PASSPHRASE: ${{ secrets.PRIVATE_KEY_PASSPHRASE }} # Only if you used a passphrase
         run: |
           # Run the bash script
-          bash ./apps/genesis_server/deployments/snowflake_app/upgrade_dev_auto.sh ${{ github.workspace }}
+          bash ./genesis_bots/apps/genesis_server/deployments/snowflake_app/upgrade_dev_auto.sh ${{ github.workspace }}
       - name: Run Reg Tests Action
         if: false
         env:

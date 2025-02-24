@@ -7,6 +7,7 @@ from   sqlalchemy               import create_engine, text
 from   urllib.parse             import quote_plus
 import boto3
 import time
+from datetime import datetime
 
 from genesis_bots.google_sheets.g_sheets     import (
     create_google_sheet_from_export,
@@ -92,6 +93,7 @@ class DatabaseConnector:
             thread_id: Optional thread identifier for logging/tracking
         """
         try:
+            processed_conn_string = None
             allowed_bots_str = ','.join(allowed_bot_ids) if isinstance(allowed_bot_ids, list) and allowed_bot_ids else ''
 
             # Check if allowed_bots_str is empty
@@ -216,6 +218,7 @@ class DatabaseConnector:
                     'success': True,
                     'message': f"Connection {connection_id} {'updated' if existing else 'added'} successfully",
                     'connection_string': connection_string,
+                    **(None if processed_conn_string is None else {'processed_connection_string': processed_conn_string}),
                     'allowed_bot_ids': allowed_bots_str,
                     'description': description,
                     'note': "Remember: All bots that need access should be in a comma-separated string in allowed_bot_ids if more than one, including yourself if applicable (e.g. 'bot1,bot2'), or wildcard '*' to allow all bots",
@@ -229,8 +232,12 @@ class DatabaseConnector:
             logger.error(f"Error adding connection: {str(e)}")
             resp =  {
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                **(None if connection_string is None else {'original_connection_string': connection_string}),
+                **(None if processed_conn_string is None else {'processed_connection_string': processed_conn_string})
             }
+            if 'redshift' in str(connection_string).lower():
+                resp['note'] = "For Redshift with IAM authentication, use format: postgresql+psycopg2://iam@<endpoint>:5439/<database>"
             if '/mnt/data' in connection_string:
                 resp['hint'] = "Don't use /mnt/data, just provide the full or relative file path as provided by the user"
             return resp
@@ -637,8 +644,8 @@ class DatabaseConnector:
             success = self.add_connection(
                 connection_id="test_snowflake",
                 connection_string=test_conn_string,
-                bot_id="test_bot",
-                allowed_bot_ids=["test_bot"],
+                bot_id="Eve",
+                allowed_bot_ids=["Eve"],
                 description="Demo Snowflake connection"
             )
 
@@ -688,6 +695,11 @@ class DatabaseConnector:
             thread_id: Optional thread identifier for logging/tracking
         """
         try:
+            if connection_id == 'Snowflake':
+                return {
+                    'success': False,
+                    'error': "The native Snowflake connection cannot be removed"
+                }
             cursor = self.db_adapter.client.cursor()
             try:
                 # Check ownership
@@ -701,7 +713,10 @@ class DatabaseConnector:
                 result = cursor.fetchone()
 
                 if not result:
-                    return False
+                    return {
+                        "success": False,
+                        "error": f"Connection '{connection_id}' not found"
+                    }
 
                 if result[0] != bot_id:
                     raise ValueError("Only the owner bot can delete this connection")
@@ -860,8 +875,8 @@ class DatabaseConnector:
                         'connection_id': row[0],
                         'db_type': row[1],
                         'owner_bot_id': row[2],
-                        'created_at': row[4],
-                        'updated_at': row[5],
+                        'created_at': str(row[4]),
+                        'updated_at': str(row[5]),
                         'description': row[6]
                     }
                     if row[2] == bot_id or bot_id_override:
@@ -876,7 +891,12 @@ class DatabaseConnector:
                         connections.append({
                             'connection_id': 'Snowflake',
                             'db_type': 'Snowflake',
-                            'description': 'Snowflake database connection'
+                            'owner_bot_id': 'System',
+                            'created_at': str(datetime(2025, 1, 1)),
+                            'updated_at': str(datetime(2025, 1, 1)),
+                            'description': 'Snowflake database connection',
+                            'allowed_bot_ids': ['*'],
+                            'connection_string': 'Native'
                         })
 
                 return {
@@ -909,7 +929,7 @@ class DatabaseConnector:
         knowledge_base_path: str = "./kb_vector",
         bot_id: str = None,
         thread_id: str = None,
-    ) -> dict:
+    ) -> list | dict:
         """
         Search database metadata for tables, columns, and other objects
 
@@ -985,7 +1005,7 @@ class DatabaseConnector:
 
     def search_metadata_detailed(
         self,
-        query: str,
+        query: str = None,
         connection_id: str = None,
         scope="database_metadata",
         database=None,
@@ -1048,7 +1068,7 @@ class DatabaseConnector:
             return result
         except Exception as e:
             logger.error(f"Error in find_memory_openai_callable: {str(e)}")
-            return "An error occurred while trying to find the memory."
+            return {"error": "An error occurred while trying to find the memory."}
 
     def get_connection_string(self, conn_string=None):
         """Process any database connection string"""
@@ -1056,6 +1076,8 @@ class DatabaseConnector:
         if '://' not in conn_string:
             raise ValueError("Connection string must include protocol (e.g., postgresql://, mysql://, etc.)")
         
+        if conn_string.startswith('redshift'):
+            conn_string = 'postgresql+psycopg2' + conn_string[conn_string.index('://'):]
         # Return unmodified connection string if not PostgreSQL
         if not conn_string.startswith('postgresql'):
             return conn_string
@@ -1079,8 +1101,12 @@ class DatabaseConnector:
             'redshift-serverless.amazonaws.com',
             'redshift.amazonaws.com'
         ])
+
         
         # Handle Redshift IAM authentication
+        # Replace <user> with 'iam' for Redshift IAM auth
+        if is_redshift and auth.startswith('iam:'):
+            auth = 'iam'
         if is_redshift and auth.lower() == 'iam':
             # Get workgroup/cluster name from host
             identifier = host_port.split('.')[0]
@@ -1124,10 +1150,10 @@ class DatabaseConnector:
             if is_local:
                 conn_params.append("sslmode=disable")  # Disable SSL for local connections
             else:
-                conn_params.extend([
-                    "sslmode=verify-full",
-                    "sslrootcert=system"
-                ])
+                if "sslmode" not in conn_string and "sslmode" not in ' '.join(conn_params):
+                    conn_params.append("sslmode=verify-full")
+                if "sslrootcert" not in conn_string and "sslrootcert" not in ' '.join(conn_params):
+                    conn_params.append("sslrootcert=system")
         
         # Add any existing parameters from the original connection string
         if '?' in conn_string:
@@ -1219,6 +1245,50 @@ class DatabaseConnector:
                 response['hint'] = "Verify the database name exists and you have access"
             
             return response
+
+    # I think this is unused, but leaving it here for now
+    def get_db_connections(self) -> dict:
+        """Get all database connections metadata"""
+        try:
+            cursor = self.db_adapter.client.cursor()
+            try:
+                cursor.execute(
+                    f"""
+                    SELECT 
+                        connection_id,
+                        db_type,
+                        owner_bot_id,
+                        allowed_bot_ids,
+                        created_at,
+                        updated_at,
+                        description
+                    FROM {self.db_adapter.schema}.CUST_DB_CONNECTIONS
+                    ORDER BY created_at DESC
+                    """
+                )
+                
+                columns = ['connection_id', 'db_type', 'owner_bot_id', 'allowed_bot_ids', 
+                          'created_at', 'updated_at', 'description']
+                connections = []
+                
+                for row in cursor.fetchall():
+                    connection = dict(zip(columns, row))
+                    connections.append(connection)
+
+                return {
+                    "Success": True,
+                    "Data": connections
+                }
+
+            finally:
+                cursor.close()
+
+        except Exception as e:
+            logger.error(f"Error getting database connections: {str(e)}")
+            return {
+                "Success": False,
+                "Error": str(e)
+            }
 
 
 data_connector_tools = ToolFuncGroup(
@@ -1391,7 +1461,7 @@ def _search_metadata(
     schema="Schema name (not valid for Sqlite)",
     table="Table name",
     top_n="Number of rows to return",
-    knowledge_base_path="Path to the knowledge vector base",
+    #knowledge_base_path="Path to the knowledge vector base",
     connection_id="ID of the database connection to query",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
@@ -1408,7 +1478,7 @@ def _data_explorer(
     bot_id: str = None,
     thread_id: str = None,
 ):
-    """Explore data"""
+    """Fetch information about various database objects"""
     return DatabaseConnector().search_metadata(
         search_string=search_string,
         database=database,
@@ -1427,12 +1497,12 @@ def _data_explorer(
 
 @gc_tool(
  #   query="SQL query to execute",
-    connection_id="ID of the database connection to query",
+    connection_id="ID of the database connection",
     database="Database name",
     schema="Schema name",
     table="Table name",
-    top_n="Number of rows to return",
-    knowledge_base_path="Path to the knowledge vector base",
+   # top_n="Number of rows to return",
+  #  knowledge_base_path="Path to the knowledge vector base",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools],
@@ -1443,12 +1513,12 @@ def _get_full_table_details(
     database: str = None,
     schema: str = None,
     table: str = None,
-    top_n: int = 8,
+    top_n: int = 10,
     knowledge_base_path: str = "./kb_vector",
     bot_id: str = None,
     thread_id: str = None,
 ):
-    """Get full table details"""
+    """Get full table details about a specific table"""
     return DatabaseConnector().search_metadata_detailed(
         query=query,
         connection_id=connection_id,

@@ -140,7 +140,7 @@ from   genesis_bots.core        import bot_os_tools2 as core_tools
 _ALL_BOTS_ = core_tools._ALL_BOTS_TOKEN_
 
 def bot_client_tool(**param_descriptions):
-    return core_tools.gc_tool(_group_tags_=core_tools.REMOTE_TOOL_FUNCS_GROUP,
+    return core_tools.gc_tool(_group_tags_=[core_tools.REMOTE_TOOL_FUNCS_GROUP],
                              **param_descriptions)
 
 

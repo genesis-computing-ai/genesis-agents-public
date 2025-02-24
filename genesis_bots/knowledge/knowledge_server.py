@@ -53,7 +53,7 @@ class KnowledgeServer:
         if llm_type == 'openai':
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
             self.client = get_openai_client()
-            self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", os.getenv('OPENAI_MODEL_NAME',"gpt-4o"))
+            self.model = os.getenv("OPENAI_KNOWLEDGE_MODEL", os.getenv('OPENAI_MODEL_NAME',"gpt-4o-2024-11-20"))
             self.assistant = self.client.beta.assistants.create(
                 name="Knowledge Explorer",
                 description="You are a Knowledge Explorer to extract, synthesize, and inject knowledge that bots learn from doing their jobs",

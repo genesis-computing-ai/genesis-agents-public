@@ -26,7 +26,7 @@ db_adapter = get_global_db_connector()
 
 delegate_work = ToolFuncGroup(
     name="delegate_work",
-    description="",
+    description="Functions to delegate work to other bots.",
     lifetime="PERSISTENT",
 )
 
@@ -35,11 +35,11 @@ delegate_work = ToolFuncGroup(
     target_bot="The bot ID or name to delegate the work to",
     max_retries="The maximum number of retries to wait for a valid JSON response",
     timeout_seconds="The maximum number of seconds to wait for a valid JSON response",
-    status_update_callback="The callback function to update the status of the delegation",
-    session_id="The session ID for the delegation",
-    input_metadata="The input metadata for the delegation",
-    run_id="The run ID for the delegation",
-    callback_id="The callback ID for the delegation",
+ #   status_update_callback="The callback function to update the status of the delegation",
+ #   session_id="The session ID for the delegation",
+  #  input_metadata="The input metadata for the delegation",
+  #  run_id="The run ID for the delegation",
+# callback_id="The callback ID for the delegation",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[delegate_work],
@@ -67,8 +67,7 @@ def _delegate_work(
     thread_id: str = None,
 ) -> Dict[str, Any]:
     """
-    Internal method that implements the delegation logic.
-    Creates a new thread with target bot and waits for JSON response.
+    Delegates a task to another bot.
     """
     og_thread_id = thread_id
 
@@ -82,6 +81,8 @@ def _delegate_work(
             "text": msg
         }
         if run_id is not None:
+            if run_id not in StreamingEventHandler.run_id_to_messages:
+                StreamingEventHandler.run_id_to_messages[run_id] = []
             StreamingEventHandler.run_id_to_messages[run_id].append(message_obj)
 
             # Initialize the array for this run_id if it doesn't exist
@@ -145,8 +146,8 @@ def _delegate_work(
                 db_schema = genbot_internal_project_and_schema.split('.')
                 project_id = db_schema[0]
                 dataset_name = db_schema[1]
-                bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')  
-                bots = bb_db_connector.db_list_all_bots(project_id=project_id, 
+                bot_servicing_table = os.getenv('BOT_SERVICING_TABLE', 'BOT_SERVICING')
+                bots = bb_db_connector.db_list_all_bots(project_id=project_id,
                                                        dataset_name=dataset_name,
                                                        bot_servicing_table=bot_servicing_table,
                                                        runner_id=None,

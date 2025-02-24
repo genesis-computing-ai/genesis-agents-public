@@ -1,6 +1,6 @@
 import os
 from genesis_bots.core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata, BotOsKnowledgeBase
-from genesis_bots.connectors.bigquery_connector import BigQueryConnector
+#from genesis_bots.connectors.bigquery_connector import BigQueryConnector
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 from genesis_bots.connectors.sqlite_connector import SqliteConnector
 from genesis_bots.connectors.data_connector import DatabaseConnector

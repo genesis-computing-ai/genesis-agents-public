@@ -38,11 +38,6 @@ _tools_data = [
         "data_dev_tools",
         "Tools for data development workflows including Jira integration",
     ),
- #  (
- #       "git_file_manager_tools",
- #       "Tools for managing files in a local Git repository including reading, writing, generating and applying diffs, and managing commits",
- #   ),
-  #  ("bot_dispatch_tools", "Tools delegating work to bots"),
 ]
 
 process_runner_functions = [
@@ -90,29 +85,6 @@ process_runner_functions = [
 
 process_runner_tools = {
     "_run_process": "tool_belt.run_process",
-    # "_send_email": "tool_belt.send_email",
 }
 
 
-def get_persistent_tools_descriptions() -> list[tuple[str, str]]:
-    """
-    Retrieves a list of all tool descriptions for tools that have a 'persistent' lifetime.
-
-    Returns:
-        list: A list of tuples where each tuple contains the name and description of a tool group.
-    """
-    # Impl note: This function copies the global _tools_data list - AKA 'old-style' tool registry  - and appends descriptions of tool groups
-    # from the global tools registry - AKA 'new-style' tool registry - where all tools in the group have a 'PERSISTENT' lifetime.
-    from genesis_bots.core.bot_os_tools2 import (
-        get_global_tools_registry,
-        ToolFuncGroupLifetime,
-    )
-
-    global _tools_data
-    tools_data = _tools_data.copy()
-
-    registry = get_global_tools_registry()
-    for group in registry.list_groups():
-        if group.lifetime == ToolFuncGroupLifetime.PERSISTENT:
-            tools_data.append((group.name, group.description))
-    return tools_data

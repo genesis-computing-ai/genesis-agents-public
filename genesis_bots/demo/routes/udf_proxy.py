@@ -1,6 +1,5 @@
-import re
-from   flask                    import (Blueprint, Response, jsonify,
-                                        make_response, request, current_app)
+from   flask                    import (Blueprint, Response, current_app,
+                                        jsonify, make_response, request)
 from   genesis_bots.core        import global_flags
 from   genesis_bots.core.logging_config \
                                 import logger
@@ -37,7 +36,8 @@ from   genesis_bots.core.system_variables \
                                 import SystemVariables
 from   genesis_bots.demo.routes.slack \
                                 import bot_install_followup
-import requests
+
+from genesis_bots.connectors.data_connector import DatabaseConnector
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -171,7 +171,10 @@ def create_baby_bot():
             available_tools=available_tools,
             bot_instructions=bot_instructions
         )
-        return make_response({"Success": True, "Data": result}), 200
+        if result:
+            return make_response({"Success": True, "Data": 'Bot created successfully'}), 200
+        else:
+            return make_response({"Success": False, "Message": "Bot creation failed"}), 500
 
     except Exception as e:
         logger.error(f"Error in create_baby_bot: {str(e)}")
@@ -196,6 +199,14 @@ def get_metadata():
 
         if metadata_type == "harvest_control":
             result = genesis_app.db_adapter.get_harvest_control_data_as_json()
+        elif metadata_type == "db_connections":
+            db_connector = DatabaseConnector()
+            db_result = db_connector.list_database_connections(bot_id = '', bot_id_override=True)
+            # Convert the result to JSON string if it's successful
+            if db_result["success"]:
+                result = {"Success": True, "Data": json.dumps(db_result["connections"])}
+            else:
+                result = {"Success": False, "Error": db_result.get("Error", "Unknown error")}
         elif metadata_type == "check_db_source":
             metadata_response = os.getenv("SNOWFLAKE_METADATA", "False").upper() == "TRUE"
             result = {"Success": True, "Data": json.dumps(metadata_response)}
@@ -219,7 +230,14 @@ def get_metadata():
             result = genesis_app.db_adapter.send_test_email(email)
         elif metadata_type.startswith('get_email'):
             result = genesis_app.db_adapter.get_email()
-        elif metadata_type.startswith('check_eai_assigned'):
+        elif metadata_type.startswith('check_eai '):  # Check for site-specific EAI first
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 2:
+                site = metadata_parts[1].strip()
+            else:
+                logger.info("get_metadata - missing metadata")
+            result = genesis_app.db_adapter.eai_test(site=site)
+        elif metadata_type == 'check_eai_assigned':  # Then check for exact match
             result = genesis_app.db_adapter.check_eai_assigned()
         elif metadata_type.startswith('get_endpoints'):
             result = genesis_app.db_adapter.get_endpoints()
@@ -245,13 +263,6 @@ def get_metadata():
         elif metadata_type.startswith('logging_status'):
             status = genesis_app.db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}
-        elif metadata_type.startswith('check_eai '):
-            metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 2:
-                site = metadata_parts[1].strip()
-            else:
-                logger.info("missing metadata")
-            result = genesis_app.db_adapter.eai_test(site=site)
         elif 'sandbox' in metadata_type:
             _, bot_id, thread_id_in, file_name = metadata_type.split('|')
             logger.info('****get_metadata, file_name', file_name)
@@ -292,12 +303,12 @@ def get_metadata():
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 
     except Exception as e:
-        logger.info(f"***** error in metadata: {str(e)}")
+        logger.info(f"get_metadata - Error in metadata: {str(e)}")
         output_rows = [[input_rows[0][0], {"Success": False, "Message": str(e)}]]
 
     response = make_response({"data": output_rows})
     response.headers["Content-type"] = "application/json"
-    logger.debug(f"Sending response: {response.json}")
+    # logger.info(f"get_metadata - Sending response: {response.json}")
     return response
 
 
@@ -308,10 +319,10 @@ def set_metadata():
         input_rows = message["data"]
         metadata_type = input_rows[0][1]
 
-        print('=====')
-        print('message: ', message)
-        print('input_rows: ', input_rows)
-        print('metadata_type: ', metadata_type)
+        # print('=====')
+        # print('message: ', message)
+        # print('input_rows: ', input_rows)
+        # print('metadata_type: ', metadata_type)
 
         if metadata_type.startswith('set_endpoint '):
             metadata_parts = metadata_type.split()
@@ -320,6 +331,25 @@ def set_metadata():
                 endpoint = metadata_parts[2].strip()
                 type = metadata_parts[3].strip()
             result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
+        elif metadata_type.startswith('ngrok '):
+            ngrok_auth_key = metadata_type.split('ngrok ')[1].strip()
+            os.environ["NGROK_AUTH_TOKEN"] = ngrok_auth_key
+
+            # Store the token in Snowflake using db_set_ngrok_auth_token
+            db_response = genesis_app.db_adapter.db_set_ngrok_auth_token(
+                ngrok_auth_token=ngrok_auth_key,
+                ngrok_use_domain='N',
+                ngrok_domain='',
+                project_id=genesis_app.db_adapter.genbot_internal_project_and_schema.split('.')[0],
+                dataset_name=genesis_app.db_adapter.genbot_internal_project_and_schema.split('.')[1]
+            )
+            if not db_response:
+                result = {"Success": False, "Data": json.dumps({"Message": "Failed to store NGROK token in database"})}
+            else:
+                # Start ngrok with the new token
+                ngrok_active = genesis_app.run_ngrok()
+                message = "NGROK auth token set successfully and ngrok " + ("activated" if ngrok_active else "failed to activate")
+                result = {"Success": True, "Data": json.dumps({"Message": message})}
         elif metadata_type.startswith('api_config_params '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) > 3:
@@ -455,7 +485,6 @@ def get_ngrok_tokens():
             "ngrok_auth_token": ngrok_auth_token_display,
             "ngrok_use_domain": ngrok_use_domain,
             "ngrok_domain": ngrok_domain,
-            "ngrok_active_flag": ngrok_active,
         }
     except Exception as e:
         response = {
@@ -699,11 +728,20 @@ def configure_llm():
                 os.environ["OPENAI_API_KEY"] = llm_key
                 os.environ["AZURE_OPENAI_API_ENDPOINT"] = llm_endpoint
                 # logger.info(f"key: {llm_key}, endpoint: {llm_endpoint}")
+
                 try:
+                    # Get current model params
+                    model_params = genesis_app.db_adapter.get_model_params()
+                    if model_params["Success"] and llm_endpoint is not None and llm_endpoint != "":
+                        model_data = json.loads(model_params["Data"])
+                        model_name = model_data.get("model_name", "gpt-4o")
+                    else:
+                        model_name = "gpt-4o"
+
                     client = get_openai_client()
                     logger.info(f"client: {client}")
                     completion = client.chat.completions.create(
-                        model="gpt-4o",
+                        model=model_name,
                         messages=[{"role": "user", "content": "What is 1+1?"}],
                     )
                     # Success!  Update model and keys

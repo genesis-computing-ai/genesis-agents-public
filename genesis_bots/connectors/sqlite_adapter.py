@@ -5,6 +5,7 @@ from typing import Any
 from datetime import datetime
 from genesis_bots.core.logging_config import logger
 import os
+from pathlib import Path
 
 from genesis_bots.core.bot_os_defaults import (
     BASE_EVE_BOT_INSTRUCTIONS,
@@ -25,6 +26,8 @@ class SQLiteAdapter:
 
         # Test database connection and write permissions
         try:
+            if os.path.dirname(db_path):
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
             self.connection = sqlite3.connect(db_path, check_same_thread=False)
             # Try to create and drop a test table
             with self.connection:
@@ -33,6 +36,7 @@ class SQLiteAdapter:
             logger.info("Database connection and write permissions verified")
         except sqlite3.Error as e:
             logger.error(f"Failed to initialize database connection: {e}")
+            logger.error(f"location of db_path: {db_path}")
             raise Exception(f"Database initialization failed: {e}")
 
         # Ensure tables exist only once per class
@@ -261,7 +265,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'baseball_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./apps/demos/demo_data/baseball.sqlite',
+                        'connection_string': 'sqlite:///./genesis_bots/genesis_sample_golden/demo_data/baseball.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Baseball data up to 2015'
@@ -269,7 +273,7 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'formula_1_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./apps/demos/demo_data/formula_1.sqlite',
+                        'connection_string': 'sqlite:///./genesis_bots/genesis_sample_golden/demo_data/formula_1.sqlite',
                         'owner_bot_id': 'Eve',
                         'allowed_bot_ids': '*',
                         'description': 'Demo Formula 1 data up to 2024'
@@ -277,18 +281,18 @@ class SQLiteAdapter:
                     {
                         'connection_id': 'workspace_sqlite',
                         'db_type': 'sqlite',
-                        'connection_string': 'sqlite:///./apps/demos/demo_data/workspace.sqlite',
+                        'connection_string': 'sqlite:///./genesis_bots/genesis_sample_golden/demo_data/workspace.sqlite',
                         'owner_bot_id': 'Eve',
-                        'allowed_bot_ids': '*', 
+                        'allowed_bot_ids': '*',
                         'description': 'Workspace/scratchpad database you can use for storing data and creating new tables'
                     },
                 ]
-                
+
                 for conn in connections:
-                    cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?", 
+                    cursor.execute("SELECT COUNT(*) FROM CUST_DB_CONNECTIONS WHERE connection_id = ?",
                                 (conn['connection_id'],))
                     exists = cursor.fetchone()[0] > 0
-                    
+
                     if not exists:
                         insert_sql = """
                             INSERT INTO CUST_DB_CONNECTIONS (
@@ -310,7 +314,7 @@ class SQLiteAdapter:
                         ))
                         self.connection.commit()
                         logger.info(f"Inserted {conn['connection_id']} record")
-                    
+
                     self.import_harvest()
 
             except Exception as e:
@@ -321,31 +325,31 @@ class SQLiteAdapter:
         """Import HARVEST_RESULTS table from JSON file if table is empty"""
         try:
             cursor = self.connection.cursor()
-            
+
             # Check if table has any rows
             cursor.execute("SELECT COUNT(*) FROM HARVEST_RESULTS")
             count = cursor.fetchone()[0]
-            
+
             if count > 0:
                 logger.info("HARVEST_RESULTS table already contains data, skipping import")
                 return
-            
+
             import json
-            input_file = "./apps/demos/demo_data/demo_harvest_results.json"
-            
+            input_file = Path("genesis_sample/demo_data/demo_harvest_results.json")
+
             # Check if file exists
-            if not os.path.exists(input_file):
+            if not input_file.exists():
                 logger.warning(f"Harvest results file not found at {input_file}")
                 return
-            
+
             # Read JSON file
             with open(input_file, 'r') as f:
                 data = json.load(f)
-            
+
             if not data:
                 logger.info("No data found in harvest results file")
                 return
-            
+
             # Insert data
             insert_sql = """
                 INSERT OR REPLACE INTO HARVEST_RESULTS (
@@ -368,7 +372,7 @@ class SQLiteAdapter:
                     embedding_native
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-            
+
             for row in data:
                 cursor.execute(insert_sql, (
                     row.get('source_name'),
@@ -389,10 +393,10 @@ class SQLiteAdapter:
                     str(row.get('embedding')),  # Convert ARRAY to TEXT
                     str(row.get('embedding_native'))  # Convert ARRAY to TEXT
                 ))
-            
+
             self.connection.commit()
             logger.info(f"Successfully imported harvest results from {input_file}")
-            
+
         except Exception as e:
             logger.error(f"Error importing harvest results: {e}")
             raise
@@ -403,24 +407,24 @@ class SQLiteAdapter:
             cursor = self.connection.cursor()
             cursor.execute("SELECT * FROM HARVEST_RESULTS")
             rows = cursor.fetchall()
-            
+
             # Get column names
             column_names = [description[0] for description in cursor.description]
-            
+
             # Convert to list of dicts
             data = []
             for row in rows:
                 data.append(dict(zip(column_names, row)))
 
             # Create demos/demo_data directory if it doesn't exist
-            os.makedirs("./apps/demos/demo_data", exist_ok=True)
-            
+            os.makedirs("./genesis_sample/demo_data", exist_ok=True)
+
             # Save to JSON file
             import json
-            output_file = "./apps/demos/demo_data/demo_harvest_results.json"
+            output_file = "./genesis_sample/demo_data/demo_harvest_results.json"
             with open(output_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
-            
+
             logger.info(f"Successfully exported HARVEST_RESULTS to {output_file}")
 
         except Exception as e:
@@ -447,7 +451,7 @@ class SQLiteAdapter:
             """
             cursor.execute(create_table_sql)
             self.connection.commit()
-            
+
             # Define the default harvest control entries
             default_entries = [
                 {
@@ -460,7 +464,7 @@ class SQLiteAdapter:
                     'initial_crawl_complete': 0
                 },
                 {
-                    'source_name': 'formula_1_sqlite', 
+                    'source_name': 'formula_1_sqlite',
                     'database_name': 'formula_1_sqlite',
                     'schema_inclusions': '[]',
                     'schema_exclusions': '["INFORMATION_SCHEMA"]',
@@ -470,7 +474,7 @@ class SQLiteAdapter:
                 },
                 {
                     'source_name': 'workspace_sqlite',
-                    'database_name': 'workspace_sqlite', 
+                    'database_name': 'workspace_sqlite',
                     'schema_inclusions': '[]',
                     'schema_exclusions': '["INFORMATION_SCHEMA"]',
                     'status': 'Include',
@@ -481,7 +485,7 @@ class SQLiteAdapter:
 
             # Check and add each entry
             for entry in default_entries:
-                cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name = ?", 
+                cursor.execute("SELECT COUNT(*) FROM HARVEST_CONTROL WHERE source_name = ?",
                              (entry['source_name'],))
                 count = cursor.fetchone()[0]
 
@@ -492,7 +496,7 @@ class SQLiteAdapter:
                             database_name,
                             schema_inclusions,
                             schema_exclusions,
-                            status, 
+                            status,
                             refresh_interval,
                             initial_crawl_complete
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -594,10 +598,19 @@ class SQLiteCursorWrapper:
     def execute(self, query: str, params: Any = None) -> Any:
         try:
             # Replace %s with ? for SQLite
-            if type(params) == dict:
+            if isinstance(params, dict):
                 converted_query = re.sub(r'%\(([a-zA-Z0-9_]+)\)s', r':\1', query)
             else:
                 converted_query = re.sub(r'%\([a-zA-Z0-9_]*\)s|%s', '?', query)
+
+            # Ensure params is in the correct format for SQLite
+            if params is not None:
+                if not isinstance(params, (list, tuple, dict)):
+                    # Single parameter - wrap in a tuple
+                    params = (params,)
+                elif isinstance(params, list):
+                    # Convert list to tuple
+                    params = tuple(params)
 
             # Log original parameters
             logger.debug(f"Original params count: {len(params) if params else 0}")
@@ -1148,7 +1161,7 @@ class SQLiteCursorWrapper:
             'LAST_QUERY_ID()': 'Last query ID',
             # Skip any queries involving encoded image data
             'ENCODED_IMAGE_DATA(?!.*SELECT)': 'Image data operation',
-            'APP_SHARE\.IMAGES(?!.*SELECT)': 'App share image query',
+            r'APP_SHARE\.IMAGES(?!.*SELECT)': 'App share image query',
        #     'BOT_AVATAR_IMAGE(?!.*SELECT)': 'Bot avatar update'
         }
 

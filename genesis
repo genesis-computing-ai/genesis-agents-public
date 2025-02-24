@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+# A wrapper script for the genesis_bots CLI.
+# Note that this script is here for convenience during development, and is not copied into the genesis_bots pip-installable package.
+# When a user pip-installs the package, a `genesis` wrapped for genesis_bots.apps.cli is automatically generated in the target venv.
+# see [project.scripts] in pyproject.toml.
+import re
+import sys
+from genesis_bots.apps.cli import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())

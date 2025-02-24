@@ -194,7 +194,7 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 confidence_summary = %(confidence_summary)s,
                 PM_BOT_COMMENTS = %(pm_bot_comments)s,
                 transformation_logic = %(transformation_logic)s,
-                status = 'READY_FOR_REVIEW',
+                status = %(status)s,
                 evaluation_results = %(evaluation_results)s,
                 which_mapping_correct = %(which_mapping_correct)s,
                 correct_answer = %(correct_answer)s,
@@ -500,7 +500,7 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
 
         if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
-            retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git, please try the save again using the _git_action function.'''
+            retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git.  Please complete your analysis, and then save your work again using the _git_action function.'''
             response = call_genesis_bot(client, bot_id, retry_prompt, thread = thread)
             contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
             if not contents or contents.startswith('Placeholder '):
@@ -546,7 +546,7 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
 
     if not contents or contents.startswith('Placeholder ') or len(contents) < 100:
-        retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please try the save again using the _git_action function.'''
+        retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please complete your work, and then try the save using the _git_action function.'''
         response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
         contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
         if not contents or contents.startswith('Placeholder '):
@@ -911,6 +911,7 @@ def main():
                     'correct_answer': eval_json['CORRECT_ANSWER'],
                     'primary_issues': eval_json['PRIMARY_ISSUES'],
                     'secondary_issues': eval_json['SECONDARY_ISSUES'],
+                    'status': 'READY_FOR_REVIEW'
                 }
 
                 # Save results of work to database
@@ -945,7 +946,8 @@ def main():
                     'which_mapping_correct': 'error',
                     'correct_answer': None,
                     'primary_issues': f'Error: {str(e)}',
-                    'secondary_issues': None
+                    'secondary_issues': None,
+                    'status': 'ERROR'
                 }
 
                 save_pm_summary_to_requirements(

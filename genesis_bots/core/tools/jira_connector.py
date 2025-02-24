@@ -133,8 +133,8 @@ class JiraConnector:
                 result = self._get_issues_by_user(user_name=user_name)
                 if result:
                     success = True
-            elif description or summary or status or issue_type or priority:
-                result = self._search_issues(description=description, summary=summary, status=status, issue_type=issue_type, priority=priority)
+            elif description or summary or status or issue_type or priority or project_key:
+                result = self._search_issues(description=description, summary=summary, status=status, issue_type=issue_type, priority=priority, project_key=project_key)
                 if result:
                     success = True
             else:
@@ -431,31 +431,34 @@ class JiraConnector:
         except Exception as e:
             return {"error updating status for issue": str(e)}
 
-    def _search_issues(self, description=None, summary=None, status=None, issue_type=None, priority=None):
+    def _search_issues(self, description=None, summary=None, status=None, issue_type=None, priority=None, project_key=None):
         try:
             jira_connector = self._jira_api_connector()
             jira = jira_connector.connect()
 
             if jira == True:
+                jql_parts = []
+
+                if project_key:
+                    jql_parts.append(f'project = "{project_key}"')
 
                 if description:
-                    jql_query = f'description ~ "{description}"'
+                    jql_parts.append(f'description ~ "{description}"')
 
-                # Fetch issues based on summary
                 if summary:
-                    jql_query = f'summary ~ "{summary}"'
+                    jql_parts.append(f'summary ~ "{summary}"')
 
-                # Fetch issues based on issue type
                 if issue_type:
-                    jql_query = f'issuetype = "{issue_type}"'
+                    jql_parts.append(f'issuetype = "{issue_type}"')
 
-                # Fetch issues based on priority
                 if priority:
-                    jql_query = f'priority = "{priority}"'
+                    jql_parts.append(f'priority = "{priority}"')
 
-                # Fetch issues based on status
                 if status:
-                    jql_query = f'status = "{status}"'
+                    jql_parts.append(f'status = "{status}"')
+
+                # Join all parts with AND operator
+                jql_query = ' AND '.join(jql_parts) if jql_parts else 'created is not EMPTY'
 
                 # Fetch the issues
                 issues = jira_connector.client.search_issues(jql_query)

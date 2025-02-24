@@ -1,32 +1,23 @@
-import re
-from genesis_bots.core.logging_config import logger
-from datetime import datetime
-import random
-import string
-from genesis_bots.core.bot_os_artifacts import (
-    ARTIFACT_ID_REGEX,
-    get_artifacts_store,
-    lookup_artifact_markdown,
-)
-from urllib.parse import urlunparse, urlencode
-from bs4 import BeautifulSoup
+from   bs4                      import BeautifulSoup
 import collections.abc
+from   genesis_bots.core.bot_os_artifacts \
+                                import (ARTIFACT_ID_REGEX, get_artifacts_store,
+                                        lookup_artifact_markdown)
+from   genesis_bots.core.logging_config \
+                                import logger
+import re
+from   urllib.parse             import urlencode, urlunparse
 
-from textwrap import dedent
-import os
 
-from genesis_bots.core.bot_os_tools2 import (
-    BOT_ID_IMPLICIT_FROM_CONTEXT,
-    THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    ToolFuncGroup,
-    ToolFuncParamDescriptor,
-    gc_tool,
-)
+from   genesis_bots.core.bot_os_tools2 \
+                                import (BOT_ID_IMPLICIT_FROM_CONTEXT,
+                                        THREAD_ID_IMPLICIT_FROM_CONTEXT,
+                                        ToolFuncGroup, gc_tool)
 
-from genesis_bots.connectors import get_global_db_connector
+from   genesis_bots.connectors  import get_global_db_connector
 db_adapter = get_global_db_connector()
 
-from .tool_helpers import get_sys_email
+from   .tool_helpers            import get_sys_email
 
 send_email_tools = ToolFuncGroup(
     name="send_email_tools",
@@ -48,8 +39,8 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
     mime_type="The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
     include_genesis_logo="Include Genesis logo in email body - boolean",
     save_as_artifact="Save output email as an artifact - boolean",
-    bot_id="The bot_id that invoked this tool",
-    thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[send_email_tools],
 )
 def send_email(
@@ -62,7 +53,7 @@ def send_email(
     purpose: str = None,
     mime_type: str = "text/html",
     include_genesis_logo: bool = False,
-    save_as_artifact: bool = False,
+    save_as_artifact: bool = True,
 ):
     """
     Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.
@@ -82,7 +73,7 @@ def send_email(
     Returns:
         dict: Result of the email sending operation.
     """
-    print(f"Entering send_email with bot_id={bot_id}\nthread_id={thread_id}\naction = {action}\nto_addr_list={to_addr_list}\nsubject={subject}\nbody={body}\npurpose={purpose}\nmime_type={mime_type}\ninclude_genesis_logo={include_genesis_logo}\nsave_as_artifact={save_as_artifact}")
+    logger.info(f"Entering send_email with bot_id={bot_id}\nthread_id={thread_id}\naction = {action}\nto_addr_list={to_addr_list}\nsubject={subject}\nbody={body}\npurpose={purpose}\nmime_type={mime_type}\ninclude_genesis_logo={include_genesis_logo}\nsave_as_artifact={save_as_artifact}")
     art_store = get_artifacts_store(db_adapter)  # used by helper functions below
 
     def _sanity_check_body(txt):
@@ -453,7 +444,7 @@ def send_email(
         assert (
             len(query_result) == 1
         )  # we expect a successful SYSTEM$SEND_EMAIL to contain a single line resultset
-        result = {"Succcess": True}
+        result = {"Success": True}
         if email_aid:
             result["Suggestion"] = (
                 f"This email was saved as an artifact with artifact_id={email_aid}. "

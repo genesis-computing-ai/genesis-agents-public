@@ -35,18 +35,20 @@ process_manager_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, ALLOW_CODE, HIDE_PROCESS, UNHIDE_PROCESS LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process, HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes, or TIME to get current system time. If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process. ALLOW_CODE is used to bypass the restriction that code must be added as a note",
+        description="The action to perform on a process: CREATE, UPDATE, DELETE, CREATE_PROCESS_CONFIG, UPDATE_PROCESS_CONFIG, DELETE_PROCESS_CONFIG, HIDE_PROCESS, UNHIDE_PROCESS LIST returns a list of all processes, SHOW shows full instructions and details for a process, SHOW_CONFIG shows the configuration for a process, HIDE_PROCESS hides the process from the list of processes, UNHIDE_PROCESS unhides the process from the list of processes, or TIME to get current system time. If you are trying to deactivate a schedule for a task, use _process_scheduler instead, don't just DELETE the process",
         required=True,
         llm_type_desc=dict(
             type="string",
             enum=[
                 "CREATE",
+                "CREATE_CONFIRMED",
                 "UPDATE",
+                "UPDATE_CONFIRMED",
                 "DELETE",
+                "DELETE_CONFIRMED",
                 "CREATE_PROCESS_CONFIG",
                 "UPDATE_PROCESS_CONFIG",
                 "DELETE_PROCESS_CONFIG",
-                "ALLOW_CODE",
                 "HIDE_PROCESS",
                 "UNHIDE_PROCESS",
                 "LIST",
@@ -64,6 +66,7 @@ process_manager_tools = ToolFuncGroup(
     process_instructions="DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
     process_config="Configuration string used by process when running.",
     hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
+    allow_code="If true, the process will be allowed to include code directly in the process instructions.  This is not recommended, but is allowed for short code snippets or for testing purposes.  It preferred that code exists in notes",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[process_manager_tools],
@@ -77,6 +80,7 @@ def manage_processes(
     process_name: str = None,
     process_config: str = None,
     hidden: bool = False,
+    allow_code: bool = False,
 ) -> dict:
     """
     Manages processs in the PROCESSES table with actions to create, delete, update a process, or stop all processes
@@ -100,6 +104,8 @@ def manage_processes(
         process_details['process_config'] = process_config
     if hidden:
         process_details['hidden'] = hidden
+    if allow_code:
+        process_details['allow_code'] = allow_code
 
     # If process_name is specified but not in process_details, add it to process_details
     # if process_name and process_details and 'process_name' not in process_details:
@@ -121,16 +127,6 @@ def manage_processes(
     ]
 
     action = action.upper()
-    include_code = False
-
-    if action == "ALLOW_CODE":
-        include_code = True
-        return {
-            "Success": True,
-            "Message": "User has confirmed that code will be allowed in the process instructions.",
-            "Suggestion": "Remind user that the provided code will be included directly in the process instructions, but best pratices are to create a note",
-            "Reminder": "  Allow code to be included in the process instructions.  Run manage_process with the action CREATE_CONFIRMED to create the process.",
-        }
 
     if action == "TIME":
         return {
@@ -182,20 +178,6 @@ def manage_processes(
                 "process_id": process_id,
             }
 
-        if action in ["CREATE", "CREATE_CONFIRMED", "UPDATE", "UPDATE_CONFIRMED"]:
-            check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
-            actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
-            If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
-            neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
-            result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
-
-            if result != 'NO CODE':
-                return {
-                    "Success": True,
-                    "Suggestion": "Explain to the user that any SQL or Python code should be separately tested and stored as a 'note', which is a special way to store sql or python that will be used within processes. This helps keep the process instuctions themselves clean and makes processes run more reliably.  Ask the user oif they would like to create a note.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.  If the user does not want to create a note, run CREATE_CONFIRMED to add the process with the code included.",
-                    "Reminder": f"Ask the user of they would like to remove the code and replace it with a note_id to the code in the note table.  Then replace the code in the process with the note_id of the new note.  Do not include the note contents in the process, just include an instruction to run the note with the note_id.  If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.   If the user prefers not to create a note, the code may be added directly into the process, but this is not recommended.  If the user does not want to create a note, run CREATE_CONFIRMED to add the process with the code included."
-                }
-
         if action == "CREATE" or action == "CREATE_CONFIRMED":
             # Check for dupe name
             sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
@@ -237,6 +219,15 @@ def manage_processes(
             #         "Error": f"Process with name {process_details['process_name']}.  Please choose a different name."
             #     }
 
+            check_for_code_instructions = f"""Please examine the text below and return only the word 'SQL' if the text contains
+            actual SQL code, not a reference to SQL code, or only the word 'PYTHON' if the text contains actual Python code, not a reference to Python code.
+            If the text contains both, return only 'SQL + PYTHON'.  Do not return any other verbage.  If the text contains
+            neither, return only the word 'NO CODE':\n {process_details['process_instructions']}"""
+
+            result = chat_completion(check_for_code_instructions, db_adapter, bot_id=bot_id, bot_name='')
+
+            print(f"Result of check_for_code_instructions: {result}")
+
             # Send process_instructions to 2nd LLM to check it and format nicely
             tidy_process_instructions = f"""
             Below is a process that has been submitted by a user.  Please review it to insure it is something
@@ -246,17 +237,16 @@ def manage_processes(
             Do not create multiple options for the instructions, as whatever you return will be used immediately.
             Return the updated and tidy process.  If there is an issue with the process, return an error message."""
 
-            if not include_code:
-                tidy_process_instructions = f"""
-
+            if result != 'NO CODE':
+                tidy_process_instructions += f"""
             Since the process contains either sql or snowpark_python code, you will need to ask the user if they want
             to allow code in the process.  If they do, go ahead and allow the code to remain in the process.
             If they do not, extract the code and create a new note with
-            your manage_notebook tool, maing sure to specify the note_type field as either 'sql or 'snowpark_python'.
+            your manage_notebook tool, making sure to specify the note_type field as either 'sql or 'snowpark_python'.
             Then replace the code in the process with the note_id of the new note.  Do not
             include the note contents in the process, just include an instruction to run the note with the note_id."""
 
-            tidy_process_instructions = f"""
+            tidy_process_instructions += f"""
 
             If the process wants to send an email to a default email, or says to send an email but doesn't specify
             a recipient address, note that the SYS$DEFAULT_EMAIL is currently set to {sys_default_email}.
@@ -277,6 +267,7 @@ def manage_processes(
             process_details['process_instructions'] = chat_completion(tidy_process_instructions, db_adapter, bot_id = bot_id, bot_name = '', thread_id=thread_id, process_id=process_id, process_name=process_name)
 
         if action == "CREATE":
+            logger.info("Received CREATE action")
             return {
                 "Success": False,
                 "Cleaned up instructions": process_details['process_instructions'],
@@ -336,6 +327,7 @@ def manage_processes(
     process_id_created = False
     if process_id is None:
         if action == "CREATE":
+            logger.info("CREATE action with no process_id")
             process_id = f"{bot_id}_{''.join(random.choices(string.ascii_letters + string.digits, k=6))}"
             process_id_created = True
         else:
@@ -350,6 +342,7 @@ def manage_processes(
     if action in ["CREATE"] and any(
         field not in process_details for field in required_fields_create
     ):
+        logger.info("CREATE action missing fields - tell user")
         missing_fields = [
             field
             for field in required_fields_create
@@ -380,6 +373,7 @@ def manage_processes(
         }
 
     try:
+        logger.info(f"Received CREATE action with{'' if db_adapter.schema else 'out' } db_adapter.schema")
         if action == "CREATE":
             insert_query = f"""
                 INSERT INTO {db_adapter.schema}.PROCESSES (
@@ -414,6 +408,7 @@ def manage_processes(
             # Get process_name from process_details if available, otherwise set to "Unknown"
             process_name = process_details.get('process_name', "Unknown")
             db_adapter.client.commit()
+            logger.info("Successfully CREATED process {process_name} with process_id: {process_id_with_suffix}")
             return {
                 "Success": True,
                 "Message": f"process successfully created.",

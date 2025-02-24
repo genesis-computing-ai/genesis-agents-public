@@ -76,7 +76,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     #     * the proxy function waits on the result of the invocation to be available in the handle
     #
     # * When the client polls for an available response msg:
-    #      * we process any new pending actions first. For any pending action we send a speial message to the client to
+    #      * we process any new pending actions first. For any pending action we send a special message to the client to
     #        request it to call that tool function, along with a unique invocation_id.
     #      * client receives the special message, calls the tool function submits back a special message that contains the
     #        result of the tool function, along with the invocation_id.
@@ -396,7 +396,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         output_rows = []
         for row in input_rows:
             if len(row) > 4:
-                arg = {} if isinstance(row[4], str) else row[4]
+                arg = json.loads(row[4]) if isinstance(row[4], str) else row[4]
             else:
                 arg = None
             output_rows.append([row[0], self.submit(row[1], row[2], row[3], arg)])
@@ -425,7 +425,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         # A request for actions (e.g. client tool invocations) takes precedence since they are part of a pending request context.
         log_ctxt = self.__class__.__name__ + "::_lookup_response"
 
-        # handle any new requested user actions (e.g. tool invocaitons) that are waiting in the self.pending_user_actions.unprocessed_q.
+        # handle any new requested user actions (e.g. tool invocations) that are waiting in the self.pending_user_actions.unprocessed_q.
         # This takes precedence over chat reponses as long as there are pending actions.
         # We handle action requests one at a time and rely on the client to keep polling until all pending actions are processed.
         if self.user_actions_tacker.unprocessed_q:

@@ -5,7 +5,8 @@ from functools import lru_cache
 # TODO: make the importing of SnowflakeConnector, BigQueryConnector etc to be lazy, inside _get_global_db_connector_cached
 # See Issue #79
 # This is left here for backward compatibility
-from genesis_bots.connectors.bigquery_connector import BigQueryConnector
+
+#from genesis_bots.connectors.bigquery_connector import BigQueryConnector
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
 # from .bot_snowflake_connector import bot_credentials
 
@@ -13,12 +14,13 @@ from genesis_bots.connectors.snowflake_connector.snowflake_connector import Snow
 def _get_global_db_connector_cached(genesis_source_name, **kwargs):
     # internal helper function for get_global_db_connector
     if genesis_source_name == "BIGQUERY":
-        try:
-            connection_info = kwargs.pop('connection_info')
-        except KeyError:
-            raise ValueError(f"missing manadatory arg 'connection_info' for {genesis_source_name=}")
-        connection_name = kwargs.pop('connection_name', "BigQuery")
-        return BigQueryConnector(connection_info=connection_info, connection_name=connection_name, **kwargs)
+        raise NotImplementedError("BigQueryConnector is not implemented")
+ #       try:
+ #           connection_info = kwargs.pop('connection_info')
+ #       except KeyError:
+ #           raise ValueError(f"missing manadatory arg 'connection_info' for {genesis_source_name=}")
+ #       connection_name = kwargs.pop('connection_name', "BigQuery")
+ #       return BigQueryConnector(connection_info=connection_info, connection_name=connection_name, **kwargs)
     elif genesis_source_name == 'SQLITE':
         from genesis_bots.connectors.sqlite_connector import SqliteConnector
         connection_name = kwargs.pop('connection_name', "Sqlite")
@@ -83,10 +85,7 @@ def get_global_db_connector(genesis_source_name=None, **kwargs):
             raise ValueError("Cannot automatically resolve GENESIS_SOURCE from the environment")
         genesis_source_name = genesis_source_name.upper()
         if genesis_source_name == "BIGQUERY":
-            credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", default=".secrets/gcp.json")
-            with open(credentials_path) as f:
-                connection_info = json.load(f)
-            kwargs['connection_info'] = connection_info
+            raise NotImplementedError("BigQuery connector is not implemented")
     else:
         genesis_source_name = genesis_source_name.upper()
     return _get_global_db_connector_cached(genesis_source_name, **kwargs)

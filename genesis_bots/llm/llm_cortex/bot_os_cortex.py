@@ -219,7 +219,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             if ') says: !model' in last_user_message["content"] or last_user_message["content"]=='!model':
 
                 if (self.bot_id in ['eva-x1y2z3','Armen2-ps73td', os.getenv("O1_OVERRIDE_BOT","")]) or (self.bot_id is not None and self.bot_id.endswith('-o1or')):
-                    resp += f'\nThis bot is running on {os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))} in override mode.'
+                    resp += f'\nThis bot is running on {os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20"))} in override mode.'
                 else:
                     if thread_id in self.thread_fast_mode_map or fast_mode:
                         resp += f"\nFast mode activated for this thread. Model is now {os.getenv('CORTEX_FAST_MODEL_NAME', 'llama3.1-70b')}."
@@ -255,7 +255,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             #self.thread_history[thread_id] = [message for message in self.thread_history[thread_id] if not (message.get("role","") == "user" and message['content'] == last_user_message['content'])]
             if self.thread_history[thread_id]:
                 self.thread_history[thread_id].pop()
-            if self.thread_model_map[thread_id] is not None:
+            if thread_id in self.thread_model_map and self.thread_model_map[thread_id] is not None:
                 self.thread_model_map.pop(thread_id, None)
 
             if BotOsAssistantSnowflakeCortex.stream_mode == True:
@@ -277,7 +277,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         logger.info("OpenAI API key is not set in the environment variables.")
                         return None
 
-                    openai_model = os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+                    openai_model = os.getenv("OPENAI_O1_OVERRIDE_MODEL",os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20"))
                     newarray[0]['role'] = 'user'
                     logger.info(f'**** OpenaAI o1 override for bot {self.bot_id} using model: {openai_model}')
                     try:
@@ -1041,15 +1041,16 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
         new_ts = datetime.datetime.now()
         if isinstance(results, (dict, list)):
             results = json.dumps(results, default=custom_serializer)
+        else:
+            results = str(results)
 
 
         prefix = ""
-
         prefix = 'SYSTEM MESSAGE: Here are the results of the tool call. Note that the end user has not seen these details:\n\n'
 
         message_object = {
             "message_type": "user",
-            "content": prefix+results,
+            "content": str(prefix) + results, # Convert both to strings explicitly
             "timestamp": new_ts.isoformat(),
             "metadata": message_metadata,
         }

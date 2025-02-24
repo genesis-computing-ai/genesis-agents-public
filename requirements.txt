@@ -1,4 +1,4 @@
-annoy
+annoy==1.17.3
 APscheduler
 bs4
 db-dtypes
@@ -24,7 +24,7 @@ streamlit==1.35.0
 streamlit_autorefresh  # ^^ this may also need a version for compat reasons
 urllib3==1.26.19
 #ngrok
-ngrok; extra == "pkg"  # Only install when pkg extras are requested
+ngrok
 snowflake_connector_python==3.12.3
 reka-api
 #debugpy
@@ -48,12 +48,12 @@ dagster-graphql
 dagster-spark
 dagster-dbt
 wrapt
-dagster-sdf
 sqlalchemy>=1.4.0
-psycopg2-binary>=2.9.0
+psycopg2-binary==2.9.9
 pymysql
 snowflake-sqlalchemy
 spider-client
 openpyxl
 sqlalchemy-redshift
 sqlalchemy-bigquery
+PyGithub

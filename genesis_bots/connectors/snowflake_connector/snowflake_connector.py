@@ -88,6 +88,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         if os.getenv("SNOWFLAKE_METADATA", "False").lower() == "false":
             # Use SQLite with compatibility layer
             # Set default LLM engine to openai if not specified
+            logger.warning('Using SQLite for connection...')
             if not os.getenv("BOT_OS_DEFAULT_LLM_ENGINE"):
                 os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
             db_path = os.getenv("SQLITE_DB_PATH", "genesis.db")
@@ -100,6 +101,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             self.user = "local"
             self.role = 'default'
         else:
+            logger.info('Using Snowflake for connection...')
             account, database, user, password, warehouse, role = [None] * 6
 
             if bot_database_creds:
@@ -176,7 +178,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         return one_time_db_fixes(self)
 
     def get_processes_list(self, bot_id='all'):
-        return get_processes_list(bot_id)
+        return get_processes_list(self,bot_id)
 
     def get_process_info(self, bot_id, process_name):
         return get_process_info(self, bot_id, process_name)
@@ -513,7 +515,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 schema_inclusions = []
 
             # Validate database and schema names for Snowflake source
-            if source_name == 'Snowflake':
+            if source_name == 'Snowflake' and self.source_name == 'Snowflake':
                 databases = self.get_visible_databases()
                 if database_name not in databases:
                     return {
@@ -563,7 +565,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 if connection_id not in valid_connections:
                     return {
                         "Success": False,
-                        "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools."
+                        "Error": f"Connection '{connection_id}' not found. Please add it first using the database connection tools.",
+                        "Valid Connections": str(valid_connections)
                     }
 
             if self.source_name != 'Snowflake':
@@ -1019,6 +1022,31 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             err = f"An error occurred while getting jira info: {e}"
             return {"Success": False, "Error": err}
 
+    def get_github_config_params(self):
+        """
+        Retrieves GitHub configuration parameters from the database.
+
+        Returns:
+            dict: A dictionary containing GitHub configuration parameters.
+        """
+        try:
+            query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'github';"
+            cursor = self.client.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+            if not rows:
+                return {"Success": False, "Error": "No GitHub configuration found"}
+
+            github_params_list = [dict(zip(["parameter", "value"], row)) for row in rows]
+            json_data = json.dumps(github_params_list, default=str)
+
+            return {"Success": True, "Data": json_data}
+
+        except Exception as e:
+            err = f"An error occurred while getting GitHub config params: {e}"
+            return {"Success": False, "Error": err}
+
     def set_api_config_params(self, service_name, key_pairs_str):
         try:
 
@@ -1091,6 +1119,72 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         with open(f'g-workspace-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
+
+    def create_g_drive_oauth_creds(self):
+        temp_hard_code = "jeff.davidson@genesiscomputing.ai"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{temp_hard_code}';"
+        cursor = self.client.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return False
+
+        creds_dict = {row[0]: row[1] for row in rows}
+        wrapped_creds_dict = {"web": creds_dict}
+
+        creds_json = json.dumps(wrapped_creds_dict, indent=4)
+        with open(f'google_oauth_credentials.json', 'w') as json_file:
+            json_file.write(creds_json)
+        return True
+
+    def get_model_params(self):
+        """
+        Retrieves the model and embedding model names for the active LLM from the database.
+
+        Returns:
+            dict: A dictionary containing:
+                - Success (bool): Whether the operation was successful
+                - Data (str): JSON string containing model_name and embedding_model_name if successful,
+                            or error message if unsuccessful
+        """
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+
+        try:
+            if self.source_name.lower() == "snowflake":
+                query = f"""
+                SELECT model_name, embedding_model_name
+                FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
+                WHERE runner_id = %s AND llm_type = 'openai'
+                """
+                cursor = self.client.cursor()
+                cursor.execute(query, (runner_id,))
+                result = cursor.fetchone()
+            else:
+                query = """
+                SELECT model_name, embedding_model_name
+                FROM llm_tokens
+                WHERE runner_id = ? AND llm_type = 'openai'
+                """
+                cursor = self.client.cursor()
+                cursor.execute(query, (runner_id,))
+                result = cursor.fetchone()
+
+            if result:
+                model_name, embedding_model_name = result
+                json_data = json.dumps({
+                    'model_name': model_name,
+                    'embedding_model_name': embedding_model_name
+                })
+                return {"Success": True, "Data": json_data}
+            else:
+                return {"Success": False, "Data": "No active model parameters found"}
+
+        except Exception as e:
+            err = f"An error occurred while retrieving model parameters: {e}"
+            return {"Success": False, "Data": err}
+
+
 
     def update_model_params(self, model_name, embedding_model_name):
         """
@@ -1188,7 +1282,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
     def eai_test(self, site):
         try:
-
+            azure_endpoint = "https://example.com"
             eai_list_query = f"""CALL CORE.GET_EAI_LIST('{self.schema}')"""
             cursor = self.client.cursor()
             cursor.execute(eai_list_query)
@@ -1260,6 +1354,7 @@ def get_status(site):
     $$;
                 """
                 try:
+                    function_success = False
                     cursor = self.client.cursor()
                     cursor.execute(create_function_query)
 
@@ -2651,7 +2746,6 @@ def get_status(site):
             }
 
         return sample_data
-
     def db_list_all_bots(
         self,
         project_id,
@@ -2869,33 +2963,43 @@ def get_status(site):
         """
         runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
 
-        # Query to merge the ngrok tokens, inserting if the row doesn't exist
-        query = f"""
-            MERGE INTO {project_id}.{dataset_name}.ngrok_tokens USING (SELECT 1 AS one) ON (runner_id = %s)
-            WHEN MATCHED THEN
-                UPDATE SET ngrok_auth_token = %s,
-                           ngrok_use_domain = %s,
-                           ngrok_domain = %s
-            WHEN NOT MATCHED THEN
-                INSERT (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
-                VALUES (%s, %s, %s, %s)
+        # First check if row exists
+        check_query = f"""
+            SELECT COUNT(*)
+            FROM {project_id}.{dataset_name}.ngrok_tokens
+            WHERE runner_id = %s
         """
 
         try:
             cursor = self.connection.cursor()
-            cursor.execute(
-                query,
-                (
-                    runner_id,
-                    ngrok_auth_token,
-                    ngrok_use_domain,
-                    ngrok_domain,
-                    runner_id,
-                    ngrok_auth_token,
-                    ngrok_use_domain,
-                    ngrok_domain,
-                ),
-            )
+            cursor.execute(check_query, (runner_id,))
+            exists = cursor.fetchone()[0] > 0
+
+            if exists:
+                # Update existing row
+                update_query = f"""
+                    UPDATE {project_id}.{dataset_name}.ngrok_tokens
+                    SET ngrok_auth_token = %s,
+                        ngrok_use_domain = %s,
+                        ngrok_domain = %s
+                    WHERE runner_id = %s
+                """
+                cursor.execute(
+                    update_query,
+                    (ngrok_auth_token, ngrok_use_domain, ngrok_domain, runner_id)
+                )
+            else:
+                # Insert new row
+                insert_query = f"""
+                    INSERT INTO {project_id}.{dataset_name}.ngrok_tokens
+                    (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
+                    VALUES (%s, %s, %s, %s)
+                """
+                cursor.execute(
+                    insert_query,
+                    (runner_id, ngrok_auth_token, ngrok_use_domain, ngrok_domain)
+                )
+
             self.connection.commit()
             affected_rows = cursor.rowcount
             cursor.close()
@@ -3169,7 +3273,7 @@ def get_status(site):
         """
 
         available_tools_string = json.dumps(available_tools)
-        files_string = json.dumps(files)
+        files_string = json.dumps(files) if files else ''
 
         # validate certain params
         bot_implementation = BotLlmEngineEnum(bot_implementation).value if bot_implementation else None
@@ -3825,70 +3929,6 @@ def get_status(site):
             )
             raise e
 
-    def db_get_available_tools(self, project_id, dataset_name):
-        """
-        Retrieves the list of available tools and their descriptions from the Snowflake table.
-
-        Returns:
-            list of dict: A list of dictionaries, each containing the tool name and description.
-        """
-
-        # Query to select the available tools
-        select_query = f"""
-            SELECT tool_name, tool_description
-            FROM {project_id}.{dataset_name}.available_tools
-        """
-
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(select_query)
-            results = cursor.fetchall()
-            tools_list = [
-                {"tool_name": result[0], "tool_description": result[1]}
-                for result in results
-            ]
-            return tools_list
-        except Exception as e:
-            logger.exception(f"Failed to retrieve available tools with error: {e}")
-            return []
-
-    def db_add_or_update_available_tool(
-        self, tool_name, tool_description, project_id, dataset_name
-    ):
-        """
-        Adds a new tool or updates an existing tool in the available_tools table with the provided name and description.
-
-        Args:
-            tool_name (str): The name of the tool to add or update.
-            tool_description (str): The description of the tool to add or update.
-        Returns:
-            dict: A dictionary containing the result of the operation.
-        """
-        # Query to merge (upsert) tool into the available_tools table
-        merge_query = f"""
-            MERGE INTO {project_id}.{dataset_name}.available_tools USING (
-                SELECT %s AS tool_name, %s AS tool_description
-            ) AS source ON target.tool_name = source.tool_name
-            WHEN MATCHED THEN
-                UPDATE SET tool_description = source.tool_description
-            WHEN NOT MATCHED THEN
-                INSERT (tool_name, tool_description)
-                VALUES (source.tool_name, source.tool_description)
-        """
-
-        # Execute the merge query
-        try:
-            cursor = self.client.cursor()
-            cursor.execute(merge_query, (tool_name, tool_description))
-            self.client.commit()
-            logger.info(f"Successfully added or updated tool: {tool_name}")
-            return {
-                "success": True,
-                "message": f"Tool '{tool_name}' added or updated successfully.",
-            }
-        except Exception as e:
-            logger.error(f"Failed to add or update tool: {tool_name} with error: {e}")
-            return {"success": False, "error": str(e)}
 
     def db_delete_bot(self, project_id, dataset_name, bot_servicing_table, bot_id):
         """
@@ -4174,7 +4214,7 @@ def get_status(site):
         # Use the provided query or a default one if not provided
         prompt = query if query else "What's in this image?"
 
-        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+        openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
 
         payload = {
             "model": openai_model_name,
@@ -4385,10 +4425,15 @@ def get_status(site):
         total_rows_result_native = cursor.fetchone()
         total_rows_native = total_rows_result_native[0]
 
+        logger.info(f"Total rows with OpenAI embeddings: {total_rows_openai}")
+        logger.info(f"Total rows with native embeddings: {total_rows_native}")
+
         if total_rows_openai >= total_rows_native:
             embedding_column = 'embedding'
+            logger.info(f"Selected embedding column: {embedding_column} (OpenAI embeddings are more or equal)")
         else:
             embedding_column = 'embedding_native'
+            logger.info(f"Selected embedding column: {embedding_column} (Native embeddings are more)")
 
         new_total_rows_query = f"""
             SELECT COUNT(*) as total
@@ -4524,7 +4569,7 @@ def get_status(site):
                 logger.info("OpenAI API key is not set in the environment variables.")
                 return None
 
-            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o"))
+            openai_model = os.getenv("OPENAI_MODEL_SUPERVISOR",os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20"))
 
             logger.info('snowpark escallation using model: ', openai_model)
             try:
@@ -4540,7 +4585,7 @@ def get_status(site):
                 )
             except Exception as e:
                 if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
-                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o")
+                    openai_model = os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20")
                     logger.info('retry snowpark escallation using model: ', openai_model)
                     try:
                         client = get_openai_client()
@@ -5308,7 +5353,7 @@ def _cortex_search(
 
 
 @gc_tool(
-    purpose="A detailed explanation in English of what this code is supposed to do. This will be used to help validate and debug your code..",
+    purpose="A detailed explanation in English of what this code is supposed to do. This will be used to help validate the code.",
     code=dedent(
     """
     The Python code to execute in Snowflake Snowpark. The snowpark 'session' is already
@@ -5323,10 +5368,13 @@ def _cortex_search(
     double quotes in the code.
     """
     ),
-    packages="A comma-separated list of required non-default Python packages to be pip installed for code execution (do not include any standard python libraries).",
+    packages=dedent(
+        """A comma-separated list of required non-default Python packages to be pip installed for code execution
+        (do not include any standard python libraries). For graphing, include matplotlib in this list."""
+    ),
     note_id=dedent(
         """An id for a note in the notebook table.  The note_id will be used to look up the
-        python code from the note content in lieu of the code field. A note_id will take precendent
+        python code from the note content in lieu of the code field. A note_id will take precedence
         over the code field, that is, if the note_id is not empty, the contents of the note will be run
         instead of the content of the code field."""
     ),
@@ -5351,14 +5399,10 @@ def _run_snowpark_python(
     thread_id: str = None,
     ):
     """
-    Executes a string of Python snowflake snowpark code using a precreated and provided 'session', do not create
-    a new session. Use this instead of code_interpreter when directed to use snowpark, or when you want to run
-    python that can directly interact with the user's snowflake session, tables, and stages.  Results should only
-    have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the python code
-    to run, or the 'note_id' field with the id of the note that contains the code you want to run. Do not ever attempt
-    to load the code from the note.  If the note id is present, pass only id to the tool.  The tool will know how to get
-    the code from the note. this function has an existing snowflake session inside that you can use called session so do
-    not try to create a new session or connection.
+    This function accepts a string containing Python code and executes it using Snowflake's Snowpark python environment.
+    Code is run using a precreated and provided Snowpark 'session', do not create a new session.
+    Results should only have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the 
+    python code to run, or the 'note_id' field with the id of the note referencing the pre-saved program you want to run.
     """
     return SnowflakeConnector("Snowflake").run_python_code(
         purpose=purpose,
@@ -5366,7 +5410,8 @@ def _run_snowpark_python(
         packages=packages,
         note_id=note_id,
         bot_id=bot_id,
-        thread_id=thread_id
+        thread_id=thread_id,
+        save_artifacts=save_artifacts,
     )
 
 _all_snowflake_connector_functions = [
@@ -5382,3 +5427,4 @@ _all_snowflake_connector_functions = [
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_snowflake_connector_functions():
     return _all_snowflake_connector_functions
+

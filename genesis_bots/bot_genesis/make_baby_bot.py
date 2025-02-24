@@ -6,7 +6,7 @@ import requests
 import uuid
 
 import threading
-from   typing                   import Mapping
+from   typing                   import Dict, Mapping
 
 from   genesis_bots.connectors  import get_global_db_connector
 from   genesis_bots.connectors.connector_helpers \
@@ -628,11 +628,13 @@ def add_new_tools_to_bot(bot_id, new_tools):
     Returns:
         dict: A dictionary containing the tools that were added and those that were already present.
     """
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions # avoid circular import
+
     # Retrieve the current available tools for the bot
     bb_db_connector = get_global_db_connector()
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
-    available_tool_names = [tool['tool_name'] for tool in available_tools_list]
+    available_tool_names = get_persistent_tools_descriptions().keys()
+
     if isinstance(new_tools, str):
         new_tools = json.loads(new_tools.replace("'", '"'))
     # Check if all new_tools are in the list of available tools
@@ -642,8 +644,8 @@ def add_new_tools_to_bot(bot_id, new_tools):
 
     bot_details = get_bot_details(bot_id)
     if not bot_details:
-        logger.error(f"Bot with ID {bot_id} not found.")
-        return {"success": False, "error": "Bot not found."}
+        logger.info(f"Bot with ID {bot_id} not found.")
+        return {"success": False, "error": "Bot not found.  Use list_all_bots to find the correct bot_id."}
 
     current_tools_str = bot_details.get('available_tools', '[]')
     current_tools = json.loads(current_tools_str) if current_tools_str else []
@@ -667,7 +669,9 @@ def add_new_tools_to_bot(bot_id, new_tools):
 
 
 def validate_potential_files(new_file_ids=None):
-
+    # Skip validation if new_file_ids is empty string array
+    if new_file_ids == '[]' or new_file_ids == [] or new_file_ids == ['[]']:
+        return {"success": True, "message": "No files attached"}
 
     if isinstance(new_file_ids, str) and new_file_ids.lower() == 'null' or isinstance(new_file_ids, str) and new_file_ids.lower() == '[null]' or isinstance(new_file_ids, list) and new_file_ids == ['null']:
         new_file_ids = []
@@ -1003,7 +1007,7 @@ def update_slack_app_level_key(bot_id, slack_app_level_key):
 
 def update_existing_bot(api_app_id, bot_id, bot_slack_user_id, client_id, client_secret, slack_signing_secret,
                         auth_url, auth_state, udf_active, slack_active, files, bot_implementation):
-    files_json = json.dumps(files)
+    files_json = json.dumps(files) if files else None
     if files_json == 'null':
         files_json = None
     bb_db_connector = get_global_db_connector()
@@ -1031,22 +1035,20 @@ def get_bot_details(bot_id):
     return bb_db_connector.db_get_bot_details(project_id=project_id, dataset_name=dataset_name, bot_servicing_table=bot_servicing_table, bot_id=bot_id)
 
 
-def get_available_persistent_tools():
-    bb_db_connector = get_global_db_connector()
-    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    return bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
+def get_available_tools() -> Dict[str, str]:
+    """
+    A wrapper around the get_persistent_tools_descriptions function which we list as an (old-style) toolfunc as part of MAKE_BABY_BOT_DESCRIPTIONS
 
-get_available_tools = get_available_persistent_tools # for backward compatibility
+    Returns:
+        dict: A dictionary where each key is the name of a tool group and the value is its description.
+    """
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions # avoid circular import
+    return get_persistent_tools_descriptions()
 
 
 def get_default_avatar():
     bb_db_connector = get_global_db_connector()
     return bb_db_connector.db_get_default_avatar()
-
-def add_or_update_available_tool(tool_name, tool_description):
-    bb_db_connector = get_global_db_connector()
-    project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    return bb_db_connector.db_add_or_update_available_tool(tool_name=tool_name, tool_description=tool_description, project_id=project_id, dataset_name=dataset_name)
 
 
 def make_baby_bot(
@@ -1086,6 +1088,8 @@ def make_baby_bot(
     Returns:
         dict: A dictionary indicating the success or failure of the bot creation or update process.
     """
+
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions # avoid circular import
 
     def _make_retval(status : bool, success_msg:str = None, error_msg: str = None, extra: Mapping =None):
         success = bool(status)
@@ -1147,8 +1151,8 @@ def make_baby_bot(
                         return _make_retval(False, error_msg=f"Tool call error: Tool '{tool}' has leading or trailing whitespace in available_tools. Please remove any extra spaces from your list.")
 
                 # Retrieve the list of available tools from the database
-                db_available_tools = get_available_persistent_tools()
-                db_tool_names = [tool['tool_name'] for tool in db_available_tools]
+                db_available_tools = get_persistent_tools_descriptions()
+                db_tool_names = list(db_available_tools.keys())
 
                 # Check if the provided available tools match the database tools
                 if not all(tool in db_tool_names for tool in available_tools_array):
@@ -1231,7 +1235,7 @@ def make_baby_bot(
 
                 ngrok_base_url = os.getenv('NGROK_BASE_URL')
                 if not ngrok_base_url and ep == None:
-                    raise ValueError("The NGROK_BASE_URL environment variable is missing or empty, and no Snowflake SCPS endpoing is available for routing activation requests.")
+                    return _make_retval(False, error_msg="NGROK is not configured. Please configure NGROK via the Genesis Configuration GUI on the Setup Slack Connection page before activating bots on Slack.")
 
                 if ep:
                     request_url = f"{os.getenv('NGROK_BASE_URL')}/slack/events/{bot_id}"
@@ -1358,7 +1362,7 @@ def make_baby_bot(
             )
 
         else:
-            return _make_retval(True, success_msg=f"Created {bot_id} named {bot_name}.  Tell the user that they can now press Refresh in the Bot Box on the left side of the screen, select this new bot, and then press 'Start New Chat'.")
+            return _make_retval(True, success_msg=f"Created {bot_id} named {bot_name}.  Tell the user that they can now press 'New Chat' on the left side of the screen to refresh the list of bots, select this new bot, and then press 'Start Chat'.")
 
 
     except Exception as e:
@@ -1968,10 +1972,12 @@ def remove_tools_from_bot(bot_id, remove_tools):
         dict: A dictionary containing the current tool list.
     """
     # Retrieve the current available tools for the bot
+    from  genesis_bots.core.bot_os_tools import get_persistent_tools_descriptions
+
     bb_db_connector = get_global_db_connector()
     project_id, dataset_name = _get_project_id_and_dataset_name(bb_db_connector)
-    available_tools_list = bb_db_connector.db_get_available_tools(project_id=project_id, dataset_name=dataset_name)
-    available_tool_names = [tool['tool_name'] for tool in available_tools_list]
+    available_tool_names = get_persistent_tools_descriptions().keys()
+
     logger.info(bot_id, remove_tools)
 
     if isinstance(remove_tools, str):

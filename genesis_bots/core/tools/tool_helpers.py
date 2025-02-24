@@ -183,10 +183,10 @@ def chat_completion(
             return None
 
         openai_model = os.getenv(
-            "OPENAI_MODEL_SUPERVISOR", os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+            "OPENAI_MODEL_SUPERVISOR", os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
         )
 
-        if fast and openai_model.startswith("gpt-4o"):
+        if fast and openai_model.startswith("gpt-4o-2024-11-20"):
             openai_model = "gpt-4o-mini"
 
         if not fast:
@@ -208,9 +208,9 @@ def chat_completion(
                     f"Error occurred while calling OpenAI API with model {openai_model}: {e}"
                 )
                 logger.info(
-                    f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o")}'
+                    f'Retrying with main model {os.getenv("OPENAI_MODEL_NAME","gpt-4o-2024-11-20")}'
                 )
-                openai_model = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+                openai_model = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
                 response = client.chat.completions.create(
                     model=openai_model,
                     messages=[

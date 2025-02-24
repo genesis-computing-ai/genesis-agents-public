@@ -145,7 +145,7 @@ def create_annoy_index(embeddings, n_trees=10):
     if any(abs(n - 1.0) > 0.01 for n in norms):
         logger.warning("Some embeddings are not normalized!")
         # Normalize embeddings
-        embeddings = [np.array(emb)/np.linalg.norm(emb) for emb in embeddings]
+        embeddings = [np.array(emb)/(1e-5+np.linalg.norm(emb)) for emb in embeddings]
 
     index = AnnoyIndex(dimension, 'angular')
 
@@ -327,5 +327,3 @@ def load_or_create_embeddings_index(table_id, refresh=True, bot_id=None):
         annoy_index, metadata_mapping = make_and_save_index(table_id, bot_id=bot_id)
 
     return annoy_index, metadata_mapping
-
-

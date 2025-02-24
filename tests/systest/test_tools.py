@@ -251,7 +251,7 @@ class TestTools(unittest.TestCase):
         bot_id = self.eve_id
         thread_id = str(uuid4())
         response = _search_google(query='What is the current bitcoin price?', search_type='search', bot_id=bot_id, thread_id=thread_id)
-        self.assertTrue(response['success'])
+        self.assertTrue(response['success'], str(response))
         self.assertTrue('Dollar' in response['data']['answerBox']['answer'])
 
         response = _search_google(query='Where is Apple HD in CA?', search_type='places', bot_id=bot_id, thread_id=thread_id)
@@ -260,7 +260,7 @@ class TestTools(unittest.TestCase):
 
         response = _scrape_url(url='https://en.wikipedia.org/wiki/IEEE_Transactions_on_Pattern_Analysis_and_Machine_Intelligence')
         self.assertTrue(response['success'])
-        self.assertTrue('Impact' in response['data']['text'])
+        self.assertTrue('Impact' in response['data']['text'], str(response))
 
     def test_web_acces_tools_agent(self):
         bot_id = self.eve_id

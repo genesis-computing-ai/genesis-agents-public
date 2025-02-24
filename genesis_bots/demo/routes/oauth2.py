@@ -29,6 +29,7 @@ def google_drive_login():
     # Make sure this matches EXACTLY what's in Google Cloud Console
     redirect_uri = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/oauth2"  # Changed from 127.0.0.1
     redirect_uri_2 = url_for('oauth_routes.oauth2callback', _external=True)
+
     logger.info(f"Redirect URI for Google Drive Login: {redirect_uri_2}")
 
     flow = Flow.from_client_secrets_file(
@@ -64,7 +65,7 @@ def oauth2callback():
         return 'State not found in session', 400
 
     flow = Flow.from_client_secrets_file(
-        "google_oauth_credentials.json", scopes=SCOPES, state=session_state)
+        "google_oauth_credentials.json", scopes=SCOPES, state=state)
 
     flow.redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
 

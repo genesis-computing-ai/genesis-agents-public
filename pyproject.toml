@@ -4,16 +4,15 @@ requires = [
     "pip>=22.0",
     "setuptools>=40.8.0",
     "wheel>=0.37.0",
-
+    
     # Core build dependencies
     "numpy>=1.7.0,<3.0.0",  # Required for building annoy
-    "Cython>=0.29.0"        # Required for building annoy
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "genesis_bots"
-dynamic = ["version"]
+version = "1.0.39"
 description = "Genesis Bots Package"
 requires-python = ">=3.9"
 license = {text = "SSPL"}

@@ -10,6 +10,18 @@ import sys
 
 from   genesis_bots.core.logging_config      import logger
 
+def get_tgt_pcnt():
+    '''get target percentage to trim messages'''
+
+    tgt_pcnt_env_name = 'CTX_TRIM_TARGET_PCNT'
+    tgt_pcnt_env_val = os.getenv(tgt_pcnt_env_name, 50)
+
+    try:
+        tgt_pcnt = int(tgt_pcnt_env_val)
+        return tgt_pcnt
+    except ValueError:
+        logger.error(f'invalid value: env var {tgt_pcnt_env_name}=\'{tgt_pcnt_env_val}\' must be number between 1 and 100')
+        return None
 
 class BotOsAssistantInterface:
     @abstractmethod

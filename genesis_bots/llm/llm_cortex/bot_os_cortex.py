@@ -11,13 +11,14 @@ import time
 import shutil
 import uuid
 import threading
+import math
 from typing_extensions import override
 from decimal import Decimal
 
 from openai import OpenAI
 
 from genesis_bots.connectors.snowflake_connector.snowflake_connector import SnowflakeConnector
-from genesis_bots.core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
+from genesis_bots.core.bot_os_assistant_base import BotOsAssistantInterface, execute_function, get_tgt_pcnt
 
 from genesis_bots.core.logging_config import logger
 
@@ -142,11 +143,55 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         return resp
 
+    def trim_messages(self, thread_id):
+        '''
+        Trim messages list by deleting entries
+        to keep it under the LLM context window limmit.
+        We use rolling window strategy: eliminate messages starting with oldest until we reduce
+        overall byte size to target percentage (configured).
+        Do not delete current run messages nor instructions.
+        '''
 
-    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None, fast_mode=False):
+        tgt_pcnt = get_tgt_pcnt()
+        if tgt_pcnt == None:
+            return False
+
+        orig_messages = self.thread_history[thread_id]
+
+        messg_bytes = [len(json.dumps({"role": message["message_type"], "content": message["content"]})) for message in orig_messages]
+        total_bytes = sum(messg_bytes)
+        tgt_bytes = math.ceil((total_bytes * tgt_pcnt) / 100)
+        logger.info(f'bot={self.bot_id}, thread={thread_id}, {len(orig_messages)} messages, {total_bytes} bytes, {tgt_bytes=}')
+
+        messages = orig_messages[:1]
+        count = 0
+        first_messg_after_deletes = True
+
+        # don't delete instruction and current run messages
+        for messg, bytes in zip(orig_messages[1:-1], messg_bytes[1:-1]):
+            if total_bytes > tgt_bytes:
+                total_bytes -= bytes
+                count += 1
+                continue
+
+            if first_messg_after_deletes:
+                first_messg_after_deletes = False
+                # delete assisstant message without preceding user messages
+                if messg['message_type'] == 'assistant':
+                    total_bytes -= bytes
+                    count += 1
+                    continue
+
+            messages.append(messg)
+
+        self.thread_history[thread_id] = messages + orig_messages[-1:]
+        logger.info(f'bot={self.bot_id}, thread={thread_id}, deleted {count} messages, {total_bytes} bytes in messages now')
+        return True
+
+    def make_messages(self, thread_id):
+        '''convert thread_history list to messages suitable for Cortex API'''
 
         newarray = [{"role": message["message_type"], "content": message["content"]} for message in self.thread_history[thread_id]]
-        #random_chars = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=10000))
         consolidated_array = []
         current_user_content = []
 
@@ -172,7 +217,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                 "content": "\n".join(current_user_content)
             })
 
-        newarray = consolidated_array
+        return consolidated_array
+
+    def cortex_rest_api(self,thread_id,message_metadata=None, event_callback=None, temperature=None, fast_mode=False):
+
+        newarray = self.make_messages(thread_id)
 
         process_flag = False
         if self.thread_history[thread_id]:
@@ -373,6 +422,12 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                             # No models worked
                             logger.info(f'No available Cortex models found after trying: {models_to_try}')
                             self.thread_model_map[thread_id] = None
+
+                if response.status_code == 400 and re.search("max tokens of [0-9]+ exceeded", str(vars(response))):
+                    if self.trim_messages(thread_id):
+                        request_data['messages'] = self.make_messages(thread_id)
+                        logger.info(self.bot_name, f" second attempt to call cortex {model} via REST API, content est tok len=", len(str(request_data['messages']))/4)
+                        response = requests.post(url, json=request_data, stream=True, headers=headers)
 
                 if response.status_code != 200:
                     msg = f"Cortex REST API Error. The Cortex REST API returned an error message. Status code: {response.status_code}."

@@ -40,6 +40,7 @@ $$
             O1_OVERRIDE_BOT: NO_OVERRIDE_BOT
             OPENAI_FAST_MODEL_NAME: gpt-4o-mini
             CORTEX_MODEL: llama3.1-405b
+            CORTEX_PREMIERE_MODEL: claude-3-5-sonnet
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             USE_KNOWLEDGE: TRUE
             LAST_K_KNOWLEGE: 0
@@ -104,6 +105,7 @@ $$
             SPCS_MODE: TRUE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             CORTEX_MODEL: llama3.1-405b
+            CORTEX_PREMIERE_MODEL: claude-3-5-sonnet
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o
@@ -142,6 +144,7 @@ $$
             SPCS_MODE: TRUE
             RUNNER_ID: snowflake-1
             CORTEX_MODEL: llama3.1-405b
+            CORTEX_PREMIERE_MODEL: claude-3-5-sonnet
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             SNOWFLAKE_METADATA: TRUE
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
@@ -183,6 +186,7 @@ $$
             INTERNAL_HARVESTER_ENABLED: FALSE
             OPENAI_HARVESTER_EMBEDDING_MODEL: text-embedding-3-large
             CORTEX_MODEL: llama3.1-405b
+            CORTEX_PREMIERE_MODEL: claude-3-5-sonnet
             CORTEX_FAST_MODEL_NAME: llama3.1-70b
             OPENAI_MODEL_NAME: gpt-4o-2024-11-20
             OPENAI_MODEL_SUPERVISOR: gpt-4o

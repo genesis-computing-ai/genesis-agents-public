@@ -5,7 +5,7 @@ from google_auth_oauthlib.flow import Flow
 import google.oauth2.credentials
 from genesis_bots.core.logging_config import logger
 
-session_state = None
+session = {}
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -44,6 +44,7 @@ def google_drive_login():
     )
 
     # Store the state so we can verify it in the callback
+    logger.info(f"session['oauth_state'] = State: {state}")
     session['oauth_state'] = state
 
     return redirect(authorization_url)
@@ -57,7 +58,8 @@ def oauth2callback():
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     # Get state from Flask session
-    state = session.get('oauth_state')
+    state = session.get('oauth_state', None)
+    logger.info(f"State from session: {state}")
     if not state:
         return 'State not found in session', 400
 

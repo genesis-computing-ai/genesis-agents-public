@@ -19,14 +19,15 @@ import threading
 import time
 from   typing                   import Any, Dict, Union
 import uuid
+import logging
 
 DEFAULT_GENESIS_DB = "GENESIS_BOTS"
 
 class GenesisServerProxyBase(ABC):
     """
     GenesisServerProxyBase is an abstract base class that defines the interface for connecting to a Genesis server.
-    Clients should not use this class directly, but rather use one of the concrete subclasses.    
-    
+    Clients should not use this class directly, but rather use one of the concrete subclasses.
+
     Abtract Methods:
         _connect():
             Abstract method to connect to the server. Must be implemented by subclasses.
@@ -433,7 +434,7 @@ class SPCSServerProxy(GenesisServerProxyBase):
         try:
             with self._engine.connect() as conn:
                 rowset = conn.execute(
-                    sqla.text(sql), 
+                    sqla.text(sql),
                     {
                         "op_name": op_name,
                         "endpoint_name": endpoint_name,
@@ -524,6 +525,9 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
         flask_app.register_blueprint(udf_routes)
         flask_app.register_blueprint(main_routes)
 
+        log = logging.getLogger('werkzeug')
+        log.disabled = True
+
 
         self.flask_app = flask_app
         self.flask_thread = threading.Thread(target=run_flask)
@@ -565,15 +569,15 @@ def build_server_proxy(server_url: str, snowflake_conn_args: str|dict = None, ge
     Build a server proxy based on the provided server URL and optional Snowflake connection arguments.
 
     Args:
-        server_url (str): The URL of the server. It supports three types of URLS: 
-           1. HTTP(s) server URL (e.g. "http://localhost:8080"), 
+        server_url (str): The URL of the server. It supports three types of URLS:
+           1. HTTP(s) server URL (e.g. "http://localhost:8080"),
            2. "embedded" for running the Genesis BotOsServer inside the caller's process (used for testing and development only).
            3. Snowflake SQLAlchemy connection URL (e.g. "snowflake://user@account") that is passed to SqlAlchemy create_engine function.
-           
-        snowflake_conn_args (str|dict, optional): Additional connection arguments for a Snowflake connection if the server URL is a Snowflake connection URL. 
+
+        snowflake_conn_args (str|dict, optional): Additional connection arguments for a Snowflake connection if the server URL is a Snowflake connection URL.
         If a string, we assume it has the format key1=value1,key2=value2,... (no quotes) and parse it into a str->str dictionary.
         We pass it to SqlAlchemy.create_engine(server_url, connect_args=snowflake_conn_args).
-        For convenience, if one of the keys in the dictionary is "private_key_file", we load the private key from the provited PEM file and add it to the arguments as "private_key".                                    
+        For convenience, if one of the keys in the dictionary is "private_key_file", we load the private key from the provited PEM file and add it to the arguments as "private_key".
 
     Returns:
         GenesisServerProxyBase: An instance of a server proxy based on the provided server URL and connection arguments.

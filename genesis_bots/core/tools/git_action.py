@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Any
+from genesis_bots.core.logging_config import logger
 
 from genesis_bots.core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -174,6 +175,18 @@ def git_action(
 # Define as a list explicitly
 git_action_functions = [git_action]
 
+def _check_git_available():
+    """Check if git is available on the system."""
+    try:
+        import subprocess
+        subprocess.run(['git', '--version'], check=True, capture_output=True)
+        return True
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return False
+
 # And make the getter function explicitly return a list
 def get_git_action_functions():
+    if not _check_git_available():
+        logger.warning("Git is not available on the system. Git action tools will not be registered.")
+        return []
     return list(git_action_functions)  # Explicitly convert to list before returning

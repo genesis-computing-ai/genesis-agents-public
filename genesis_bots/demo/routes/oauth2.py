@@ -3,6 +3,7 @@ from flask import Blueprint, request, session, redirect, url_for
 import os
 from google_auth_oauthlib.flow import Flow
 import google.oauth2.credentials
+from genesis_bots.core.logging_config import logger
 
 session_state = None
 
@@ -16,7 +17,7 @@ oauth_routes = Blueprint('oauth_routes', __name__)
 
 @oauth_routes.get("/endpoint_check")
 def endpoint_check():
-    print("Endpoint check successful!")
+    logger.info("Endpoint check successful!")
     return "Endpoint check successful!"
 
 @oauth_routes.get("/google_drive_login")

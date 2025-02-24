@@ -68,3 +68,5 @@ apps/*
 
 # we copy all the local sample files to this dir from the genesis_bots package
 genesis_sample/
+build/
+dist/

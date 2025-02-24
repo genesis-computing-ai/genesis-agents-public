@@ -15,8 +15,20 @@ from textwrap import dedent
 from genesis_bots.connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 
-from genesis_bots.core.file_diff_handler import GitFileManager
-git_manager = GitFileManager()
+def _check_git_available():
+    """Check if git is available on the system."""
+    try:
+        import subprocess
+        subprocess.run(['git', '--version'], check=True, capture_output=True)
+        return True
+    except (subprocess.SubprocessError, FileNotFoundError):
+        return False
+
+# Only import and initialize GitFileManager if git is available
+git_manager = None
+if _check_git_available():
+    from genesis_bots.core.file_diff_handler import GitFileManager
+    git_manager = GitFileManager()
 
 git_action_grp = ToolFuncGroup(
     name="git_action",
@@ -175,18 +187,12 @@ def git_action(
 # Define as a list explicitly
 git_action_functions = [git_action]
 
-def _check_git_available():
-    """Check if git is available on the system."""
-    try:
-        import subprocess
-        subprocess.run(['git', '--version'], check=True, capture_output=True)
-        return True
-    except (subprocess.SubprocessError, FileNotFoundError):
-        return False
-
 # And make the getter function explicitly return a list
 def get_git_action_functions():
     if not _check_git_available():
         logger.warning("Git is not available on the system. Git action tools will not be registered.")
+        return []
+    if git_manager is None:
+        logger.warning("GitFileManager failed to initialize. Git action tools will not be registered.")
         return []
     return list(git_action_functions)  # Explicitly convert to list before returning

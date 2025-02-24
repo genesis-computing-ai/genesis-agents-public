@@ -5647,7 +5647,7 @@ class SqliteConnector(DatabaseConnector):
         cursor.execute(insert_query, tuple(kwargs.values()))
         self.client.commit()
 
-    def fetch_embeddings(self, table_id):
+    def fetch_embeddings(self, table_id, bot_id=None):
         # Initialize Snowflake connector
 
         # Initialize variables
@@ -5718,7 +5718,7 @@ class SqliteConnector(DatabaseConnector):
         #   logger.info('embeddings len ',len(embeddings))
         return table_names, embeddings
 
-    def generate_filename_from_last_modified(self, table_id):
+    def generate_filename_from_last_modified(self, table_id, bot_id=None):
 
         try:
             # Fetch the maximum LAST_CRAWLED_TIMESTAMP from the harvest_results table

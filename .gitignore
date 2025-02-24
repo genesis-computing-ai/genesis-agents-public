@@ -53,14 +53,18 @@ bot_git/
 
 genesis-workspace-project-d094fd7d2562.json
 g-workspace-*.*
-build/dist/*
 
-
+build/
+dist/
 genesis_api_public.egg-info/
 genesis_api_public_whl.egg-info/
 genesis_api_whl.egg-info/
 jl.db
 runtime/*
+
+# emacs temp files
+*~
+
 apps/vscode-curosr-ext/node_modules/
 sample_catalog_stage
 build_output.log

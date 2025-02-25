@@ -59,7 +59,8 @@ def oauth2callback():
     )
 
     # Use same redirect URI as in login
-    flow.redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
+    base_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app"
+    flow.redirect_uri = f"{base_url}/oauth/oauth2"
     logger.info(f'Flow redirect URI: {flow.redirect_uri}')
 
     try:

@@ -1131,7 +1131,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             return False
 
         creds_dict = {row[0]: row[1] for row in rows}
-        wrapped_creds_dict = {"web": creds_dict}
+        wrapped_creds_dict = {"installed": creds_dict}
 
         creds_json = json.dumps(wrapped_creds_dict, indent=4)
         with open(f'google_oauth_credentials.json', 'w') as json_file:

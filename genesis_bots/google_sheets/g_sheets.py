@@ -23,7 +23,6 @@ from io import BytesIO
 
 from genesis_bots.core.logging_config import logger
 import re
-from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 # If modifying these scopes, delete the file token.json.
@@ -377,12 +376,15 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
 
     if not creds:
+        OAUTH_CREDS = f"g-workspace-credentials.json"
+        if not os.path.exists(OAUTH_CREDS):
+            logger.info(f"OAuth file not found: {OAUTH_CREDS}")
         try:
-            # Authenticate using OAuth2 credentials
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'g-workspace-credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-            logger.info(f"Credentials loaded: {creds}")
+            # Authenticate using the service account JSON file
+            with open(OAUTH_CREDS, 'r') as f:
+                creds_json = json.load(f)
+            # creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
+            logger.info(f"Credentials loaded: {type(creds)} | {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False

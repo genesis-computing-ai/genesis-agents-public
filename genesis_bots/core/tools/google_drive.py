@@ -228,7 +228,8 @@ def google_drive(
 
     elif action == "LOGIN":
         auth_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/google_drive_login"
-        return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
+        auth_url = "localhost:8080/oauth/google_drive_login"
+        return {"Success": "True", "auth_url": f"<{auth_url}>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
         db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)

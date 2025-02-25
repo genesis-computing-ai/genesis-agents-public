@@ -28,6 +28,7 @@ def google_drive_login():
     # Use consistent redirect URI
     # redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
     base_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app"
+    base_url = "http://localhost:8080"
     redirect_uri = f"{base_url}/oauth/oauth2"
     logger.info(f"Redirect URI for Google Drive Login: {redirect_uri}")
 
@@ -65,6 +66,7 @@ def oauth2callback():
 
     # Use same redirect URI as in login
     base_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app"
+    base_url = "http://localhost:8080"
     flow.redirect_uri = f"{base_url}/oauth/oauth2"
     logger.info(f'Flow redirect URI: {flow.redirect_uri}')
 
@@ -73,15 +75,24 @@ def oauth2callback():
         flow.fetch_token(authorization_response=authorization_response)
         credentials = flow.credentials
 
+        # credentials_dict = {
+        #     "web": {
+        #         'token': credentials.token,
+        #         'refresh_token': credentials.refresh_token,
+        #         'token_uri': credentials.token_uri,
+        #         'client_id': credentials.client_id,
+        #         'client_secret': credentials.client_secret,
+        #         'scopes': credentials.scopes
+        #     }
+        # }
+
         credentials_dict = {
-            "web": {
-                'token': credentials.token,
-                'refresh_token': credentials.refresh_token,
-                'token_uri': credentials.token_uri,
-                'client_id': credentials.client_id,
-                'client_secret': credentials.client_secret,
-                'scopes': credentials.scopes
-            }
+            'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'granted_scopes': credentials.scopes
         }
 
         logger.info(f"Credentials from OAUTH: {credentials_dict}")

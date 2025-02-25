@@ -44,10 +44,10 @@ class TeamsBotOsInputAdapter(BotOsInputAdapter):
 
         print('TeamsBotOsInputAdapter __init__')
 
-        self.app_id = app_id if app_id is not None else os.environ.get("MicrosoftAppID", "f96bc6bd-b92c-4d9b-8258-b1fb659d6e8e")
-        self.app_password = app_password if app_password is not None else os.environ.get("MicrosoftAppPassword", ".Y68Q~Ftdg8iKYp59dVTxpQ2JMcxsHyb0j0MQcNN")
+        self.app_id = app_id if app_id is not None else os.environ.get("MicrosoftAppID", "")
+        self.app_password = app_password if app_password is not None else os.environ.get("MicrosoftAppPassword", "")
         self.app_type = app_type if app_type is not None else os.environ.get("MicrosoftAppType", "MultiTenant")
-        self.app_tenantid = app_tenantid if app_tenantid is not None else os.environ.get("MicrosoftAppTenantId", "7b04cdc5-c5a1-4618-a142-bd5e98414923")
+        self.app_tenantid = app_tenantid if app_tenantid is not None else os.environ.get("MicrosoftAppTenantId", "")
 
         self.response_map = response_map if response_map is not None else {}
         self.proxy_messages_in = proxy_messages_in if proxy_messages_in is not None else []

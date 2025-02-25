@@ -15,8 +15,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get credentials from environment variables (more secure)
-APP_ID = os.environ.get("APP_ID", "73e855e4-fefc-441d-bbca-5256a95dabf6")
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "k6T8Q~nYVpKA.ww4zlrecj1Jxi2Q3UWr.C4XwaUH")
+APP_ID = os.environ.get("APP_ID", "")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 
 logger.info("Initializing bot with APP_ID: %s", APP_ID)
 

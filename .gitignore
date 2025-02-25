@@ -75,3 +75,5 @@ genesis_sample/
 build/
 dist/
 genesis_bots.egg-info/
+
+google_oauth_credentials.json

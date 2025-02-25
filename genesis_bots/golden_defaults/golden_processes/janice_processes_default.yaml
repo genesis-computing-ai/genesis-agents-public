@@ -1,0 +1,218 @@
+formula1_analysis_example:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "formula1_analysis_example"
+  PROCESS_INSTRUCTIONS: |
+    1. **User Confirmation**:
+      Inform the user in a fun manner that this is a demonstration process to locate data about Formula 1 in the sample data provided with Genesis. The process will find the driver with the most wins and return this result. Ask if they'd like to proceed with running it. Pause and wait for their agreement. If the user does not agree, end the process. Include racing-related emojiis and use racing lingo as you run this process..
+    2. **Search Metadata**:
+      Search the metadata for 'formula 1 race results'.  Show the user the names and brief descriptions of some of the tables that you find that are related to this task.
+    3. **Query for Top Driver**:
+      Create a new note with a query to determine the Formula 1 driver with the most wins. Inform the user about the new note but don't ask for permission to create it. The RESULTS table may be a good starting point.  DRIVERSTANDINGS is another option but is per-season data, so RESULTS may be a better choice.
+    4. **Run Note and Return Result**:
+      Pass the note_id to the run query tool and return the result to the user, with the name and win count of the winningest driver.  Mention that the data in this demo dataset is only through 2017.
+    5. **Instruction Review**:
+      Ask if the user would like to see the full instructions for this demonstration process. Pause and wait for their response.
+    6. **Show Full Instructions**:
+      - If the user agrees, use the manage process tool with the SHOW action to get the full process instructions and output them verbatim to the user.
+      - If the user does not agree, end the process and suggest another task that can be performed next.
+  PROCESS_DESCRIPTION:  This process is used as an example to show off your skills.  If a user asks to analyze Formula 1 (F1) Demo Data results, run this process.
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
+
+janice_monitor_unused_tables_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "Janice Monitor Unused Tables"
+  PROCESS_INSTRUCTIONS: |
+    ## Monitor Unused Data Tables
+
+    ## Overview
+    This process identifies the top 10 largest unused tables across all databases and notifies stakeholders about cost-saving opportunities involving unused tables in Snowflake.
+
+    ## Process Steps:
+    1. **Identify The Top 10 Largest Unused Tables Across All Databases:**
+       - Use your run query tool with note_id janice_10_unused_tables to identify the 10 largest unused tables across all databases and schemas in the Snowflake account.
+       - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+
+    2. **Draft a Compelling Email:**
+       - Draft an email with a catchy subject line including Unicode emojis about a cost savings opportunity involving unused tables in Snowflake :bar_chart::moneybag:.
+       - Include in the email body:
+         - An explanation of what an unused table is.
+         - A list of the 3 biggest unused tables.
+         - Mention that there are more unused tables.
+         - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+       - Formatting Instructions:
+         - Format the email as an HTML document unless expicilty instructed otherwise.
+         - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+         - DO NOT use <h1> headers.
+         - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+         - Use the necessary styles and layout elements for a professional appearance.
+       - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
+
+    3. **Send the Email:**
+       - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise skip this step. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
+
+    ## Conclusion
+    This process helps in identifying unused data tables and communicates cost-saving opportunities to stakeholders effectively.
+
+    ## Example Email Output Structure
+    - Subject: (Catchy subject line with emojis)
+    - Body: (Email body following the specified guidelines)
+  PROCESS_DESCRIPTION: This process identifies the top 10 largest unused tables across all databases and notifies stakeholders about cost-saving opportunities involving unused tables in Snowflake.
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
+
+janice_top_warehouses_spillage_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "Janice Top Warehouses Spillage"
+  PROCESS_INSTRUCTIONS: |
+    # Top 3 Warehouses Affected by Spillage and Queuing
+
+    ## Overview
+    This process identifies the top 3 warehouses with data spilling issues and analyzes average queuing times per month in the Snowflake environment. It aims to notify stakeholders about performance issues and opportunities to optimize warehouse configurations.
+
+    ## Process Steps:
+
+    1. **Identify The Top 3 Warehouses With Data Spilling:**
+      - Use the run query_database tool to run the query referenced in the note_id janice_query_1 to identify top 3 warehouses with data spilling in the Snowflake account.
+      - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+
+    2. **Average Queuing Times Per Month:**
+      - Execute the SQL query in your notebook with note_id = 'janice_query_2' to identify the average queuing times per month.
+      - Confirm with the supervisor that you have run the query and note the number of rows you received in response.
+
+    3. **Draft a Compelling Email:**
+      - Draft an email with a catchy subject line including Unicode emojis about identified performance issues and an opportunity to optimize warehouse configurations in their Snowflake Environment (e.g., :snowflake::hammer_and_wrench:).
+      - Include in the email body:
+        - An explanation of what it means when a warehouse has bytes spilled to local and remote storage.
+        - An explanation of how average queuing time impacts performance.
+        - A table of the top 3 warehouses that are spilling to local and remote storage along with their average queue times from your analysis.
+        - Mention that there may be more warehouses experiencing spillage.
+        - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+      - Formatting Instructions:
+        - Format the email as an HTML document unless expicilty instructed otherwise.
+        - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+        - DO NOT use <h1> headers.
+        - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+        - Table Formatting: Display the list of users (the result of the sql query) in an HTML table:
+          - Apply a different font style for the column headers to visually distinguish them from the rest of the table.
+          - Use <thead> for headers and <tbody> for the content.
+          - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
+        - Use the necessary styles and layout elements for a professional appearance.
+      - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
+
+    4. **Send the Email, or Tell the User to Activate the Default Email:**
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
+
+    ## Conclusion
+    This process helps in identifying performance issues related to data spillage and queuing times, enabling stakeholders to optimize warehouse configurations for better performance.
+
+    ## Example Email Output Structure
+    - **Subject:** :snowflake: Performance Alert: Warehouse Optimization Needed :hammer_and_wrench:
+    - **Body:**
+
+      Hello,
+
+      We've identified performance issues in our Snowflake environment related to data spillage and queuing times. When a warehouse spills bytes to local and remote storage, it indicates that the warehouse doesn't have sufficient memory to process queries efficiently, leading to slower performance.
+
+      Average queuing time impacts how long queries wait before being executed. High queuing times mean that queries are delayed due to resource constraints, affecting overall system responsiveness.
+
+      Here are the top 3 warehouses experiencing these issues:
+      1. [Warehouse_Name_1] - Spillage: [Amount], Average Queue Time: [Duration]
+      2. [Warehouse_Name_2] - Spillage: [Amount], Average Queue Time: [Duration]
+      3. [Warehouse_Name_3] - Spillage: [Amount], Average Queue Time: [Duration]
+
+      There may be more warehouses experiencing spillage and queuing issues.
+
+      Please reach out to me, Janice, in Streamlit or Slack to discuss this further. Mention Process ID: [PROCESS_ID].
+
+      Regards,
+      Janice
+
+  PROCESS_DESCRIPTION: "Analyze and Identify Top 3 Snowflake Warehouses Experiencing Performance Issues Due to Data Spillage and Extended Queuing Times. This process involves querying Snowflake metadata to gather performance metrics, specifically focusing on bytes spilled to local and remote storage, as well as average queuing times. The analysis aims to pinpoint warehouses that may require configuration optimization to enhance overall system efficiency and reduce operational costs. The findings will be summarized in a detailed report, including specific warehouse names, spillage amounts, and queuing durations, to facilitate targeted improvements in the Snowflake environment."
+  TIMESTAMP: "2024-10-25 03:00:00+00:00"
+
+janice_check_MFA_use_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "Janice Check MFA Use"
+  PROCESS_INSTRUCTIONS: |
+    1. **Query to Retrieve User Data**:
+      - Use query_database function with note_id 'QUERY_3' to collect necessary data.
+
+    2. **Draft a Compelling Email:**
+      - As you write the email remember you're talking about security so the tone should be serious
+      - Draft an email with a catchy but serious sounding subject line including tone appropriate Unicode emojis about ensuring data safety through using MFA
+      - Include in the email body:
+        - a breif explanation of the benefits of MFA for authentication
+        - give them a table of some of the data you found which includes the percentage of users who currently have passwords using "PASSWORD_USERS" from the query results, the percentage of users who have passwords that also currently use MFA using "PASSWORD_USERS_MFA" from the query results, the percentage of users with admin access that use passwords without MFA using "ADMIN_PASSWORD_NO_MFA" from the query results.
+        - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+      - Formatting Instructions:
+        - Format the email as an HTML document unless expicilty instructed otherwise.
+        - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+        - DO NOT use <h1> headers.
+        - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+        - Table Formatting: Display the list of users (the result of the sql query) in an HTML table:
+          - Apply a different font style for the column headers to visually distinguish them from the rest of the table.
+          - Use <thead> for headers and <tbody> for the content.
+          - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
+        - Use the necessary styles and layout elements for a professional appearance.
+        - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
+
+    3. **Send the Email, or Tell the User to Activate the Default Email:**
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
+        - Then use run_process to continue running the rest of the steps
+
+    4. **Generate Report and Recommendations**:
+      - you are going to write an analysis of the data from the query. take note that:
+        - **ADMIN_PASSWORD_NO_MFA** tells you percent of users who have a password set and also have admin rights granted that do NOT have MFA set up
+        - **PASSWORD_USERS** tells you the percentage of all users in the account who have the ability to authenticate with a password
+        - **PASSWORD_USERS_MFA** tells you the percent of users with a password that do not have MFA set up
+        - **PASSWORD_USERS_PERSON** tells you the percent of users with a password set that have PERSON as their type attribute
+        - **PERSON_PASSWORD_NO_MFA** tells you the percent of users with a password set that have PERSON as their type attribute who do NOT have MFA set
+      - in your analysis keep these principles in mind:
+        - security best practice is that as few users as possible should have the ability to authenticate with a password. you should use federated sign in, SSO, or other means.
+        - users with PERSON as their type should be specifically encouraged to use MFA since they are human, interactive users who should not have any operational reasons not to use MFA
+        - any user with admin rights should be using MFA since they have the ability to do more damage if their credentials are compromised
+        - unless the numbers are extremely good (for example: 0% having passwords, or 100% of password users using MFA), only point out areas of improvement and don't assume anything you're seeing should be encouraged
+      - write your analysis as a statement of direction - what can the person you're talking to do to improve their security posture based on these numbers?
+
+    ### End of Process
+  PROCESS_DESCRIPTION: "Comprehensive analysis of Multi-Factor Authentication (MFA) usage patterns in Snowflake, including assessment of user types, admin privileges, and overall security posture. This process generates a detailed report with actionable recommendations for improving MFA adoption and enhancing account security."
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"
+
+janice_dangerous_user_report_golden:
+  BOT_ID: "Janice"
+  PROCESS_NAME: "Janice Dangerous User Report"
+  PROCESS_INSTRUCTIONS: |
+    1. Use query_database with note_id 'QUERY_4' to gather data on user roles and privileges.
+
+    2. **Draft a Compelling Email:**
+      - As you write the email remember you are talking about security so the tone should be serious
+      - Draft an email with a catchy but serious sounding subject line including tone appropriate Unicode emojis about finding users with dangerous amounts of privileges
+      - Include in the email body:
+        - a breif explanation about how having users with too much standing privilege can be very dangerous.
+        - give them a list of the top 3 users in terms of number of rights granted and make sure to note if the user is or is not granted the ACCOUNTADMIN role in each case
+        - Invite the user to come talk with you, Janice, in Streamlit or Slack by mentioning the Process ID.
+        - be sure to include line breaks in the body where appropriate, using the standard line break indicator (\n).
+        - Formatting Instructions:
+          - Format the email as an HTML document unless expicilty instructed otherwise.
+          - Use standard HTML headers (like <h2>, <h3>) and paragraph (<p>) tags for readability.
+          - DO NOT use <h1> headers.
+          - Ensure proper line breaks within paragraphs using the standard line break indicator (<br>).
+          - Table Formatting: Display the list of users (the result of the sql query) in an HTML table:
+            - Apply a different font style for the column headers to visually distinguish them from the rest of the table.
+            - Use <thead> for headers and <tbody> for the content.
+            - Ensure that the table is structured with proper tags like <table>, <thead>, <tbody>, <tr>, <th>, <td> etc.
+          - Use the necessary styles and layout elements for a professional appearance.
+      - When outputing the draft email body itself to the user, DO NOT wrap the html text in backticks. Wrap it in newlines (`\n`) instead.
+
+    3. **Send the Email, or Tell the User to Activate the Default Email:**
+        - If SYS$DEFAULT_EMAIL is not 'None' and is an email address, send the email to `SYS$DEFAULT_EMAIL`, otherwise don't send am email and instead tell the user they can set the Default Email in the Genesis Streamlit GUI to activate sending of emails. If sending an email, use mime_type='text/html' unless expicilty instructed to use other formats.
+        - Then use run_process to continue running the rest of the steps
+
+    4. Analyze the results based on the following criteria:
+      - Identify the top 5 users in terms of total privileges granted inclusive of roles.
+      - Determine if the rights and roles are concentrated in a few specific users or more evenly spread out.
+      - Check how broadly the ACCOUNTADMIN role is granted. ACCOUNTADMIN is the single most powerful role in Snowflake, and granting it too widely is very bad practice which should be discouraged.
+      - Look for any unusual patterns or noteworthy observations in the results. are there many users with similar numbers? are there only a few users with most rights and the rest have very little? MAKE SURE TO SAY IF THERE are there any ways that ACCOUNTADMIN grants may be warping the data? are there any other things about the numbers which seems noteworthy?
+
+    5. Report the findings, including any significant observations about the distribution of privileges and the granting of the ACCOUNTADMIN role.
+  PROCESS_DESCRIPTION: "Comprehensive analysis and report on potentially dangerous Snowflake user privileges, focusing on users with excessive rights, widespread ACCOUNTADMIN role distribution, and overall security posture evaluation. This process includes running SQL queries to gather user role data, drafting a compelling email with findings, and providing actionable recommendations to improve account security and privilege management within the Snowflake environment."
+  TIMESTAMP: "2024-10-25 02:00:00+00:00"

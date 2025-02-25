@@ -1,0 +1,1 @@
+from genesis_bots.demo.app.genesis_app import genesis_app

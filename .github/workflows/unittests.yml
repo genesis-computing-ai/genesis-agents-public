@@ -1,0 +1,56 @@
+name: Run-Unittest-Tests
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-unittests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Branch
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Add user-level bin to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Set Environment Variable
+        run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
+             echo $PYTHONPATH
+
+      - name: Run Unittests Sqlite
+        env:
+          SNOWFLAKE_METADATA: FALSE
+          SPCS_MODE: FALSE
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+        run: |
+          python -m pip install pytest
+          pytest -v
+
+      - name: Run Unittests Snowflake
+        if: true
+        env:
+          SNOWFLAKE_METADATA: TRUE
+          SPCS_MODE: TRUE
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          SNOWFLAKE_USER_OVERRIDE: ${{ secrets.SNOWFLAKE_USER_OVERRIDE }}
+          SNOWFLAKE_PASSWORD_OVERRIDE: ${{ secrets.SNOWFLAKE_PASSWORD_OVERRIDE }}
+        run: |
+          python -m pip install pytest
+          pytest -v

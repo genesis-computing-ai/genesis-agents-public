@@ -1,0 +1,69 @@
+{
+  "name": "openai-realtime-console",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "proxy": "http://127.0.0.1:8081",
+  "dependencies": {
+    "@openai/realtime-api-beta": "github:openai/openai-realtime-api-beta",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/leaflet": "^1.9.12",
+    "@types/node": "^16.18.108",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-helmet": "^6.1.11",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "http-proxy": "^1.18.1",
+    "leaflet": "^1.9.4",
+    "node-fetch": "^3.3.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-feather": "^2.0.10",
+    "react-helmet": "^6.1.0",
+    "react-leaflet": "^4.2.1",
+    "react-scripts": "^5.0.1",
+    "sass": "^1.78.0",
+    "save": "^2.9.0",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4",
+    "ws": "^8.18.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "relay_orig": "NODE_ENV=production node relay-server/index.js",
+    "relay": "NODE_ENV=production node server/relay.js",
+    "relay:dev": "NODE_ENV=development node server/relay.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "http-proxy-middleware": "^3.0.3",
+    "nodemon": "^3.1.7"
+  },
+  "webpack-dev-server": {
+    "allowedHosts": "all"
+  }
+}

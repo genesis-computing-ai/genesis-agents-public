@@ -1,0 +1,35 @@
+# Virtual environments and local environments
+venv*
+.venv/*
+.env*
+.secrets/*
+
+# Python cache
+*.pyc
+__pycache__/*
+
+# macOS
+.DS_Store
+
+# Temporary files
+tmp/
+.scratch
+*.exe
+.pyflyby/
+.vscode/
+*~
+
+# Gensis 'working' dirs/files
+genesis.db
+bot_git/
+runtime/
+genesis_sample/
+
+# Build and distribution directories
+build/
+dist/
+
+# Put your ignorable personal files under .personal/ or add explicit ignores here:
+.personal/
+*credentials.json
+

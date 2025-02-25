@@ -1,0 +1,127 @@
+janice_10_unused_tables:
+    BOT_ID: "Janice"
+    NOTE_TYPE: "sql"
+    NOTE_CONTENT: |
+        WITH AllDatabases AS (
+            SELECT DATABASE_NAME
+            FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES
+            WHERE DATABASE_NAME NOT LIKE '%.%' AND TYPE != 'IMPORTED DATABASE'
+        ),
+        AllTables AS (
+            SELECT
+                t.TABLE_CATALOG AS DATABASE_NAME,
+                t.TABLE_SCHEMA,
+                t.TABLE_NAME,
+                t.TABLE_TYPE,
+                t.ROW_COUNT,
+                t.BYTES
+            FROM
+                SNOWFLAKE.ACCOUNT_USAGE.TABLES t
+            WHERE
+                t.TABLE_CATALOG IN (SELECT DATABASE_NAME FROM AllDatabases)
+                AND t.TABLE_TYPE IN ('BASE TABLE', 'MATERIALIZED VIEW')
+                AND t.DELETED IS NULL
+        ),
+        AccessedTables AS (
+            SELECT DISTINCT
+                value:database_name::string AS DATABASE_NAME,
+                value:schema_name::string AS SCHEMA_NAME,
+                value:object_name::string AS TABLE_NAME
+            FROM
+                SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY ah,
+                TABLE(FLATTEN(input => ah.DIRECT_OBJECTS_ACCESSED))
+            WHERE
+                ah.QUERY_START_TIME > CURRENT_TIMESTAMP() - INTERVAL '30 days'
+                AND value:objectDomain::string = 'Table'
+        ),
+        UnusedTables AS (
+            SELECT
+                t.DATABASE_NAME,
+                t.TABLE_SCHEMA,
+                t.TABLE_NAME,
+                t.TABLE_TYPE,
+                t.BYTES
+            FROM
+                AllTables t
+            LEFT JOIN
+                AccessedTables a
+            ON
+                t.DATABASE_NAME = a.DATABASE_NAME AND
+                t.TABLE_SCHEMA = a.SCHEMA_NAME AND
+                t.TABLE_NAME = a.TABLE_NAME
+            WHERE
+                a.TABLE_NAME IS NULL
+        )
+        SELECT
+            DATABASE_NAME,
+            TABLE_SCHEMA,
+            TABLE_NAME,
+            TABLE_TYPE,
+            BYTES
+        FROM
+            UnusedTables
+        ORDER BY
+            BYTES DESC
+        LIMIT 10;
+    NOTE_NAME: "Top 10 Largest Unused Tables Across All Data Bases"
+    TIMESTAMP: "2024-09-18 00:00:00+00:00"
+
+janice_query_1:
+  BOT_ID: "Janice"
+  NOTE_TYPE: "sql"
+  NOTE_CONTENT: |
+    SELECT
+        'Top 3 Warehouses Spilling' AS Analysis_Type,
+        WAREHOUSE_NAME,
+        ROUND(AVG(BYTES_SPILLED_TO_LOCAL_STORAGE),2) AS AVG_BYTES_SPILLED_TO_LOCAL_STORAGE, 
+        ROUND(AVG(BYTES_SPILLED_TO_REMOTE_STORAGE),2) AS AVG_BYTES_SPILLED_TO_REMOTE_STORAGE
+    FROM
+        SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+    WHERE
+        WAREHOUSE_NAME IS NOT NULL  AND
+        START_TIME >= DATEADD(MONTH, -1, CURRENT_DATE)
+    GROUP BY
+        WAREHOUSE_NAME
+    ORDER BY
+        4 DESC, 3 DESC
+    LIMIT 3;
+  NOTE_NAME: "Top 3 Warehouses Spilling"
+  TIMESTAMP: "2024-09-18 00:00:00+00:00"
+
+janice_query_2:
+  BOT_ID: "Janice"
+  NOTE_TYPE: "sql"
+  NOTE_CONTENT: |
+    SELECT
+        'Average Queuing Time per month' AS Analysis_Type,
+        WAREHOUSE_NAME,
+        ROUND(AVG(QUEUED_PROVISIONING_TIME),2) AS AVG_QUEUED_PROVISIONING_TIME,
+        ROUND(AVG(QUEUED_REPAIR_TIME),2) AS AVG_QUEUED_REPAIR_TIME
+    FROM
+        SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+    WHERE
+        WAREHOUSE_NAME IS NOT NULL AND
+        START_TIME >= DATEADD(MONTH, -1, CURRENT_DATE)
+    GROUP BY
+        WAREHOUSE_NAME
+    ORDER BY
+        3 DESC, 4 DESC
+    LIMIT 3;
+  NOTE_NAME: "Average Queuing Time per month"
+  TIMESTAMP: "2024-09-18 00:00:00+00:00"
+
+QUERY_3:
+  BOT_ID: "Janice"
+  NOTE_TYPE: "sql"
+  NOTE_CONTENT: |
+    WITH user_stats AS (SELECT COUNT(*) AS total_users, COUNT(CASE WHEN HAS_PASSWORD = TRUE THEN 1 END) AS password_users, COUNT(CASE WHEN HAS_PASSWORD = TRUE AND EXT_AUTHN_DUO = TRUE THEN 1 END) AS mfa_users, COUNT(CASE WHEN HAS_PASSWORD = TRUE AND TYPE = 'PERSON' THEN 1 END) AS person_users, COUNT(CASE WHEN HAS_PASSWORD = TRUE AND TYPE = 'PERSON' AND EXT_AUTHN_DUO = FALSE THEN 1 END) AS person_no_mfa_users FROM SNOWFLAKE.ACCOUNT_USAGE.USERS), admin_role_users AS (SELECT u.name AS user_name, u.has_password, u.ext_authn_duo, gtu.role FROM SNOWFLAKE.ACCOUNT_USAGE.USERS u JOIN SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS gtu ON u.name = gtu.grantee_name WHERE u.has_password = TRUE AND gtu.role IN ('ACCOUNTADMIN', 'SECURITYADMIN', 'USERADMIN', 'ORGADMIN', 'SYSADMIN')), admin_role_stats AS (SELECT COUNT(DISTINCT user_name) AS total_admin_users_with_password, COUNT(DISTINCT CASE WHEN ext_authn_duo = FALSE THEN user_name END) AS admin_users_password_no_mfa FROM admin_role_users) SELECT CONCAT(ROUND((us.password_users / us.total_users) * 100, 2), '%') AS password_users_percentage, CONCAT(ROUND((us.mfa_users / us.password_users) * 100, 2), '%') AS password_users_mfa_percentage, CONCAT(ROUND((us.person_users / us.password_users) * 100, 2), '%') AS password_users_person_percentage, CONCAT(ROUND((us.person_no_mfa_users / us.person_users) * 100, 2), '%') AS person_password_no_mfa_percentage, CONCAT(ROUND((ar.admin_users_password_no_mfa / ar.total_admin_users_with_password) * 100, 2), '%') AS admin_password_no_mfa_percentage FROM user_stats us CROSS JOIN admin_role_stats ar;
+  NOTE_NAME: "MFA analysis query"
+  TIMESTAMP: "2024-09-19 00:00:00+00:00"
+
+QUERY_4:
+  BOT_ID: "Janice"
+  NOTE_TYPE: "sql"
+  NOTE_CONTENT: |
+    WITH role_hier AS (SELECT grantee_name, name FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES WHERE granted_on = 'ROLE' AND privilege = 'USAGE' AND deleted_on IS NULL UNION ALL SELECT 'root', r.name FROM SNOWFLAKE.ACCOUNT_USAGE.ROLES r WHERE deleted_on IS NULL AND NOT EXISTS (SELECT 1 FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES gtr WHERE gtr.granted_on = 'ROLE' AND gtr.privilege = 'USAGE' AND gtr.name = r.name AND deleted_on IS NULL)), role_path_pre AS (SELECT name, level, sys_connect_by_path(name, ' -> ') AS path FROM role_hier CONNECT BY grantee_name = PRIOR name START WITH grantee_name = 'root' ORDER BY path), role_path AS (SELECT name, level, substr(path, len(' -> ')) AS path FROM role_path_pre), role_path_privs AS (SELECT path, rp.name AS role_name, privs.privilege, granted_on, CASE WHEN privs.granted_on = 'ROLE' THEN 'Yes' WHEN privs.granted_on IS NULL AND path LIKE '%->%' THEN 'Yes' ELSE NULL END AS is_grant_to_role, CASE WHEN privs.granted_on != 'ROLE' THEN 'Yes' WHEN privs.granted_on IS NULL AND path NOT LIKE '%->%' THEN 'Yes' ELSE NULL END AS is_grant_to_privs, privs.name AS priv_name, 'Role ' || path || ' has ' || privilege || ' on ' || granted_on || ' ' || privs.name AS NOTE_NAME FROM role_path rp LEFT JOIN SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES privs ON rp.name = privs.grantee_name AND deleted_on IS NULL ORDER BY path), role_path_privs_agg AS (SELECT TRIM(SPLIT(path, ' -> ')[0]) role, COUNT(*) num_of_privs, COUNT(is_grant_to_role) num_role_grants, COUNT(is_grant_to_privs) num_privs_grants FROM role_path_privs GROUP BY TRIM(SPLIT(path, ' -> ')[0]) ORDER BY COUNT(*) DESC), accountadmin_check AS (SELECT grantee_name AS user_name, MAX(CASE WHEN role = 'ACCOUNTADMIN' THEN TRUE ELSE FALSE END) AS has_accountadmin FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS GROUP BY grantee_name) SELECT u.grantee_name AS user, COUNT(a.role) AS Direct_Role_Grants, SUM(num_role_grants) AS Total_Role_Grants, SUM(num_privs_grants) AS Total_Privs_Grants, SUM(num_of_privs) AS All_Grant_Types, COALESCE(ac.has_accountadmin, FALSE) AS has_accountadmin FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS u JOIN role_path_privs_agg a ON a.role = u.role LEFT JOIN accountadmin_check ac ON u.grantee_name = ac.user_name WHERE u.deleted_on IS NULL GROUP BY u.grantee_name, ac.has_accountadmin ORDER BY All_Grant_Types DESC, has_accountadmin DESC, u.grantee_name LIMIT 5;
+  NOTE_NAME: "dangerous user query"
+  TIMESTAMP: "2024-09-19 00:00:00+00:00"

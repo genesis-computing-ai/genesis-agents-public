@@ -1,19 +1,136 @@
-# Genesis Bots API Usage Examples
+# Genesis Bots - Overview
 
-This repository contains example scripts demonstrating the usage of the `genesis-bots` python package.
-These scripts serve as references to help users test and build genesis bots applications.
+This repository contains the public open source code for the `genesis-bots` system by Genesis Computing.
+For more information, visit https://docs.genesiscomputing.com/docs/.
+
+The rest of this guide assume you are familiar with the basic concepts of GenBots and wish to see the Genesis system in action by setting up and testing the system yourself.
+
+## System components
+
+### Genesis Server
+At its core, the Genesis system requires a running server. The server is responsible for:
+- Managing the lifeycle, state and health of the GenBots.
+- Servicing calls from multiple client applications to interact with the bots, manage configuration and setup integration with external systems (e.g. database connections).
+- Continously monitoring your data sources for keeping its internal data model and semantic layers up to date
+- Driving independent tasks performed by genbots.
+
+### Genesis UI (Streamlit)
+This repo contains a Streamlit UI aplicaiton which can be used to manage the configuraiton of the system as well as chat directly with the GenBots configured on the system.
+
+### GenesisAPI
+Users can leverage the Genesis system to build custom agentic AI Data workflows. Genesis offers a Python API which wraps REST endpoints exposed by the server. The API allows users to interact with GenBots, create new GenBots, use custom client-side tools, push/pull content, etc.
+
+The repository includes several sripts that demonstrates the power of the API.
 
 ## Installation
 
+You have several options:
+
+**Setup A - Developer mode**: Clone the repo and run the Genesis server and other applicaitons directly from the source code.
+
+**Setup B - Package mode**: `pip`-install the latest genesis package from Pyhon Package Index and interact with the system through the Streamlit App, Slack or Teams. You will only need to clone this repostory if you want to run the example GenesisAPI scripts against that server, or to peek into the srouce code.
+
+**Setup C - Snowflake Native App**: Run the Genesis system as a Snowflake Native app on your own Snowflake account. The Genesis server, along with the Streamlit App will also be runing natively and securely inside your own Snowflake account. . You will only need to clone this repostory if you want to run the example GenesisAPI scripts against that server, or to peek into the srouce code.
+
 ### Prerequisites
 
-- Python 3.12 installed
-
-  To verify that Python 3.12 is installed on your system, you can run the following command in your terminal or command prompt:
+If you intend to run the server or any of the GensisAPI exanples yourself, then you would need Python 3.10 and up installed.
+To verify the python version that is installed on your system, you can run the following command in your terminal or command prompt:
 
 ```sh
 python3 --version
 ```
+
+### Setup A - Developer mode
+1. Clone the repo into a working directory
+   ```sh
+   git clone https://github.com/genesis-bots/genesis-bots.git
+   cd gensis-bots
+   ```
+2. Setup and activate your virtualenv
+
+   On Linux and MacOS:
+   ```sh
+   python -m venv venv-gbots && source venv-gbots/bin/activate
+   ```
+   On Windows:
+   ```sh
+   python -m venv venv-gbots && venv-gbots\Scripts\activate
+   ```
+
+3. Install required packages
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+Next steps:
+1. Run the server locally (see below).
+2. (Optional) run the GenesisAPI example scripts (see below).
+
+### Setup B - Package mode
+
+1. Setup and activate your virtualenv
+
+   On Linux and MacOS:
+   ```sh
+   python -m venv venv-gbots && source venv-gbots/bin/activate
+   ```
+   On Windows:
+   ```sh
+   python -m venv venv-gbots && venv-gbots\Scripts\activate
+   ```
+
+2. Install the genesis-bots package
+   ```sh
+   pip install genesis-bots
+   ```
+Next steps:
+1. Run the server locally (see below).
+2. (Optional) run the GenesisAPI example scripts (see below).
+   
+### Setup C - Snowflake Native App
+In this setup we assume you already have the Genesis System running as a native Snowflake application (see [documentation](https://docs.genesiscomputing.com/docs/home) and that you want to run the GenesisAPI example scripts, connecting them to the same server.
+
+1. follow the same steps as in  **Setup A** to setup a working repository and environment locally.
+2. 
+
+Next steps;
+1. run the GenesisAPI example scripts (see below).
+
+
+### Prepare your environment
+Note: This step is required for all setups where you intend to run the server and/or the GenesisAPI examples yourself.
+
+1. **Create a working directory**
+
+  We will be creating a working direcotry called `genesis-bots` (feel free to use any othert name)
+   ```sh
+   mkdir genesis-bots
+   cd genesis-bots
+   ```
+1. **Create a python virtualenv**
+   ```sh
+   python3 -m venv venv-gbots
+   ```
+   Activate the virtual environment by running the following command:
+
+   On Mac/Linux:
+
+   ```sh
+   source venv-gbots/bin/activate
+   ```
+
+   On Windows:
+
+   ```sh
+   venv-gbots\Scripts\activate
+   ```
+### Setup A - Developer mode
+
+1. Clone the repo
+   ```sh
+   git clone 
+   ```
 
 - `pip` (Python package manager)
 

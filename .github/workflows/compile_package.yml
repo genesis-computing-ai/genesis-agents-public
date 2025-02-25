@@ -32,8 +32,9 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: genesis_bots-${{ env.PACKAGE_VERSION }}.tar.gz
-        path: dist/genesis_bots-${{ env.PACKAGE_VERSION }}.tar.gz
+        name: genesis_bots-${{ env.PACKAGE_VERSION }}
+        path: dist/
+        if-no-files-found: error
         compression-level: 0
         retention-days: 5
 

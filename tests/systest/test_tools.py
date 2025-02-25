@@ -17,7 +17,8 @@ if SNOWFLAKE:
         GENESIS_SOURCE='Snowflake',
         GENESIS_INTERNAL_DB_SCHEMA='GENESIS_TEST.UNITTEST_RUNNER',
         GENESIS_LOCAL_RUNNER='TRUE',
-        RUNNER_ID='snowflake-1'
+        RUNNER_ID='snowflake-1',
+        BOT_OS_DEFAULT_LLM_ENGINE='openai'
     ))
 
 import unittest

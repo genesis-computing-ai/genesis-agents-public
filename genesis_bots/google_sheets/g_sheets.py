@@ -376,14 +376,11 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
 
     if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(SERVICE_ACCOUNT_FILE):
-            logger.info(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
         try:
-            # Authenticate using the service account JSON file
-            creds = Credentials.from_service_account_file(
-                SERVICE_ACCOUNT_FILE, scopes=SCOPES
-            )
+            # Authenticate using OAuth2 credentials
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'g-workspace-credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")

@@ -21,7 +21,9 @@ def google_drive_login():
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for development!
 
     # Use consistent redirect URI
-    redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
+    # redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
+    base_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app"
+    redirect_uri = f"{base_url}/oauth/oauth2"
     logger.info(f"Redirect URI for Google Drive Login: {redirect_uri}")
 
     flow = Flow.from_client_secrets_file(

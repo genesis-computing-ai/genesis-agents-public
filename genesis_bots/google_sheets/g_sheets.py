@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from datetime import datetime
 # import mimetypes
-import os
+import os, json
 
 from genesis_bots.google_sheets.format_g_sheets import format_genesis_g_sheets
 
@@ -384,7 +384,7 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
             with open(OAUTH_CREDS, 'r') as f:
                 creds_json = json.load(f)
             # creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
-            logger.info(f"Credentials loaded: {type(creds)} | {creds}")
+            logger.info(f"Credentials loaded: {type(creds_json)} | {creds_json}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False

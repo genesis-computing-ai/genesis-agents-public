@@ -1103,7 +1103,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             return {"Success": False, "Data": err}
 
     def create_google_sheets_creds(self):
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
+        hard_coded_email = 'jeff.davidson@genesiscomputing.ai'
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{hard_coded_email}';"
         cursor = self.client.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -1131,7 +1132,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             return False
 
         creds_dict = {row[0]: row[1] for row in rows}
-        wrapped_creds_dict = {"installed": creds_dict}
+        wrapped_creds_dict = {"web": creds_dict}
 
         creds_json = json.dumps(wrapped_creds_dict, indent=4)
         with open(f'google_oauth_credentials.json', 'w') as json_file:

@@ -16,6 +16,11 @@ SCOPES = [
 
 oauth_routes = Blueprint('oauth_routes', __name__)
 
+@oauth_routes.get("/endpoint_check")
+def endpoint_check():
+    logger.info("Endpoint check successful!")
+    return "Endpoint check successful!"
+
 @oauth_routes.get("/google_drive_login")
 def google_drive_login():
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'  # Only for development!

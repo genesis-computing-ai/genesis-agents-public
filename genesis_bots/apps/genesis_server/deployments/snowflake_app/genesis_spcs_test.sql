@@ -20,7 +20,7 @@ delete from GENESIS_TEST.GENESIS_INTERNAL.LLM_TOKENS;
 
 select * from GENESIS_TEST.GENESIS_INTERNAL.bot_Servicing;
 update GENESIS_TEST.GENESIS_INTERNAL.bot_Servicing
-set available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "webpage_downloader", "data_connector_tools", "snowflake_tools"]'
+set available_tools = '["slack_tools", "make_baby_bot", "integrate_code", "data_connector_tools", "snowflake_tools"]'
 where bot_id = 'jl-local-eve-test-1';
 
 select * from GENESIS_TEST.GENESIS_INTERNAL.harvest_control;

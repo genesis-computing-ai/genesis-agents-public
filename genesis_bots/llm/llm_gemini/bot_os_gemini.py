@@ -39,7 +39,7 @@ class BotOsAssistantGemini(BotOsAssistantInterface):
         #self.responses = deque()
 
         # genai.configure(api_key=os.environ['GEMINI_API_KEY'])
-        genai.configure(api_key=os.getenv('GEMINI_API_KEY','AIzaSyAI1muEgo3HtNCRiPbt7tNsP-iZLoZpISI'))
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY',''))
 
         if files:
             files_uploaded = self._upload_files(files.urls)

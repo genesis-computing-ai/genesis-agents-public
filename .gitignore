@@ -75,3 +75,4 @@ dist/
 genesis_bots.egg-info/
 
 google_oauth_credentials.json
+*google_oauth_credentials*.json

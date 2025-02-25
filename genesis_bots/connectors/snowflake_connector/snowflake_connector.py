@@ -1114,7 +1114,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
 
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
-        creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
+        # creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:
@@ -1132,6 +1132,18 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             return False
 
         creds_dict = {row[0]: row[1] for row in rows}
+
+        if 'redirect_uris' in creds_dict:
+            try:
+                # First, parse the string as JSON
+                redirect_uris = json.loads(creds_dict['redirect_uris'])
+                # Update the dictionary with the parsed array
+                creds_dict['redirect_uris'] = redirect_uris
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing redirect_uris: {e}")
+
+        os.environ['GOOGLE_CLOUD_PROJECT'] = creds_dict['project_id'] # 'genesis-workspace-project'
+
         wrapped_creds_dict = {"web": creds_dict}
 
         creds_json = json.dumps(wrapped_creds_dict, indent=4)

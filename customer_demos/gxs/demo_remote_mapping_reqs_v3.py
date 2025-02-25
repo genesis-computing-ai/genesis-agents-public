@@ -502,13 +502,26 @@ def perform_source_research_new(client, requirement, paths, bot_id):
         thread = str(uuid.uuid4())
         response = call_genesis_bot(client, bot_id, research_prompt, thread = thread)
 
+        file_name = paths["source_research_file"]
+        print(f"Checking Git file:\nPaths: {paths}")
+        print(f"File Name: {file_name}")
+        print(f"Eve Bot ID: {eve_bot_id}")
 
-        contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
+        try:
+            contents = check_git_file(client, paths=paths, file_name=file_name, bot_id=eve_bot_id)
+        except Exception as e:
+            print(f"Error checking git file: {e}, prompting the bot to try again...")
+            contents = None
 
         if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
             retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git.  Please complete your analysis, and then save your work again using the git_action function.'''
             response = call_genesis_bot(client, bot_id, retry_prompt, thread = thread)
-            contents = check_git_file(client,paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
+            file_name = paths["source_research_file"]
+            try:
+                contents = check_git_file(client, paths=paths, file_name=file_name, bot_id=eve_bot_id)
+            except Exception as e:
+                print(f"Error checking git file after the retry: {e}")
+                contents = None
             if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
                 raise Exception('Source research file not found or contains only placeholder')
         print_file_contents("SOURCE RESEARCH",
@@ -546,14 +559,22 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id):
     This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.'''
 
     thread = str(uuid.uuid4())
-    response = call_genesis_bot(client, bot_id, mapping_prompt, thread=thread)
-
-    contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
+    try:
+        response = call_genesis_bot(client, bot_id, mapping_prompt, thread=thread)
+        contents = check_git_file(client, paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
+    except Exception as e:
+        print(f"Error during initial mapping proposal call or file check: {e}")
+        contents = None
 
     if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
         retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please complete your work, and then try the save using the git_action function.'''
-        response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
-        contents = check_git_file(client,paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
+        try:
+            response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
+            contents = check_git_file(client, paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
+        except Exception as e:
+            print(f"Error during retry mapping proposal call or file check: {e}")
+            contents = None
+
         if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
             raise Exception('Mapping proposal file not found or contains only placeholder')
 

@@ -742,7 +742,7 @@ show databases;
 
 select * from genesis_test.genesis_internal.slack_app_config_tokens;
 
-update genesis_test.genesis_internal.slack_app_config_tokens set slack_app_config_refresh_token = 'xoxe-1-My0xLTY1NTA2NTAyNjA0NDgtNjc4NzMzNDE0Mjk5My02OTcyNzQ4NzU2OTE0LTIxYTg0Y2UxOWE4MGViMzNhOTc1ZTY4ZmI0YWMxZDIyODQyMjI4NWQyN2IyYmMzM2Y5NDQzNWM4ZjZmYmIyMTQ'
+update genesis_test.genesis_internal.slack_app_config_tokens set slack_app_config_refresh_token = '<token>'
 where runner_id = 'jl-local-runner';
 
 /// simple test for udf

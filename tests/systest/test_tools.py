@@ -217,8 +217,8 @@ class TestTools(unittest.TestCase):
     def test_send_email(self):
         bot_id = self.eve_id
         thread_id = str(uuid4())
-        response = send_email("Send email", to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest', 
-                   body='Test', bot_id=bot_id, thread_id=thread_id)
+        response = send_email("Send email", to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest',
+                   body='Test', bot_id=bot_id, thread_id=thread_id, save_as_artifact=False)
         self.assertTrue(response['Success'])
 
     def test_git_action(self):
@@ -273,7 +273,14 @@ class TestTools(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Clean up shared resources after all tests."""
+        if SNOWFLAKE:
+            response = cls.db_adapter.run_query(f'SHOW TABLES IN {cls.db_adapter.schema};')
+            tables = [row['NAME'] for row in response]
+            for table in tables:
+                query = f'DROP TABLE IF EXISTS {cls.db_adapter.schema}.{table} CASCADE;'
+                cls.db_adapter.run_query(query)
         cls.client.shutdown()
+
 
     # Returns True if the string is in upper case.
 if __name__ == '__main__':

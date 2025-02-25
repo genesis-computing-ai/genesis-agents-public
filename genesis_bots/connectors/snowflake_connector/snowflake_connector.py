@@ -1102,7 +1102,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             err = f"An error occurred while inserting {service_name} api config params: {e}"
             return {"Success": False, "Data": err}
 
-    def create_google_sheets_creds(self):
+    def create_google_sheets_oauth_creds(self):
         hard_coded_email = 'jeff.davidson@genesiscomputing.ai'
         query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{hard_coded_email}';"
         cursor = self.client.cursor()
@@ -1115,6 +1115,24 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         # creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
+
+        creds_json = json.dumps(creds_dict, indent=4)
+        with open(f'g-workspace-credentials.json', 'w') as json_file:
+            json_file.write(creds_json)
+        return True
+
+    def create_google_sheets_creds(self):
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
+        cursor = self.client.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return False
+
+        creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
+
+        creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:

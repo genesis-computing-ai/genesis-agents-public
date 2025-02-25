@@ -209,16 +209,24 @@ def make_and_save_index(table_id, bot_id=None):
     with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
         json.dump(table_names, f)
 
-    # save with default filename
-    index_file_name, meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
-    annoy_index.save(os.path.join(index_file_path,index_file_name))
 
-    logger.info("saving mappings to default cached files...")
-    with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
-        json.dump(table_names, f)
+    # # save with default filename
+    # index_file_name, meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
+    # index_file_full_path = os.path.join(index_file_path, index_file_name)
+    # if os.path.exists(index_file_full_path):
+    #     try:
+    #         os.remove(index_file_full_path)
+    #     except Exception as e:
+    #         logger.info(f"Failed to remove existing index file: {e}")
+    # annoy_index.save(index_file_full_path)
 
-    logger.info(f"Annoy index saved to {os.path.join(index_file_path,index_file_name)}")
+    # logger.info("saving mappings to default cached files...")
+    # with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
+    #     json.dump(table_names, f)
+
+    # logger.info(f"Annoy index saved to {os.path.join(index_file_path,index_file_name)}")
     # Save the size of the embeddings to a file
+    
     embedding_size = len(embeddings[0])
     with open(os.path.join(index_file_path, 'index_size.txt'), 'w') as f:
         f.write(str(embedding_size))
@@ -267,10 +275,7 @@ def load_or_create_embeddings_index(table_id, refresh=True, bot_id=None):
     # embedding_size = 3072
 
     emb_db_adapter = get_global_db_connector()
-    if refresh:
-        index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id, bot_id=bot_id)
-    else:
-        index_file_name, meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
+    index_file_name, meta_file_name = emb_db_adapter.generate_filename_from_last_modified(table_id, bot_id=bot_id)
 
     index_size_file = os.path.join(index_file_path, 'index_size.txt')
     if os.path.exists(index_size_file):
@@ -303,15 +308,15 @@ def load_or_create_embeddings_index(table_id, refresh=True, bot_id=None):
             if refresh:
                 if not os.path.exists(index_file_path):
                     os.makedirs(index_file_path)
-                copy_index_file_name, copy_meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
-                try:
-                    annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
-                except Exception as e:
-                    logger.debug('I cannot save save annoy index')
-                    logger.debug(e)
+                # copy_index_file_name, copy_meta_file_name = f'latest_cached_index_{bot_id}.ann', f'latest_cached_metadata_{bot_id}.json'
+                # try:
+                #     annoy_index.save(os.path.join(index_file_path,copy_index_file_name))
+                # except Exception as e:
+                #     logger.debug('I cannot save save annoy index')
+                #     logger.debug(e)
 
-                with open(os.path.join(index_file_path,copy_meta_file_name), 'w') as f:
-                    json.dump(metadata_mapping, f)
+                # with open(os.path.join(index_file_path,copy_meta_file_name), 'w') as f:
+                #     json.dump(metadata_mapping, f)
 
                 #logger.info(f"Annoy Cache Manager: Existing certified fresh Annoy index copied to {index_file_path+copy_index_file_name}, {index_file_path+copy_meta_file_name}")
             else:

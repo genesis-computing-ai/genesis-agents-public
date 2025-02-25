@@ -1,0 +1,114 @@
+Query,Expected Result
+Ask Eve the capital of Georgia,Atlanta
+Ask Eve the capital of Sri Lanka,Sri Jayawardenepura Kotte
+Ask Stuart to analyze and explain the image found at: https://genesiscomputing.ai/docs/capabilities/analyze-image/image-124/,"The image you provided is a hand drawn schematic diagram of a “Hospital Management System.” It visualizes the relationships and attributes of various components within the system such as
+
+Doctor This entity has attributes including Name (which further breaks down into First Name and Initials) and Address. The Doctor is linked to both Phone Number (noted as multi-value) and treats Patients.
+
+Patient Attributes for this entity include First Name, Last Name, and Patient ID. The Patient is associated with an Address and a Bill. The relationship between Doctor and Patient is denoted, suggesting treatment or consulting interactions.
+
+Medicine This is linked with attributes like Quantity and Price, indicating it tracks details of medication within the hospital system.
+
+Overall, the diagram outlines basic entities and their relationships in a hospital management system, highlighting how they interact in terms of treatments, billing, and medication management."
+Ask Eliza to analyze GLOBAL_WEATHER__CLIMATE_DATA_FOR_AI,"The dataset you want to analyze, GLOBAL_WEATHER__CLIMATE_DATA_FOR_BI, contains several interesting tables focused on historical, forecasted, and climatological weather data. Here’s a quick overview of the main tables available:
+
+1. History Day
+
+	•	Table: GLOBAL_WEATHER__CLIMATE_DATA_FOR_BI.STANDARD_TILE.HISTORY_DAY
+	•	Contains historical daily weather data such as temperatures, humidity, pressure, wind speed, precipitation, and solar radiation.
+
+2. Forecast Day
+
+	•	Table: GLOBAL_WEATHER__CLIMATE_DATA_FOR_BI.STANDARD_TILE.FORECAST_DAY
+	•	This table includes forecasted daily weather data with similar metrics to the historical table but focused on future predictions.
+
+3. Climatology Day
+
+	•	Table: GLOBAL_WEATHER__CLIMATE_DATA_FOR_BI.STANDARD_TILE.CLIMATOLOGY_DAY
+	•	Covers climatological data, providing averages and standard deviations for various weather metrics across different times.
+
+Each table offers detailed metrics for different environmental factors like temperature types (e.g., air, wet bulb), humidity, pressure variations, and more."
+"Ask Eliza to do a trend analysis over the last 6 months, and calculate anomalies and trends in temperature, precipitation, and other weather phenomena by comparing annual or seasonal averages to long-term averages.","To perform the trend analysis and calculate anomalies for the last 6 months, we need to:
+
+	1.	Define the key metrics (e.g., temperature, precipitation) and calculate their averages over the last 6 months.
+	2.	Compare these averages with long-term climatological averages to identify any anomalies or significant changes in trends.
+
+Let’s start by querying the HISTORY_DAY and CLIMATOLOGY_DAY tables to calculate the required averages and anomalies.
+
+Since this analysis spreads across various weather phenomena and comparisons, could you specify the geographical area or country for which you’d like this analysis conducted? This will help in tailoring the data extraction accurately."
+"Ask Eliza to do a trend analysis over the last 6 months, and calculate anomalies and trends in temperature, precipitation, and other weather phenomena by comparing annual or seasonal averages to long-term averages using zip code 11695","Here’s the trend analysis and anomaly calculation for postal code 11695 over the last 6 months compared to the long-term climatological averages:
+
+	•	Average Temperature (Last 6 Months): 44.34°F
+	•	Climatological Average Temperature: 53.94°F
+	•	Anomaly in Temperature: The recent average temperature is lower than the climatological average.
+	•	Average Precipitation (Last 6 Months): 0.15 inches
+	•	Climatological Average Precipitation: 0.31 inches
+	•	Anomaly in Precipitation: The recent average precipitation is significantly lower than the climatological average.
+
+These results indicate a trend towards cooler and drier conditions than the historical climatology for this postal code over the past half-year."
+"Ask Eliza to do a trend analysis over the last 6 months, and calculate anomalies and trends in temperature, precipitation, and other weather phenomena by comparing annual or seasonal averages to long-term averages using zip code 11695 and Extended Weather Data to Include more weather phenomena like wind speed, humidity, and solar radiation to see how these metrics have varied recently compared to climatological norms.","Here are the expanded results of the weather trend analysis for postal code 11695 over the last 6 months, compared to the climatological (historical long-term) averages:
+
+	•	Temperature
+	•	Recent Average: 44.34°F
+	•	Climatological Average: 53.94°F
+	•	Anomaly: Recent temperatures have been cooler compared to the long-term average.
+	•	Precipitation
+	•	Recent Average: 0.15 inches
+	•	Climatological Average: 0.31 inches
+	•	Anomaly: Recent precipitation levels are lower than the historical average.
+	•	Humidity
+	•	Recent Average: 70.99%
+	•	Climatological Average: 72.77%
+	•	Anomaly: Slightly lower humidity recently compared to the climatological norm.
+	•	Wind Speed
+	•	Recent Average: 14.14 mph
+	•	Climatological Average: 11.07 mph
+	•	Anomaly: Higher wind speeds recently compared to the long-term average.
+	•	Solar Radiation
+	•	Recent Average: 3095.18 W/m²
+	•	Climatological Average: 173.86 W/m²
+	•	Anomaly: Significantly higher solar radiation observed in the recent months compared to the climatological data.
+
+This detailed view reveals that along with cooler and drier conditions, the area has also experienced significantly higher solar radiation and slightly stronger winds than usual. These insights could be useful for further environmental impact studies or planning purposes."
+Ask Eliza to send a data joke in 5 minutes from now,Check to make sure text is returned in exactly 5 minutes and explain the joke that is returned to a 5 year old.
+Ask Eliza to generate a chart comparing the wins and losses of the braves and the redsox from 2000-2015,Compare the returned image to the image found at https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/2024/05/image-135.png?w=986&ssl=1 and make sure they are roughly identical
+Ask Eliza to return databases she has access to,"COVID19_EPDEMIOLOGICAL_DATA, GENESIS_BOTS_ALPHA, GLOBAL_WEATHER__CLIMATE_DATA_FOR_BI, MY_DATA, SNOWFLAKE, SPIDER_DATA_DIRECT_SHARE, WEATHER_DB"
+Ask Eve to explain a run query,"The run query function is used to execute SQL queries on a specific data connection, such as Snowflake. Here’s a quick rundown of how it works:
+
+	1.	Query: You provide an SQL query you want to run. It must correctly reference objects in a fully qualified three-part naming convention, like DATABASE.SCHEMA.TABLE.
+	2.	Connection: You specify the data connection where the query should be executed.
+	3.	Max Rows: You can set the maximum number of rows to retrieve with your query, up to 100. The default is 20 rows.
+
+This function is great for fetching specific data or checking updates directly from your databases."
+Ask Eliza to use the web scraper tool to return the HTML from www.google.com,"HTML:
+
+<!DOCTYPE html>
+<html itemscope= itemtype=http://schema.org/WebPage lang=en>
+<head>
+<meta content=Search the world's information, including webpages, images, videos and more... name=description/>
+...
+</head>
+<body>
+<div id=mngb>
+...
+</div>
+<form action=/search name=f>
+...
+</form>
+...
+</body>
+</html>
+
+Links:
+
+	1.	Images: https://www.google.com/imghp?hl=en&tab=wi
+	2.	Maps: http://maps.google.com/maps?hl=en&tab=wl
+	3.	Play: https://play.google.com/?hl=en&tab=w8
+	4.	YouTube: https://www.youtube.com/?tab=w1
+	5.	News: https://news.google.com/?tab=wn
+	6.	Gmail: https://mail.google.com/mail/?tab=wm
+	7.	Drive: https://drive.google.com/?tab=wo
+	8.	More Products: https://www.google.com/intl/en/about/products?tab=wh
+	9.	Web History: http://www.google.com/history/optout?hl=en
+	10.	Settings: http://google.com/preferences?hl=en
+	11.	Sign in: https://accounts.google.com/ServiceLogin?hl=en&passive=true&continue=http://www.google.com/&ec=GAZAAQ"

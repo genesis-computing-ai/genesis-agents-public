@@ -1,0 +1,3 @@
+Query,Expected Result
+Ask Eve the capital of Georgia,Atlanta
+Ask Eve the capital of Sri Lanka,Sri Jayawardenepura Kotte

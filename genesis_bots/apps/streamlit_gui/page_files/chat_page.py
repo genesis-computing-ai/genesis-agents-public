@@ -110,7 +110,7 @@ def set_initial_chat_sesssion_data(bot_name, initial_prompt, initial_message):
     if initial_message:
         # Mark the initial welcome message as an intro prompt so
         # that later the system knows an introductory message is already present.
-        initial_message = ChatMessage(role="assistant", content=initial_message, is_intro_prompt=True)
+        initial_message = ChatMessage(role="assistant", content=initial_message, is_intro_prompt=False)
     st.session_state.initial_chat_session_data = dict(
         bot_name=bot_name,
         initial_prompt=initial_prompt,
@@ -533,10 +533,7 @@ def chat_page():
         st.rerun()
     else:
         try:
-
-
-            # get bot details
-            # make sure Eve is first if exists
+            # Get bot details. Sort to make sure a bot with 'Eve' in the name is first if exists
             bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
             bot_names = [bot["bot_name"] for bot in bot_details]
             bot_ids = [bot["bot_id"] for bot in bot_details]
@@ -546,43 +543,25 @@ def chat_page():
             # Fetch available bots
             available_bots = bot_names
 
-            # Initialize current_bot and current_thread_id if they don't exist.
-            # This is where we respect initial_chat_session_data (only once, if exists)
-            if 'current_bot' not in st.session_state or 'current_thread_id' not in st.session_state:
-                # resolve initial bot name and intro prompt
-                initial_bot_name = None
-                initial_bot_message = None
-                initial_chat_session_data = st.session_state.get('initial_chat_session_data')
-                if initial_chat_session_data:
-                    # first, use the bot name in the initial session data (if valid)
-                    initial_bot_name = initial_chat_session_data.get('bot_name')
-                    if initial_bot_name is not None:
-                        # override the initial prompt if provided
-                        intro_prompt = initial_chat_session_data.get('initial_prompt')
-                        if intro_prompt:
-                            bot_intro_prompts_map[initial_bot_name] = intro_prompt
-                        # set initial bot message, if provided – and mark it as an intro
-                        initial_bot_message = initial_chat_session_data.get('initial_message')
-                    st.session_state.initial_chat_session_data = None  # mark as visited
-                if not initial_bot_name and available_bots:
-                    initial_bot_name = bot_names[0]
-                assert initial_bot_name
-
-                st.session_state.current_bot = initial_bot_name
-                new_thread_id = str(uuid.uuid4())
-                st.session_state.current_thread_id = new_thread_id
-                new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
-
-                # Initialize active_sessions if needed, then add this one.
-                if 'active_sessions' not in st.session_state:
-                    st.session_state.active_sessions = []
-                st.session_state.current_session = new_session
-                if new_session not in st.session_state.active_sessions:
-                    st.session_state.active_sessions.append(new_session)
-
-                # If an initial message exists, store it and mark that the intro was already sent.
-                st.session_state[f"messages_{new_thread_id}"] = [initial_bot_message] if initial_bot_message else []
-                st.session_state.intro_prompt_sent = bool(initial_bot_message)
+            # if we have initial chat session data (set externally, for this bot), use it to set the initial bot name and intro prompt
+            initial_chat_session_data = st.session_state.get('initial_chat_session_data')
+            if initial_chat_session_data:
+                # use this initial data if it matches the current bot name
+                initial_bot_name = initial_chat_session_data.get('bot_name')
+                if initial_bot_name == st.session_state.get('current_bot'):
+                    # override the initial prompt if provided
+                    intro_prompt = initial_chat_session_data.get('initial_prompt')
+                    if intro_prompt:
+                        bot_intro_prompts_map[initial_bot_name] = intro_prompt
+                    # set initial bot message, if provided (it is marked as an intro_prompt)
+                    initial_bot_message = initial_chat_session_data.get('initial_message')
+                    selected_thread_id = st.session_state.get("current_thread_id")
+                    if selected_thread_id and initial_bot_message:
+                        st.session_state[f"messages_{selected_thread_id}"] = [initial_bot_message]
+                # we clear the initial chat session after the first rendering for this page for any bot.
+                # This mechanism is used for injecting initial 'action' from the URL and the logic in Genesis.py to set initial chat session data should
+                # be in-sync with the initial_chat_session_data for this mechanism to work. Otherwise we silently ignore it.
+                st.session_state.initial_chat_session_data = None
 
             # (File uploader and active chat session UI are provided by Genesis.py.)
             # Retrieve the file uploader value from the main sidebar (set in Genesis.py)

@@ -390,8 +390,12 @@ if st.session_state.data:
     # Set the default selection page
     selected_page_id = None
 
+    # set the default chat bot id for chat_page
+    initial_bot_name = None
+
     # Handle URL params which are used, for example, to drop user into a specific page or chat session.
-    # We expect a param named 'action' followd by action-specific params
+    # We expect a param named 'action' followed by action-specific params.
+    # This logic will be triggered only once (since we pop the params from the URL)
     url_params = st.query_params.to_dict()
     if url_params:
         action = url_params.pop('action', None)
@@ -399,8 +403,9 @@ if st.session_state.data:
             bot_name = url_params.pop('bot_name', None)
             artifact_id = url_params.pop('artifact_id', None)
             if bot_name and artifact_id:
-                # Force the selected page to the chat page and inject the initial bot_name and initial prompt
+                # Force the selected page to chat_page and inject the initial bot_name and initial prompt so it gets picked up on the next chat_page load
                 selected_page_id = 'chat_page'
+                initial_bot_name = bot_name
                 module = pages.get_module(selected_page_id)
                 module.set_initial_chat_sesssion_data(
                     bot_name=bot_name,
@@ -439,12 +444,18 @@ if st.session_state.data:
                 # Sort bot details to choose the first based on your criteria (e.g. "Eve" appears first if present)
                 bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
                 bot_names = [bot["bot_name"] for bot in bot_details]
-                initial_bot_name = bot_names[0]
+                if initial_bot_name and initial_bot_name not in bot_names:
+                    # if we already have an initial bot name (see above) but it's no longer a valid one (e.g. bot was deleted) then fallback to the default
+                    initial_bot_name = None
+                if not initial_bot_name:
+                    # default to choose the first one in the list
+                    initial_bot_name = bot_names[0]
             else:
                 initial_bot_name = "ChatBot"
         except Exception:
             initial_bot_name = "ChatBot"
         import uuid
+        # start a new thread_id and settion for the initial bot and update the state
         new_thread_id = str(uuid.uuid4())
         st.session_state.current_bot = initial_bot_name
         st.session_state.current_thread_id = new_thread_id

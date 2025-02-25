@@ -227,23 +227,7 @@ def google_drive(
             return {"Success": False, "Error": str(e)}
 
     elif action == "LOGIN":
-        from google_auth_oauthlib.flow import Flow
-
-        SCOPES = [
-            "https://www.googleapis.com/auth/drive.file",
-            "https://www.googleapis.com/auth/documents",
-            "https://www.googleapis.com/auth/drive"
-        ]
-
-        # redirect_url = f"{os.environ['NGROK_BASE_URL']}:8080/oauth/oauth"
-        redirect_url = f"https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth2"
-
-        flow = Flow.from_client_secrets_file(
-            f"google_oauth_credentials.json",
-            scopes=SCOPES,
-            redirect_uri = redirect_url  # Your redirect URI
-        )
-        auth_url, _ = flow.authorization_url(prompt="consent")
+        auth_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/google_drive_login"
         return {"Success": "True", "auth_url": f"<{auth_url}|View Document>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":

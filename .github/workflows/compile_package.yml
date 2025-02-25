@@ -7,6 +7,8 @@ jobs:
   build:
     name: Build Source Distribution
     runs-on: ubuntu-latest
+    env:
+      PACKAGE_VERSION: '1.0.40'
     
     steps:
     - uses: actions/checkout@v4
@@ -24,16 +26,15 @@ jobs:
         pip install build
 
     - name: Build package
-      env:
-        PACKAGE_VERSION: '1.0.40'
       run: |
         python -m build --sdist
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: dist-sdist-py3.12
-        path: dist/
+        name: genesis_bots-${{ env.PACKAGE_VERSION }}.tar.gz
+        path: dist/genesis_bots-${{ env.PACKAGE_VERSION }}.tar.gz
+        compression-level: 0
         retention-days: 5
 
     - name: List built files

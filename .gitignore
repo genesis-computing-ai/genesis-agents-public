@@ -1,78 +1,35 @@
-venv
-*.pyc
-kb/*
-demo/kb*/*
-.jay
-.justin
-.secrets/*
-.DS_Store
-bot_os_env.sh
-tmp_uploaded_files/*
-tmp copy/*
-kb_annoy/*
-kb_annoy_old/*
-kb_vector/user_preferences/*
-kb_*/*
-tmp/*
-process_cache/*
-kb_test/*
-downloaded_files/*
-uploads/*
-saved_llm_settings_local.json
-*.DS_Store
-*.pickle
-snowflake_app/mr_genesis_natapp_provider.sql
-streamlit_gui/mr_streamlit_sis_v1.py
-streamlit_gui/Genesis.py
-streamlit_new/*
-.scratch
-*.ann
-*.exe
-rsa_key.p8
-rsa_key.pub
+# Virtual environments and local environments
+venv*
 .venv/*
 .env*
-.pyflyby/
-requirements_orig.txt
-.vscode/
-.pyflyby/
+.secrets/*
 
-genesis_env/*
-.matt.sh
-genesis.db
-launch.json
+# Python cache
+*.pyc
+__pycache__/*
+
+# macOS
+.DS_Store
+
+# Temporary files
+tmp/
+.scratch
 *.exe
-
-sdf_workspaces/*
-sdf_genesis/sdf_dagster_out/*
-
-# Put all the ad-hoc personal stuff (scripts, files, notes) here
-.personal/
-bot_git/
-./bot_git/
-
-genesis-workspace-project-d094fd7d2562.json
-g-workspace-*.*
-
-build/
-dist/
-genesis_api_public.egg-info/
-genesis_api_public_whl.egg-info/
-genesis_api_whl.egg-info/
-jl.db
-runtime/*
-
-# emacs temp files
+.pyflyby/
+.vscode/
 *~
 
-sample_catalog_stage
-build_output.log
-
-# we copy all the local sample files to this dir from the genesis_bots package
+# Gensis 'working' dirs/files
+genesis.db
+bot_git/
+runtime/
 genesis_sample/
+
+# Build and distribution directories
 build/
 dist/
-genesis_bots.egg-info/
 
-google_oauth_credentials.json
-*google_oauth_credentials*.json
+# Put your ignorable personal files under .personal/ or add explicit ignores here:
+.personal/
+*credentials.json
+

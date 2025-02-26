@@ -5222,6 +5222,14 @@ result = 'Table FAKE_CUST created successfully.'
             result = self.add_hints(purpose, result, code, packages)
         return result
 
+    def disable_cortex(self):
+        query = f'''
+            UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS
+            SET ACTIVE = False
+            WHERE LLM_TYPE = 'cortex'
+        '''
+        self.run_query(query)
+
 
 snowflake_tools = ToolFuncGroup(
     name="snowflake_tools",
@@ -5432,7 +5440,7 @@ def _run_snowpark_python(
     """
     This function accepts a string containing Python code and executes it using Snowflake's Snowpark python environment.
     Code is run using a precreated and provided Snowpark 'session', do not create a new session.
-    Results should only have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the 
+    Results should only have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the
     python code to run, or the 'note_id' field with the id of the note referencing the pre-saved program you want to run.
     """
     return SnowflakeConnector("Snowflake").run_python_code(
@@ -5458,4 +5466,3 @@ _all_snowflake_connector_functions = [
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_snowflake_connector_functions():
     return _all_snowflake_connector_functions
-

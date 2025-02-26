@@ -509,22 +509,15 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         """
         metadata = self.get_artifact_metadata(artifact_id)
         title = metadata['title_filename']
-        #sanitized_title = re.sub(r'[^a-zA-Z0-9_\-:.]', '-', title)
-        # mime_type = metadata['mime_type']
-
-        # if mime_type in ("image/jpeg", "image/jpg", "image/png", "image/gif"):
-        #     html_format = f'<img src="artifact:/{artifact_id}" alt={sanitized_title} >'
-        # elif mime_type == "text/plain":
-        #     html_format = f'<pre>src="artifact:/{artifact_id}" frameborder="1">{title}</pre>'
-        # elif mime_type == "text/html":
-        #     html_format = f'<iframe src="artifact:/{artifact_id}" frameborder="1">{title}</iframe>'
-        # else:
-        #     html_format = f'<a href="artifact:/{artifact_id}" download="{sanitized_title}">Download {title}</a>'
-
-        # return (f'(i) When replying to the user in text/plain format, use the following markdown: [{title}](artifact:/{artifact_id}) \n'
-        #         f'(ii) When replying to the user in text/html format, use the following markup: {html_format} \n')
-        return (f"Here is a markdown syntax you (assistant) can use to render this artifact when responding to the user in a chat or to embed this artifact in an email: [{title}](artifact:/{artifact_id}). "
-                "Strictly follow this markdown syntax. Note that this markdown cannot be used by the user. DO NOT suggest to the user to use this markdown. ")
+        mime_type = metadata.get('mime_type', '')
+        
+        # Simple check if this is an image
+        is_image = mime_type and mime_type.startswith('image/')
+        
+        # Use image markdown for images, regular markdown for other files
+        markdown = f"!{'' if is_image else ''}[{title}](artifact:/{artifact_id})"
+        
+        return f"Here is a markdown syntax you (assistant) can use to {'render' if is_image else 'reference'} this artifact when responding to the user: {markdown}. Strictly follow this markdown syntax. Note that this markdown cannot be used by the user. DO NOT suggest to the user to use this markdown."
 
 
 def get_artifacts_store(db_adapter):

@@ -35,7 +35,7 @@ from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
 from genesis_bots.core.tools.git_action import git_action
 from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
 from genesis_bots.core.tools.send_email import send_email
-from genesis_bots.genesis_sample_golden.demos.cli_chat import get_available_bots
+from api_examples.cli_chat import get_available_bots
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 

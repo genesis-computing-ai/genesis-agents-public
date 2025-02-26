@@ -218,7 +218,7 @@ class TestTools(unittest.TestCase):
     def test_send_email(self):
         bot_id = self.eve_id
         thread_id = str(uuid4())
-        response = send_email("Send email", to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest',
+        response = send_email(to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest',
                    body='Test', bot_id=bot_id, thread_id=thread_id, save_as_artifact=False)
         self.assertTrue(response['Success'])
 

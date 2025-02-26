@@ -32,4 +32,5 @@ dist/
 # Put your ignorable personal files under .personal/ or add explicit ignores here:
 .personal/
 *credentials.json
-
+g-workspace-*.json
+sample_catalog_stage/

@@ -17,7 +17,6 @@ from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
 
 index_file_path = './tmp/'
 
-
 def fetch_embeddings_from_snow(table_id):
     # Initialize Snowflake connector
 
@@ -148,16 +147,18 @@ def create_annoy_index(embeddings, n_trees=10):
         embeddings = [np.array(emb)/(1e-5+np.linalg.norm(emb)) for emb in embeddings]
 
     index = AnnoyIndex(dimension, 'angular')
-
+    import random
     try:
+        print('starting i..')
         with tqdm(total=len(embeddings), desc="Indexing embeddings") as pbar:
             for i, embedding in enumerate(embeddings):
               #  logger.info(i)
                 try:
                     index.add_item(i, embedding)
                 except Exception as e:
-                    logger.info('embedding ',i,' failed, exception: ',e,' skipping...')
+                    print('embedding ',i,' failed, exception: ',e,' skipping...')
                 pbar.update(1)
+            print('index build real')
             index.build(n_trees)
     except Exception as e:
         logger.info('indexing exception: ',e)
@@ -221,7 +222,7 @@ def make_and_save_index(table_id, bot_id=None):
     # annoy_index.save(index_file_full_path)
 
     # logger.info("saving mappings to default cached files...")
-    # with open(os.path.join(index_file_path,meta_file_name), 'w') as f:
+    # with open(os.path.join(index_file_path,meta_filecreat_name), 'w') as f:
     #     json.dump(table_names, f)
 
     # logger.info(f"Annoy index saved to {os.path.join(index_file_path,index_file_name)}")

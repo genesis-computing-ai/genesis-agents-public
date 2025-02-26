@@ -1,0 +1,4 @@
+s='💬'
+s.encode("unicode_escape")
+
+ord

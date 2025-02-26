@@ -1,0 +1,72 @@
+{
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "type": "AdaptiveCard",
+    "version": "1.0",
+    "body": [
+      {
+        "type": "Input.Text",
+        "id": "type",
+        "isVisible": false,
+        "value": "process"
+      },
+      {
+        "type": "TextBlock",
+        "size": "Medium",
+        "weight": "Bolder",
+        "text": "{title}",
+        "horizontalAlignment": "Center"
+      },
+      {
+        "type": "Input.Text",
+        "id": "process_id",
+        "isVisible": true,
+        "value": "{process_id}",
+        "label": "Process ID"
+      },
+      {
+        "type": "Input.Text",
+        "id": "process_name",
+        "isVisible": true,
+        "value": "{process_name}",
+        "label": "Process Name"
+      },
+      {
+        "type": "Container",
+        "items": [
+          {
+            "label": "Process Instructions",
+            "type": "Input.Text",
+            "isMultiline": true,
+            "id": "process_instructions",
+            "isVisible": true,
+            "maxLength": 10000,
+            "value": "{process_instructions}",
+            "height": "stretch"
+          }
+        ],
+        "minHeight": "160px"
+      },
+      {
+        "type": "Container",
+        "items": [
+          {
+            "label": "Process Parameters",
+            "type": "Input.Text",
+            "isMultiline": true,
+            "id": "process_parameters",
+            "isVisible": true,
+            "maxLength": 10000,
+            "value": "{process_parameters}",
+            "height": "stretch"
+          }
+        ],
+        "minHeight": "160px"
+      }
+    ],
+    "actions": [
+      {
+        "type": "Action.Submit",
+        "title": "Submit"
+      }
+    ]
+  }

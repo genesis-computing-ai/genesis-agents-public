@@ -1,0 +1,73 @@
+{
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "type": "AdaptiveCard",
+    "version": "1.0",
+    "body": [
+      {
+        "type": "Input.Text",
+        "id": "type",
+        "isVisible": false,
+        "value": "note"
+      },
+      {
+        "type": "TextBlock",
+        "size": "Medium",
+        "weight": "Bolder",
+        "text": "Create/Update Note",
+        "horizontalAlignment": "Center"
+      },
+      {
+        "type": "Input.Text",
+        "id": "note_id",
+        "isVisible": true,
+        "label": "Note ID",
+        "value": "{note_id}"
+      },
+      {
+        "type": "Input.Text",
+        "id": "note_name",
+        "isVisible": true,
+        "label": "Note Name",
+        "value": "{note_name}"
+      },
+      {
+        "type": "Input.ChoiceSet",
+        "id": "note_type",
+        "label": "Code type",
+        "value": "python",
+        "choices": [
+            {
+                "title": "SQL",
+                "value": "sql"
+            },
+            {
+                "title": "Snowpark Python",
+                "value": "python"
+            }
+        ],
+        "style": "expanded"
+      },
+      {
+        "type": "Container",
+        "items": [
+          {
+            "type": "Input.Text",
+            "isMultiline": true,
+            "id": "note_contents",
+            "isVisible": true,
+            "maxLength": 10000,
+            "height": "stretch",
+            "value": "{note_contents}",
+            "label": "Note Contents"
+          }
+        ],
+        "minHeight": "160px"
+      }
+    ],
+    "actions": [
+      {
+        "type": "Action.Submit",
+        "title": "Submit"
+      }
+    ]
+  }

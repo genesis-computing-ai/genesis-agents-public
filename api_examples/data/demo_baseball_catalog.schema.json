@@ -1,0 +1,45 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "patternProperties": {
+      "^[a-zA-Z0-9_]+$": {
+        "type": "object",
+        "properties": {
+          "asset_type": {
+            "type": "string",
+            "enum": ["table"]
+          },
+          "table_description": {
+            "type": "string"
+          },
+          "columns": {
+            "type": "object",
+            "patternProperties": {
+              "^[a-zA-Z0-9_]+$": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["INTEGER", "TEXT", "BOOLEAN", "FLOAT", "DATE", "TIMESTAMP"]
+                  },
+                  "relationship": {
+                    "type": "string",
+                    "description": "Optional foreign key relationship description."
+                  }
+                },
+                "required": ["description", "type"],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["asset_type", "table_description", "columns"],
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  }

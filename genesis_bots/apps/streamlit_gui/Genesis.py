@@ -368,24 +368,33 @@ if st.session_state.data:
 
     #    st.sidebar.subheader("**Genesis App**")
 
+    # Check the current theme
+    current_theme = st.get_option("theme.base")
+
+    # Choose the image based on the theme
+    if current_theme == "dark":
+        image_name = "Genesis-Computing-Logo-White.png"
+    else:
+        image_name = "Genesis-Computing-Logo-Black.png"
+
     # Get NativeMode from session state
     native_mode = st.session_state.get("NativeMode", False)
     if native_mode:
-        render_image("Genesis-Computing-Logo-White.png", width=250)
+        render_image(image_name, width=250)
     else:
         if is_running_from_package():
             from importlib import resources
             try:
                 # Don't use context manager with Path object
-                image_path = resources.files('apps.streamlit_gui').joinpath('Genesis-Computing-Logo-White.png')
+                image_path = resources.files('apps.streamlit_gui').joinpath(image_name)
                 st.sidebar.image(str(image_path), width=250)
             except Exception:
                 # Fallback for older Python versions
-                with resources.path('apps.streamlit_gui', 'Genesis-Computing-Logo-White.png') as image_path:
+                with resources.path('apps.streamlit_gui', image_name) as image_path:
                     st.sidebar.image(str(image_path), width=250)
         else:
             # Direct development path
-            st.sidebar.image("./genesis_bots/apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
+            st.sidebar.image(f"./genesis_bots/apps/streamlit_gui/{image_name}", width=250)
 
     # Set the default selection page
     selected_page_id = None

@@ -880,13 +880,10 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
                     if "<TOOL_CALL>" in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
-                        #self.active_runs.append(thread_to_check)
                     elif "<function=" in decoded_payload and "</function>" in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                     elif "<function>" in decoded_payload and "</function>" in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
-                    #  elif '{\n "type": "function",' in decoded_payload:
-                    #      self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                     elif '<|python_tag|>{"type": "function"' in decoded_payload:
                         self.process_tool_call(thread_id, timestamp, decoded_payload, message_metadata)
                     else:
@@ -907,8 +904,6 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                       #                                              input_metadata=json.loads(message_metadata)))
                 else:
                     logger.error(f"No Assistant Response found for Thread ID {thread_id} {timestamp} and model {self.llm_engine}")
-                    #self.active_runs.append(thread_to_check)
-              #  logger.warn("BotOsAssistantSnowflakeCortex:check_runs - run complete")
             except Exception as e:
                 logger.info(f"Error retrieving Assistant Response for Thread ID {thread_id} and model {self.llm_engine}: {e}")
 
@@ -1095,13 +1090,33 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         new_ts = datetime.datetime.now()
         if isinstance(results, (dict, list)):
-            results = json.dumps(results, default=custom_serializer)
+            # Check if this is an image generation result
+            if isinstance(results, dict) and 'local_file_name' in results and results.get('success', True):
+                file_path = results['local_file_name']
+                # Add the image reference to the results
+                results_copy = results.copy()
+                results_copy['image_markdown'] = f"![Generated Image]({file_path})"
+                results = json.dumps(results_copy, default=custom_serializer)
+            else:
+                results = json.dumps(results, default=custom_serializer)
         else:
             results = str(results)
 
 
         prefix = ""
         prefix = 'SYSTEM MESSAGE: Here are the results of the tool call. Note that the end user has not seen these details:\n\n'
+
+        # For image generation results, add the image markdown to the thread_full_response
+        if isinstance(results, str) and '"local_file_name"' in results and '"success": true' in results:
+            try:
+                results_dict = json.loads(results)
+                if 'local_file_name' in results_dict:
+                    file_path = results_dict['local_file_name']
+                    if thread_id not in self.thread_full_response:
+                        self.thread_full_response[thread_id] = ""
+                    self.thread_full_response[thread_id] += f"\n\n![Generated Image]({file_path})"
+            except:
+                pass
 
         message_object = {
             "message_type": "user",

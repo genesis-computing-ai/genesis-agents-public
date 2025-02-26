@@ -1,6 +1,6 @@
 # Genesis Bots requirements file
-# See requirements_windows.txt for Windows-specific requirements if you have issues with Annoy exiting during Vector Index creation.
 annoy==1.17.3
+Brotli==1.0.9 # required for annoy to work on virtualized Windows machines
 APscheduler
 bs4
 db-dtypes
@@ -20,7 +20,7 @@ pyyaml==6.0.1
 simplejson==3.19.2
 slack_bolt
 streamlit==1.35.0
-streamlit_autorefresh  # ^^ this may also need a version for compat reasons
+streamlit_autorefresh  
 urllib3==1.26.19
 ngrok
 snowflake_connector_python==3.12.3
@@ -37,7 +37,6 @@ markdown
 cython
 tenacity
 dagster==1.9.5
-#dagster-cloud
 dagster-graphql
 dagster-spark
 dagster-dbt

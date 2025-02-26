@@ -51,9 +51,12 @@ class TestTools(unittest.TestCase):
     def setUpClass(cls):
         """Setup shared resources for all test methods."""
         server_proxy = build_server_proxy('embedded')
+        cls.db_adapter = server_proxy.genesis_app.db_adapter
+        cls.db_adapter.disable_cortex()
+
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bot_ids = _get_available_bot_ids(cls.client)
-        cls.db_adapter = cls.client._server_proxy.genesis_app.db_adapter
+
         cls.eve_id = cls.available_bot_ids[0]
         for bot_id in cls.available_bot_ids:
             if 'Eve' in bot_id:

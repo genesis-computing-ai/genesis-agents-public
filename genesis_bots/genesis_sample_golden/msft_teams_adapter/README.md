@@ -13,7 +13,13 @@ Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Ge
 8.  Verify resource group creation:
     az group show --name <your_resource_group_name>
 9.  Create a bot on Azure:
-    -- Add specifics here --
+    In Azure UI, search for 'Azure Bot'.  Choose Marketplace -> Azure Bot
+    Add a Bot Handle
+    Select your subscription
+    Select your resource group
+    Select your pricing tier.  Free tier is ok
+    Choose 'Multi-tenant' as Type of App
+    Creation type: Create new Microsoft App ID
 10.  Download folder msft_teams_adapter from the Genesis Samples Golden folder
 11.  Add a private key file with your own RSA private key
 12.  Update the required values in the envTemplate file with your own information including the name of the private key file from the

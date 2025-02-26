@@ -109,6 +109,6 @@ if __name__ == "__main__":
     if pyproject_updated or workflow_updated:
         # Run build
         print("Running build command...")
-        # run_build()
+        run_build()
     else:
         print("Failed to update version in any files. Build aborted.")

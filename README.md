@@ -154,25 +154,25 @@ To understand the API through examples, we recommend running and reviewing the e
 2. `baseball_data_explorer.py` - demonstrates how to use the API to build a basic 'baseball stats' CLI application without writing any SQL.
 3. `data_catalog_maintenance.py` - demonstrates how to build a process to automatically keep a data catalog up to date with the latest actual data in the database. This example also demonstrates how to use custom local tools (integration with a custom catalog API) along with the built-in Genesis tools, to create a powerful and flexible AI automation.
 
-## Connecting to a Genesis Server
+### Environment
+The examples rely on the `genesis_bots.api` python package to available in your Python environment.
+If you are installed your genesis-bots package in your current environment (Setup (B)), you can run the examples by executing the scripts directly (see below).
+If you are running the source code directly from the cloned repo (Setup (A)), make sure your working directory (the root of the repo) is in your `PYTHONPATH`.
 
-The API example scripts in this repository need to connect to a running Genesis server. The server manages the bots, their configuration, memory, projects, tools, integrations, database connections, etc.
+To check whether the `genesis_bots.api` package is available in your environment, run the following command:
+```sh
+python3 -c 'import genesis_bots.api'
+```
+If the command succeeds, you are all set.
+Otherwise, add the root of the repo to your `PYTHONPATH`.
+```sh
+export PYTHONPATH="$PYTHONPATH:$(pwd)"
+```
 
-Currently, the following server hosting options are supported:
 
-1. Hosted on a local machine or a machine inside your accessible network:
+### Pointing the API examples to a running Genesis Server
 
-    - Standalone process: Running the server as a standalone process on your local machine or a machine inside your accessible network.
-    - Docker container: Running the server inside a Docker container on your local machine or a machine inside your accessible network.
-
-    See instructions below for running the server in each of these modes.
-
-2. Hosted inside your Snowflake account:
-
-    - The Genesis service and its UI (Streamlit app) are hosted inside *Your* Snowflake Cloud account as a native application on the Snowpark Container Services (SPCS) framework.
-
-    Refer to the [Genesis Computing documentation](https://docs.genesiscomputing.com/docs/home) for more details on how to install Genesis in your Snowflake account,
-    or contact support@genesiscomputing.ai.
+In order to run any of the API examples, you need a running Genesis server, and you need to point the script to the server loation.
 
 For convenience and simplicity, the example scripts all support the same command line arguments to control the server connection method through the `--server_url` argument, with additional arguments for specific connection methods. By default, without any additional arguments, the scripts will attempt to connect to a local server running on your machine on `http://localhost:8080`. Port `8080` is the default port for the local server to listen on for incoming connections.
 
@@ -181,6 +181,8 @@ For example, to run the `cli_chat` example script against a local server, you si
 ```sh
 python3 api_examples/cli_chat.py
 ```
+Except for when your server is hosted in your Snowflake account (Setup (C)), in most cases you will be runinng the server on the local machine or another machine/port that is accessible from your machine, so either ommit the `--server_url` argument or specify an explicit host:port combination.
+If you want to connect to the server running in your Snowflake account, you will need to first make sure you have access to programmatically connect to your Snowflake account with authentication that uses JWT tokens. See the [documentation](https://docs.genesiscomputing.com/docs/home) for more details.
 
 To get more information on the command line arguments, you can use the `--help` argument:
 

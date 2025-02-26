@@ -1,148 +1,220 @@
-[![GitHub CI](https://github.com/genesis-gh-jlangseth/genesis/actions/workflows/unittests.yml/badge.svg)](https://github.com/genesis-gh-jlangseth/genesis/actions/workflows/unittests.yml/badge.svg)
+# Genesis Bots - Overview
 
+This repository contains the public open-source code for the `genesis-bots` system by Genesis Computing.
+For more information, visit [Genesis Computing Documentation](https://docs.genesiscomputing.com/docs/).
 
-# Genesis App
+The rest of this guide assumes you are familiar with the basic concepts of GenBots and wish to see the Genesis system in action by setting up and testing the system yourself.
 
-### Local Deployement
+## System Components
 
-1. Get OpenAPI key, ngrok auth token (from ngrok.com)
+### Genesis Server
+At its core, the Genesis system requires a running server. The server is responsible for:
+- Managing the lifecycle, state, and health of the GenBots.
+- Servicing calls from multiple client applications to interact with the bots, manage configuration, and set up integration with external systems (e.g., database connections).
+- Continuously monitoring your data sources to keep its internal data model and semantic layers up to date.
+- Driving independent tasks performed by GenBots.
 
-2. Download and install cursor.sh from https://cursor.sh
+### Genesis UI (Streamlit)
+This repository contains a Streamlit UI application that can be used to manage the configuration of the system as well as chat directly with the GenBots configured on the system.
 
-3. Open Github app, clone codes to local directory:
+### GenesisAPI
+Users can leverage the Genesis system to build custom agentic AI Data workflows. Genesis offers a Python API that wraps REST endpoints exposed by the server. The API allows users to interact with GenBots, create new GenBots, use custom client-side tools, push/pull content, etc.
 
-```
-git clone https://github.com/genesis-gh-jlangseth/genesis.git
-```
+The repository includes several scripts that demonstrate the power of the API.
 
-4. CD into the app folder:
+## Installation
 
-```
-cd genesis
-```
+You have several options for installing and getting up and running with the system, depending on the level of visibility and 'depth' that you are interested in:
 
-5. Setup env variables. you can export these env variables in Terminal when you run. But I added in .zprofile file
+**Setup (A) - Developer mode**: Clone the repo and run the Genesis server and other applications directly from the source code.
 
-```
-export SNOWFLAKE_ACCOUNT_OVERRIDE=eqb52188
-export SNOWFLAKE_USER_OVERRIDE=GENESIS_RUNNER_**
-export SNOWFLAKE_PASSWORD_OVERRIDE=<your runner password>
-export SNOWFLAKE_DATABASE_OVERRIDE=GENESIS_TEST
-export SNOWFLAKE_WAREHOUSE_OVERRIDE=XSMALL
-export SNOWFLAKE_ROLE_OVERRIDE=<authorized role>
-export GENESIS_SOURCE=Snowflake
-export GENESIS_INTERNAL_DB_SCHEMA=GENESIS_TEST.<your schema>   #make sure change to your test schema. <genesis_new_jf>
-export AUTO_HARVEST=FALSE
-export GENESIS_LOCAL_RUNNER=TRUE
-export RUNNER_ID=snowflake-1
-export NGROK_AUTH_TOKEN=<Ngrok Auth token>
-export NGROK_BASE_URL=http://localhost:8080
-export AUTO_HARVEST=false
-export OPENAI_API_KEY=<OpenAI api key>
-export PYTHONPATH=$PYTHONPATH:"$PWD"
-```
+**Setup (B) - Package mode**: `pip`-install the latest Genesis package from the Python Package Index and interact with the system through the Streamlit App, Slack, or Teams. You will only need to clone this repository if you want to run the example GenesisAPI scripts against that server or to peek into the source code.
 
-\*\* Make sure you have following variables set to correct values
+**Setup (C) - Snowflake Native App**: Run the Genesis system as a Snowflake Native app on your own Snowflake account. The Genesis server, along with the Streamlit App, will also be running natively and securely inside your own Snowflake account. This setup is recommended for production environments. You will only need to clone this repository if you want to run the example GenesisAPI scripts against that server or to peek into the source code.
 
-```
-GENESIS_INTERNAL_DB_SCHEMA
-OPENAI_API_KEY
-NGROK_AUTH_TOKEN
+### Prerequisites
+
+If you intend to run the server or any of the GenesisAPI examples yourself, you will need Python 3.10 and up installed.
+To verify the Python version that is installed on your system, you can run the following command in your terminal or command prompt:
+
+```sh
+python3 --version
 ```
 
-6. Open cursor app. Click 'Open a folder' and point to the folder that you cloned from Github respository
-
-- Step 7-11, you can run either in Cursor terminal or native Mac terminal.
-
-7. Check and install modules/packages listed in requirements.txt file.
-
-   - Create a virtual environment:
-
-     - Conda:
-
-     ```
-     conda create -n genesis_env python=3.11
-     conda activate genesis_env
-     ```
-
-     - Pip:
-
-     ```
-     python3 -m venv genesis_env
-     source genesis_env/bin/activate
-     ```
-
-   - Install libraries - open terminal:
-
+### Setup (A) - Developer mode
+1. Clone the repo into a working directory
+   ```sh
+   git clone https://github.com/genesis-bots/genesis-bots.git
+   cd genesis-bots
    ```
+2. Set up and activate your virtual environment
+
+   On Linux and macOS:
+   ```sh
+   python -m venv venv-gbots && source venv-gbots/bin/activate
+   ```
+   On Windows:
+   ```sh
+   python -m venv venv-gbots && venv-gbots\Scripts\activate
+   ```
+
+3. Install required packages
+   ```sh
    pip install -r requirements.txt
    ```
 
-   - For local deployment, you need to install additional libraries:
+Next steps:
+1. Run the server locally (see below).
+2. (Optional) Run the GenesisAPI example scripts (see below).
 
+### Setup (B) - Package mode
+
+1. Create a working directory for your project.
+   ```sh
+   mkdir genesis-bots
+   cd genesis-bots
    ```
-   pip install ngrok
-   pip install aiohttp
+
+1. Set up and activate your virtual environment
+
+   On Linux and macOS:
+   ```sh
+   python -m venv venv-gbots && source venv-gbots/bin/activate
+   ```
+   On Windows:
+   ```sh
+   python -m venv venv-gbots && venv-gbots\Scripts\activate
    ```
 
-   - Check the log to see if any missing modules/packages. you can output the log to a file to help you
+2. Install the genesis-bots package
+   ```sh
+   pip install genesis-bots
+   ```
+Next steps:
+1. Run the server locally (see below).
+2. (Optional) Run the GenesisAPI example scripts (see below).
 
-8. Create a new directory for Git files
-  - In a terminal, run the following:
+### Setup (C) - Snowflake Native App
+In this setup, we assume you already have the Genesis System running as a native Snowflake application (see [documentation](https://docs.genesiscomputing.com/docs/home)) and that you want to run the GenesisAPI example scripts, connecting them to the same server.
+
+1. Follow the same steps as in **Setup (A)** to set up a working repository and virtual environment. This is required to get a local copy of the API examples.
+2. Make sure you can connect to your Snowflake account programmatically using JWT tokens. See the [documentation](https://docs.genesiscomputing.com/docs/home) for more details.
+3. Run the GenesisAPI example scripts, pointing them at the server running in your Snowflake account. See below for more details.
+
+## Running the Genesis Server Locally
+As explained above, all the Genesis applications (Streamlit UI, Slack/Teams integration, etc.) need to connect to a running Genesis server.
+In production environments, the Genesis server is hosted and managed in a secured environment. For example, as a Snowflake Native app inside your own Snowflake account.
+
+This section describes how you can run the Genesis server locally on your own machine or a machine inside your accessible network.
+
+### Assumptions:
+* You have access to a machine where you can run the server.
+* You have followed the above steps for setting up a working directory and virtual environment for the Genesis system (Setup (A) or Setup (B)).
+
+### Server State and Demo Data
+The server requires a working directory to manage its state and keep track of the bots, projects, integrations, etc. The genesis-bots package/repo also includes a few sample datasets for demos and testing.
+This working directory defaults to your current working directory (CWD).
+
+When you run your server on a local machine for the first time, it will:
+1. Create its internal 'state' in a local SQLite database file called `genesis.db`.
+2. Look for the example databases and other resources in a `genesis_sample_data` subdirectory.
+3. Create a `runtime` subdirectory for storing internal resources such as files, logs, etc.
+
+To set up this working directory for the first time, run the following command:
+```sh
+genesis setup
 ```
-sudo mkdir /opt/bot_git
-sudo chmod o+w /opt/bot_git
-git config --global --add safe.directory /opt/bot_git
-```
+Note: if you are running the source code directly from the cloned repo (Setup (A)), use the command `./genesis setup` instead.
 
-9. Run backend: open a terminal window:
-
-```
-python demo/bot_os_multibot_1.py
-```
-
-10. Run Frontend: once #8 completed, run in another terminal window. This step will bring up 'Genesis Bots Configuration' page in Browser.
-
-```
-streamlit run streamlit_gui/Genesis.py
-```
-
-11. You can go to http://localhost:8501/ in a browser and this will bring you to 'Genesis Bots Configuration' page.
-
-12. Select 'Chat with Bots' to talk to the app.
-
-### Notes:
-
-In Windows an extra application is needed for ngrok:
-
-- Download ngrok.exe from https://ngrok-downloads.ngrok.com/ngrok.exe
-- Open terminal and run `./ngrok.exe config add-authtoken <ngrok_token>`
-- In terminal run `./ngrok.exe http http://localhost:8080`
-
-- If you get this error:
-
-```
-ERROR - Failed to send a request to Slack API server: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: # unable to get local issuer certificate (\_ssl.c:1000)>
-```
-
-you may be mising a .pem file. You can do the following:
-
-```
-bash
-curl --etag-compare etag.txt --etag-save etag.txt --remote-name https://curl.se/ca/cacert.pem
-export SSL_CERT_FILE=path/to/cacert.pem
+If you want to clean up the state and start fresh, you can run the following commands:
+```sh
+genesis cleanup
+genesis setup
 ```
 
-Now check to make sure env variable is correct:
+### Running the Server (Locally)
+Use the following command to start the server on your local machine:
+```sh
+genesis start
+```
+By default, this command will also start the Streamlit UI automatically in your default browser. If you want to suppress this behavior, you can add the `--no-launch-ui` flag.
+
+Next steps:
+1. Use the Streamlit UI to input your LLM provider key.
+2. Go to the [docs](https://docs.genesiscomputing.com/docs/home) to get started and learn more.
+
+## API Examples
+
+You can find the API example Python scripts under the `api_examples` directory.
+The sample scripts were designed to connect to a running Genesis server. The server manages the bots, their configuration, memory, projects, tools, integrations, database connections, etc. The server exposes an API that is available for Python programmers for building AI Data applications, using the Genesis services.
+
+To understand the API through examples, we recommend running and reviewing the examples in the following order:
+
+1. `cli_chat.py` - demonstrates the most basic usage of the API - a simple command line chatbot that connects with the existing bots (e.g., '@Eve') that are configured in the server.
+2. `baseball_data_explorer.py` - demonstrates how to use the API to build a basic 'baseball stats' CLI application without writing any SQL.
+3. `data_catalog_maintenance.py` - demonstrates how to build a process to automatically keep a data catalog up to date with the latest actual data in the database. This example also demonstrates how to use custom local tools (integration with a custom catalog API) along with the built-in Genesis tools, to create a powerful and flexible AI automation.
+
+## Connecting to a Genesis Server
+
+The API example scripts in this repository need to connect to a running Genesis server. The server manages the bots, their configuration, memory, projects, tools, integrations, database connections, etc.
+
+Currently, the following server hosting options are supported:
+
+1. Hosted on a local machine or a machine inside your accessible network:
+
+    - Standalone process: Running the server as a standalone process on your local machine or a machine inside your accessible network.
+    - Docker container: Running the server inside a Docker container on your local machine or a machine inside your accessible network.
+
+    See instructions below for running the server in each of these modes.
+
+2. Hosted inside your Snowflake account:
+
+    - The Genesis service and its UI (Streamlit app) are hosted inside *Your* Snowflake Cloud account as a native application on the Snowpark Container Services (SPCS) framework.
+
+    Refer to the [Genesis Computing documentation](https://docs.genesiscomputing.com/docs/home) for more details on how to install Genesis in your Snowflake account,
+    or contact support@genesiscomputing.ai.
+
+For convenience and simplicity, the example scripts all support the same command line arguments to control the server connection method through the `--server_url` argument, with additional arguments for specific connection methods. By default, without any additional arguments, the scripts will attempt to connect to a local server running on your machine on `http://localhost:8080`. Port `8080` is the default port for the local server to listen on for incoming connections.
+
+For example, to run the `cli_chat` example script against a local server, you simply need to run:
+
+```sh
+python3 api_examples/cli_chat.py
+```
+
+To get more information on the command line arguments, you can use the `--help` argument:
+
+```sh
+python3 api_examples/cli_chat.py --help
+```
+```
+usage: cli_chat.py [-h] [--server_url SERVER_URL] [--snowflake_conn_args SNOWFLAKE_CONN_ARGS] [--genesis_db GENESIS_DB]
+
+A simple CLI chat interface to Genesis bots
+
+options:
+  -h, --help            show this help message and exit
+  --server_url SERVER_URL, -u SERVER_URL
+                        Server URL for GenesisAPI. Defaults to http://localhost:8080 It supports three types of URLs: 1. HTTP(s) server URL (e.g.,
+                        "http://localhost:8080"), 2. "embedded" for running the Genesis BotOsServer inside the caller's process (used for testing
+                        and development only). 3. Snowflake SQLAlchemy connection URL (e.g., "snowflake://user@account") that is passed to
+                        SqlAlchemy's create_engine function. (see --snowflake_conn_args for additional connection arguments for Snowflake)
+  --snowflake_conn_args SNOWFLAKE_CONN_ARGS, -c SNOWFLAKE_CONN_ARGS
+                        Additional connection arguments for a Snowflake connection if the server URL is a Snowflake connection URL. Use the format
+                        key1=value1,key2=value2,... (no quotes). To pass a private_key that is stored in a PEM file is "private_key_file", we load
+                        the private key from the provided PEM file and add it to the arguments as "private_key".
+   ...
 
 ```
-bash
-echo $SSL_CERT_FILE
-python -c "import ssl; print(ssl.get_default_verify_paths().cafile)"
-```
 
-Another possible issue when deploying the native app in Snowflake using Windows
+## License
 
-- if you get an error in native app sayinh entrypoint file not found
-  - Open entrypoint.sh in Notepad++ -> Edit -> EOL Conversion -> Unix (LF) -> Save
-  - Recreate image using new entrypoint.sh file
+See the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For any questions or suggestions, feel free to reach out at support@genesiscomputing.ai.
+
+---
+
+Happy coding! 🚀

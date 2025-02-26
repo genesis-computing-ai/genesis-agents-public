@@ -32,7 +32,7 @@ class SampleCatalog:
     CATALOG_SCHEMA_FILENAME = 'demo_baseball_catalog.schema.json'
 
     def __init__(self, stage_dir: str):
-        self.source_dir = Path(os.path.dirname(__file__)).parent/ "demo_data"
+        self.source_dir = Path(os.path.dirname(__file__))/ "data"
         self.stage_dir = Path(stage_dir)
         self.curr_version = 0
         self.curr_catalog_path = None

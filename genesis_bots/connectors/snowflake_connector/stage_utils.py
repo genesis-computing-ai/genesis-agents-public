@@ -132,7 +132,7 @@ def read_file_from_stage(
         # Define the local directory to save the file
         if for_bot == None:
             for_bot = thread_id if thread_id else "tmp"
-        local_dir = os.path.join(".", "downloaded_files", for_bot)
+        local_dir = os.path.join(".", "runtime", "downloaded_files", for_bot)
 
         #        if '/' in file_name:
         #            file_name = file_name.split('/')[-1]

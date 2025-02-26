@@ -495,9 +495,9 @@ def make_session(
                 logger.info('Bot implementation not specified, and no available LLM found. Please set LLM key in Streamlit.')
 
         if assistant_implementation:
-            logger.info(f"Using {actual_llm} for bot {bot_id}")
+            logger.warning(f"Using {actual_llm} for bot {bot_id}")
         else:
-            logger.info(f"No suitable LLM found for bot {bot_id}")
+            logger.warning(f"No suitable LLM found for bot {bot_id}")
 
         # Updating an existing bot's preferred_llm
         bot_llms[bot_id] = {"current_llm": actual_llm, "preferred_llm": bot_config["bot_implementation"]}
@@ -632,7 +632,7 @@ def create_sessions(
     skip_vectors=False,
     bot_list=None,
     skip_slack=False,
-    max_workers=5, # New parameter to control parallel execution
+    max_workers=1, # New parameter to control parallel execution
     llm_change=False
 ):
     """

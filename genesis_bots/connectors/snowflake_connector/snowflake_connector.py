@@ -1102,7 +1102,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             err = f"An error occurred while inserting {service_name} api config params: {e}"
             return {"Success": False, "Data": err}
 
-    def create_google_sheets_creds(self):
+    def create_google_sheets_oauth_creds(self):
         hard_coded_email = 'jeff.davidson@genesiscomputing.ai'
         query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-drive-oauth2' and user='{hard_coded_email}';"
         cursor = self.client.cursor()
@@ -1115,6 +1115,24 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
 
         # creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
+
+        creds_json = json.dumps(creds_dict, indent=4)
+        with open(f'g-workspace-credentials.json', 'w') as json_file:
+            json_file.write(creds_json)
+        return True
+
+    def create_google_sheets_creds(self):
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
+        cursor = self.client.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return False
+
+        creds_dict = {row[0]: row[1] for row in rows if row[0].casefold() != "shared_folder_id"}
+
+        creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
 
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:
@@ -5204,6 +5222,14 @@ result = 'Table FAKE_CUST created successfully.'
             result = self.add_hints(purpose, result, code, packages)
         return result
 
+    def disable_cortex(self):
+        query = f'''
+            UPDATE {self.genbot_internal_project_and_schema}.LLM_TOKENS
+            SET ACTIVE = False
+            WHERE LLM_TYPE = 'cortex'
+        '''
+        self.run_query(query)
+
 
 snowflake_tools = ToolFuncGroup(
     name="snowflake_tools",
@@ -5414,7 +5440,7 @@ def _run_snowpark_python(
     """
     This function accepts a string containing Python code and executes it using Snowflake's Snowpark python environment.
     Code is run using a precreated and provided Snowpark 'session', do not create a new session.
-    Results should only have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the 
+    Results should only have a single object.  Multiple objects are not allowed.  Provide EITHER the 'code' field with the
     python code to run, or the 'note_id' field with the id of the note referencing the pre-saved program you want to run.
     """
     return SnowflakeConnector("Snowflake").run_python_code(
@@ -5440,4 +5466,3 @@ _all_snowflake_connector_functions = [
 # Called from bot_os_tools.py to update the global list of data connection tool functions
 def get_snowflake_connector_functions():
     return _all_snowflake_connector_functions
-

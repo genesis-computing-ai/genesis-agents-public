@@ -17,7 +17,8 @@ if SNOWFLAKE:
         GENESIS_SOURCE='Snowflake',
         GENESIS_INTERNAL_DB_SCHEMA='GENESIS_TEST.UNITTEST_RUNNER',
         GENESIS_LOCAL_RUNNER='TRUE',
-        RUNNER_ID='snowflake-1'
+        RUNNER_ID='snowflake-1',
+        BOT_OS_DEFAULT_LLM_ENGINE='openai'
     ))
 
 import unittest
@@ -34,7 +35,7 @@ from genesis_bots.bot_genesis.make_baby_bot import remove_tools_from_bot
 from genesis_bots.core.tools.git_action import git_action
 from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
 from genesis_bots.core.tools.send_email import send_email
-from genesis_bots.genesis_sample_golden.demos.cli_chat import get_available_bots
+from api_examples.cli_chat import get_available_bots
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -50,9 +51,12 @@ class TestTools(unittest.TestCase):
     def setUpClass(cls):
         """Setup shared resources for all test methods."""
         server_proxy = build_server_proxy('embedded')
+        cls.db_adapter = server_proxy.genesis_app.db_adapter
+        cls.db_adapter.disable_cortex()
+
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bot_ids = _get_available_bot_ids(cls.client)
-        cls.db_adapter = cls.client._server_proxy.genesis_app.db_adapter
+
         cls.eve_id = cls.available_bot_ids[0]
         for bot_id in cls.available_bot_ids:
             if 'Eve' in bot_id:
@@ -217,7 +221,7 @@ class TestTools(unittest.TestCase):
     def test_send_email(self):
         bot_id = self.eve_id
         thread_id = str(uuid4())
-        response = send_email("Send email", to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest',
+        response = send_email(to_addr_list='reza.vaghefi@genesiscomputing.ai', subject='Unittest',
                    body='Test', bot_id=bot_id, thread_id=thread_id, save_as_artifact=False)
         self.assertTrue(response['Success'])
 

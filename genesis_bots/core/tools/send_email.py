@@ -31,20 +31,20 @@ GENESIS_LOGO_URL = "https://i0.wp.com/genesiscomputing.ai/wp-content/uploads/202
 
 
 @gc_tool(
-    action="Send email",
-    to_addr_list="A list of recipient email addresses.",
+    to_addr_list="A comman-separated list of recipient email addresses.",
     subject="The subject of the email.",
-    body="The body content of the email. When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. When using mime_type='text/html' DO NOT use markdown. Use appropriate html tags instead. Use this format as the default for most emails",
+    body=("The body content of the email. "
+          "When using mime_type='text/plain' you CAN use Slack-compatible markdown syntax. "
+          "When using mime_type='text/html' DO NOT use markdown - use appropriate HTML tags and HTML formatting instead. "),
     purpose="A short description of the purpose of this email. This is stored as metadata for this email.",
     mime_type="The MIME type of the email body. Accepts 'text/plain' or 'text/html'. Defaults to 'text/html'.",
-    include_genesis_logo="Include Genesis logo in email body - boolean",
-    save_as_artifact="Save output email as an artifact - boolean",
+    include_genesis_logo="Whether or not to include the Genesis logo in the email body",
+    save_as_artifact="Whether or not to save the output email as an artifact. When saved as an artifact, the email content and metadata can be retrieved later for future reference.",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[send_email_tools],
 )
 def send_email(
-    action: str,
     to_addr_list: str,
     subject: str,
     body: str,
@@ -57,23 +57,28 @@ def send_email(
 ):
     """
     Sends an email using Snowflake's SYSTEM$SEND_EMAIL function.
+    Both text/plain or text/html formats are supported. Prefer to always use text/html whenever possible, unless explicitly requested to use text/plain or encountering HTML formatting issues.
 
-    Parameters:
-        action (str): A description of the action being performed.
-        to_addr_list (list): List of recipient email addresses.
-        subject (str): Subject of the email.
-        body (str): Content of the email body.
-        bot_id (str): Identifier for the bot associated with the operation.
-        thread_id (str, optional): Identifier for the current operation's thread. Defaults to None.
-        purpose (str, optional): the purpose of this email (for future context, when saving as an artifact)
-        mime_type (str, optional): MIME type of the email body, either 'text/plain' or 'text/html'. Defaults to 'text/html'.
-        include_genesis_logo (bool, optional): Indicates whether to include the Genesis logo in an HTML email. Defaults to True. Ignored for other MIME types.
-        save_as_artifact (bool, optional): Determines if this email should be saved as an artifact
+    IMPORTANT: Attachments are NOT SUPPORTED - do not use CID references in your email body.    
+               To embed a previously generated artifact (such as a plot, code snippet, etc) in your email,
+               embed those artifacts using artifact markdown notation `[{description}][artifact:/{artifact_id}]`. 
+               Those link notations will be converted to externally-accessible URLs before the email is sent.
 
     Returns:
         dict: Result of the email sending operation.
     """
-    logger.info(f"Entering send_email with bot_id={bot_id}\nthread_id={thread_id}\naction = {action}\nto_addr_list={to_addr_list}\nsubject={subject}\nbody={body}\npurpose={purpose}\nmime_type={mime_type}\ninclude_genesis_logo={include_genesis_logo}\nsave_as_artifact={save_as_artifact}")
+
+    #
+    # -- Interactive testing example: --
+    # Prompt: Use snowpark python to genreate a plot of the sine wave over the range 0 to 4*pi radians. Send the plot to aviv.dekel@genesiscomputing.ai
+    # Expected result:
+    # 1. A plot is generated and saved as an artifact
+    # 2. The email is sent to aviv.dekel@genesiscomputing.ai
+    # 3. The email body contains a Snowflake-signed URL (allowing the browser to download the artifact file from the stage in Snowflake)
+    # 4. The email body also contains a footer 'Click here to explore more about <this email>' a link that re-opens a sessions with the Streamlit app chat page with the bot that generated the email, loading the eamil as an artifact.
+    #
+    #
+    logger.info(f"Entering send_email with bot_id={bot_id}\nthread_id={thread_id}\nto_addr_list={to_addr_list}\nsubject={subject}\nbody={body}\npurpose={purpose}\nmime_type={mime_type}\ninclude_genesis_logo={include_genesis_logo}\nsave_as_artifact={save_as_artifact}")
     art_store = get_artifacts_store(db_adapter)  # used by helper functions below
 
     def _sanity_check_body(txt):
@@ -83,7 +88,8 @@ def send_email(
         )
         if cid_pattern.search(txt):
             raise ValueError(
-                "The email body contains HTML tags with links or 'src' attributes using CID. Attachements are not supported."
+                "The email body contains HTML tags with links or 'src' attributes using CID. Attachements are NOT SUPPORTED. "
+                "Use artifact markdown notation to embed previously generated artifacts instead."
             )
 
         # Identify all markdowns and check for strictly formatted artifact markdowns
@@ -132,9 +138,8 @@ def send_email(
         # manages the bots by name, not by id.
         # TODO: fix this as part of issue #89
         proj, schema = dbtr.genbot_internal_project_and_schema.split(".")
-        bot_config = dbtr.db_get_bot_details(
-            proj, schema, dbtr.bot_servicing_table_name.split(".")[-1], bot_id
-        )
+        bot_config = dbtr.db_get_bot_details(proj, schema, dbtr.bot_servicing_table_name, bot_id)
+
         # Construct linkback URL
         if dbtr.is_using_local_runner:
             app_ingress_base_url = "localhost:8501/"  # TODO: avoid hard-coding port (but could not find an avail config to pick this up from)

@@ -376,15 +376,15 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
 
     if not creds:
-        OAUTH_CREDS = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_CREDS):
-            logger.info(f"OAuth file not found: {OAUTH_CREDS}")
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+        if not os.path.exists(SERVICE_ACCOUNT_FILE):
+            logger.info(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
         try:
             # Authenticate using the service account JSON file
-            with open(OAUTH_CREDS, 'r') as f:
-                creds_json = json.load(f)
-            # creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
-            logger.info(f"Credentials loaded: {type(creds_json)} | {creds_json}")
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+            logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False

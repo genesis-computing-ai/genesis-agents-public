@@ -43,7 +43,6 @@ def print_teams_info(client):
     response = client.get_response(BOT_ID, request.request_id, print_stream=PRINT_BOT_STREAM)
     print(response)
 
-
 def get_team_win_lose_ratio(client, team_code, year=None):
     # Ask the bot 'Eve' to fetch the win/lose ratio for a given team and optional year
     msg = f"Fetch the win/lose ratio for the team with code '{team_code}'"
@@ -61,7 +60,6 @@ def get_team_win_lose_ratio(client, team_code, year=None):
     request = client.submit_message(BOT_ID, msg)
     response = client.get_response(BOT_ID, request.request_id, print_stream=PRINT_BOT_STREAM)
     return response
-
 
 def main():
     args = parse_arguments()
@@ -86,7 +84,6 @@ def main():
             # Fetch and print the win/lose ratio
             win_lose_ratio = get_team_win_lose_ratio(client, team_code, year)
             print(win_lose_ratio)
-
 
 if __name__ == "__main__":
     main()

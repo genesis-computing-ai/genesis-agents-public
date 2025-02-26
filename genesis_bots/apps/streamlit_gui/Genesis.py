@@ -368,30 +368,43 @@ if st.session_state.data:
 
     #    st.sidebar.subheader("**Genesis App**")
 
+    # Check the current theme
+    current_theme = st.get_option("theme.base")
+
+    # Choose the image based on the theme
+    if current_theme == "dark":
+        image_name = "Genesis-Computing-Logo-White.png"
+    else:
+        image_name = "Genesis-Computing-Logo-Black.png"
+
     # Get NativeMode from session state
     native_mode = st.session_state.get("NativeMode", False)
     if native_mode:
-        render_image("Genesis-Computing-Logo-White.png", width=250)
+        render_image(image_name, width=250)
     else:
         if is_running_from_package():
             from importlib import resources
             try:
                 # Don't use context manager with Path object
-                image_path = resources.files('apps.streamlit_gui').joinpath('Genesis-Computing-Logo-White.png')
+                image_path = resources.files('apps.streamlit_gui').joinpath(image_name)
                 st.sidebar.image(str(image_path), width=250)
             except Exception:
                 # Fallback for older Python versions
-                with resources.path('apps.streamlit_gui', 'Genesis-Computing-Logo-White.png') as image_path:
+                with resources.path('apps.streamlit_gui', image_name) as image_path:
                     st.sidebar.image(str(image_path), width=250)
         else:
             # Direct development path
-            st.sidebar.image("./genesis_bots/apps/streamlit_gui/Genesis-Computing-Logo-White.png", width=250)
+            st.sidebar.image(f"./genesis_bots/apps/streamlit_gui/{image_name}", width=250)
 
     # Set the default selection page
     selected_page_id = None
 
+    # set the default chat bot id for chat_page
+    initial_bot_name = None
+
     # Handle URL params which are used, for example, to drop user into a specific page or chat session.
-    # We expect a param named 'action' followd by action-specific params
+    # We expect a param named 'action' followed by action-specific params.
+    # This logic will be triggered only once (since we pop the params from the URL)
     url_params = st.query_params.to_dict()
     if url_params:
         action = url_params.pop('action', None)
@@ -399,8 +412,9 @@ if st.session_state.data:
             bot_name = url_params.pop('bot_name', None)
             artifact_id = url_params.pop('artifact_id', None)
             if bot_name and artifact_id:
-                # Force the selected page to the chat page and inject the initial bot_name and initial prompt
+                # Force the selected page to chat_page and inject the initial bot_name and initial prompt so it gets picked up on the next chat_page load
                 selected_page_id = 'chat_page'
+                initial_bot_name = bot_name
                 module = pages.get_module(selected_page_id)
                 module.set_initial_chat_sesssion_data(
                     bot_name=bot_name,
@@ -439,12 +453,18 @@ if st.session_state.data:
                 # Sort bot details to choose the first based on your criteria (e.g. "Eve" appears first if present)
                 bot_details.sort(key=lambda bot: (not "Eve" in bot["bot_name"], bot["bot_name"]))
                 bot_names = [bot["bot_name"] for bot in bot_details]
-                initial_bot_name = bot_names[0]
+                if initial_bot_name and initial_bot_name not in bot_names:
+                    # if we already have an initial bot name (see above) but it's no longer a valid one (e.g. bot was deleted) then fallback to the default
+                    initial_bot_name = None
+                if not initial_bot_name:
+                    # default to choose the first one in the list
+                    initial_bot_name = bot_names[0]
             else:
                 initial_bot_name = "ChatBot"
         except Exception:
             initial_bot_name = "ChatBot"
         import uuid
+        # start a new thread_id and settion for the initial bot and update the state
         new_thread_id = str(uuid.uuid4())
         st.session_state.current_bot = initial_bot_name
         st.session_state.current_thread_id = new_thread_id

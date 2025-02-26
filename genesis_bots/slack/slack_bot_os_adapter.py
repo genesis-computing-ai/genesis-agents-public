@@ -763,7 +763,7 @@ class SlackBotAdapter(BotOsInputAdapter):
     def _handle_artifacts_markdown(self, msg: str, message_thread_id: str) -> str:
         """
         Locate all markdown in the message of the format [description][artifact:/uuid], donwload thier data into
-        local sandbox (under downloaded_files/{message_thread_id}/{downloaded file name}) and update the markdown to the "sandbox convention" (e.g.
+        local sandbox (under runtime/downloaded_files/{message_thread_id}/{downloaded file name}) and update the markdown to the "sandbox convention" (e.g.
         '[description](sandbox:/mnt/data/{filename})'.)
 
         Args:
@@ -781,7 +781,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             af = af or get_artifacts_store(self.db_connector)
             try:
                 # Download the artifact data into a local file
-                local_dir = f"downloaded_files/{message_thread_id}" # follow the conventions used by sandbox URLs.
+                local_dir = f"runtime/downloaded_files/{message_thread_id}" # follow the conventions used by sandbox URLs.
                 Path(local_dir).mkdir(parents=True, exist_ok=True)
                 downloaded_filename = af.read_artifact(uuid, local_dir)
             except Exception as e:
@@ -1108,7 +1108,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
                 # just moved this back up here before the chat_update
                 pattern = re.compile(
-                    r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/(.*?)/(.+?)\)"
+                    r"\[(.*?)\]\(sandbox:/mnt/data/runtime/downloaded_files/(.*?)/(.+?)\)"
                 )
                 msg = re.sub(pattern, r"<\2|\1>", msg)
 
@@ -1247,7 +1247,7 @@ class SlackBotAdapter(BotOsInputAdapter):
 
         # Extract file paths from the message and add them to files_in array
         image_pattern = re.compile(
-            r"\[.*?\]\((sandbox:/mnt/data/downloaded_files/.*?)\)"
+            r"\[.*?\]\((sandbox:/mnt/data/runtime/downloaded_files/.*?)\)"
         )
         matches = image_pattern.findall(msg)
         for match in matches:
@@ -1261,7 +1261,7 @@ class SlackBotAdapter(BotOsInputAdapter):
         pineapple_matches = pineapple_pattern.findall(msg)
         for pineapple_match in pineapple_matches:
             local_pineapple_path = (
-                f"./runtime/downloaded_files/thread_{pineapple_match[1]}/{pineapple_match[2]}"
+                f"./runtime/runtime/downloaded_files/thread_{pineapple_match[1]}/{pineapple_match[2]}"
             )
             if local_pineapple_path not in files_to_attach:
                 files_to_attach.append(local_pineapple_path)
@@ -1325,7 +1325,7 @@ class SlackBotAdapter(BotOsInputAdapter):
             # Catch the pattern with thread ID and replace it with the correct URL
 
             thread_file_pattern = re.compile(
-                r"\[(.*?)\]\(sandbox:/mnt/data/downloaded_files/thread_(.*?)/(.+?)\)"
+                r"\[(.*?)\]\(sandbox:/mnt/data/runtime/downloaded_files/thread_(.*?)/(.+?)\)"
             )
             msg = re.sub(thread_file_pattern, f"<{{msg_url}}|\\1>", msg)
             # Catch the external URL pattern and replace it with the correct URL

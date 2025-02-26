@@ -45,15 +45,18 @@ def main():
         streamlit_path = Path(__file__).parent.parent / "streamlit_gui" / "Genesis.py"
         if streamlit_path.exists():
             try:
+                additional_params = [
+                    "--browser.gatherUsageStats=false",
+                ]
                 if os.name == 'nt':  # Windows
-                    cmd = f'{sys.executable} -m streamlit run "{str(streamlit_path)}" --server.port {DEFAULT_STREAMLIT_APP_PORT}'
+                    cmd = f'{sys.executable} -m streamlit run "{str(streamlit_path)}" --server.port {DEFAULT_STREAMLIT_APP_PORT} ' + ' '.join(additional_params)
                     subprocess.Popen(cmd, shell=True)
                 else:  # Unix-like systems
                     subprocess.Popen([
                         sys.executable, "-m", "streamlit", "run",
                         str(streamlit_path),
                         "--server.port", str(DEFAULT_STREAMLIT_APP_PORT)
-                    ])
+                    ] + additional_params)
             except Exception as e:
                 print(f"Failed to start Streamlit: {e}")
 

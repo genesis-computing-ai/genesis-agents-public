@@ -456,13 +456,19 @@ def upgrade_services(eai_type=None, eai_name=None):
 def check_eai_assigned(reference_name):
     try:
         eai_data = get_metadata("check_eai_assigned")
-        eai_str = eai_data[0].get('eai_list') if eai_data else None
-        if eai_str.upper() and reference_name.upper() in eai_str:
-            return True
-        else:
+        if not eai_data or not isinstance(eai_data, list) or not eai_data[0]:
             return False
+            
+        eai_str = eai_data[0].get('eai_list')
+        if not eai_str:
+            return False
+            
+        if reference_name.upper() in eai_str.upper():
+            return True
+        return False
     except Exception as e:
         st.error(f"Error checking eai assigned: {e}")
+        return False
 
 def check_eai_status(site):
     result = False

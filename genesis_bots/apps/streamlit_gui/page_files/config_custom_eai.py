@@ -25,11 +25,10 @@ def config_custom_eai():
     config_page_header("Setup Custom Endpoints")
     st.title('Custom Endpoints Management')
 
-    # Initialize session state
-    if 'eai_generated' not in st.session_state:
-        st.session_state['eai_generated'] = False
-    if 'disable_assign' not in st.session_state:
-        st.session_state['disable_assign'] = False
+    # Initialize session state - use direct assignment
+    st.session_state["eai_generated"] = st.session_state.get("eai_generated", False)
+    st.session_state["disable_assign"] = st.session_state.get("disable_assign", False)
+    st.session_state["eai_reference_name"] = "custom_external_access"  # Always set correctly for this page
 
     # Form to add new endpoint
     st.header('Add a New Endpoint')
@@ -68,20 +67,28 @@ def config_custom_eai():
     # "Generate EAI" Button
     if st.button('Generate EAI'):
         st.session_state['eai_generated'] = True
-        import snowflake.permissions as permissions
-        permissions.request_reference("custom_external_access")
+        try:
+            import snowflake.permissions as permissions
+            permissions.request_reference("custom_external_access")  # Use direct string
+        except Exception as e:
+            st.error(f"Failed to request reference: {e}")
 
     # "Assign to Genesis" Button
     if st.session_state['eai_generated']:
         st.success('EAI generated successfully!')
-        if check_eai_assigned('CUSTOM_EXTERNAL_ACCESS'):
-            st.session_state.disable_assign = True
-        else:
-            st.session_state.disable_assign = False
-        if st.session_state.disable_assign == False:
-            if st.button('Assign to Genesis'):
-                assign_eai_to_genesis()
-                st.success('Services updated successfully!')
+        try:
+            # Use direct string for check
+            if check_eai_assigned('custom_external_access'):
+                st.session_state.disable_assign = True
+            else:
+                st.session_state.disable_assign = False
+            
+            if st.session_state.disable_assign == False:
+                if st.button('Assign to Genesis'):
+                    assign_eai_to_genesis()
+                    st.success('Services updated successfully!')
+        except Exception as e:
+            st.error(f"Failed to check EAI assignment: {e}")
 
     # Dropdown and "Delete Group" button
     st.header("Delete Group")

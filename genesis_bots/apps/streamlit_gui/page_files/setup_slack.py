@@ -22,7 +22,7 @@ def setup_slack():
 
     # Initialize session state variables
     st.session_state.setdefault("slack_eai_available", False)
-    st.session_state.setdefault("eai_reference_name", "slack_external_access")
+    st.session_state["eai_reference_name"] = "slack_external_access"
 
     # Check if Slack External Access Integration (EAI) is available
     if not st.session_state.slack_eai_available and st.session_state.get("NativeMode", False) == True:
@@ -33,10 +33,10 @@ def setup_slack():
                 st.success("Slack External Access Integration is available.")
             else:
                 # Request EAI if not available
-                ref = get_references(st.session_state.eai_reference_name)
+                ref = get_references("slack_external_access")
                 if not ref:
                     import snowflake.permissions as permissions
-                    permissions.request_reference(st.session_state.eai_reference_name)
+                    permissions.request_reference("slack_external_access")
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
             st.session_state.slack_eai_available = False
@@ -66,8 +66,8 @@ def setup_slack():
     if not st.session_state.slack_eai_available and st.session_state.get("NativeMode", False) == True:
         if st.button("Assign EAI to Genesis", key="assigneai"):
             if st.session_state.eai_reference_name:
-                eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
-                upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
+                eai_type = "SLACK"
+                upgrade_result = upgrade_services(eai_type, "slack_external_access")
                 st.success(f"Genesis Bots upgrade result: {upgrade_result}")
                 st.session_state.slack_eai_available = True
                 st.rerun()

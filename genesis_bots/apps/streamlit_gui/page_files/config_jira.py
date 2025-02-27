@@ -90,24 +90,27 @@ def config_jira():
                 st.success("Jira External Access Integration is available.")
             else:
                 # If EAI is not available offer options
-                ref = get_references(st.session_state.eai_reference_name)
-                if not ref:
-                    # If no reference found, allow creating a new one
-                    if st.button("Create External Access Integration", key="create_eai"):
-                        import snowflake.permissions as permissions
-                        permissions.request_reference(st.session_state.eai_reference_name)
-                        st.info("Request sent. Please rerun the app or try again to see updates.")
-                else:
-                    # Reference exists but not assigned, allow assigning now
-                    if st.button("Assign EAI to Genesis", key="assign_eai"):
-                        if st.session_state.eai_reference_name:
-                            # Upgrade services for the EAI reference
-                            eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
-                            upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
-                            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-                            st.session_state.jira_eai_available = True
-                            st.rerun()
-                        else:
-                            st.error("No EAI reference set. Cannot assign EAI.")
+                try:
+                    ref = get_references(st.session_state.eai_reference_name)
+                    if not ref:
+                        # If no reference found, allow creating a new one
+                        if st.button("Create External Access Integration", key="create_eai"):
+                            import snowflake.permissions as permissions
+                            permissions.request_reference(st.session_state.eai_reference_name)
+                            st.info("Request sent. Please rerun the app or try again to see updates.")
+                    else:
+                        # Reference exists but not assigned, allow assigning now
+                        if st.button("Assign EAI to Genesis", key="assign_eai"):
+                            if st.session_state.eai_reference_name:
+                                # Upgrade services for the EAI reference
+                                eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
+                                upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
+                                st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                                st.session_state.jira_eai_available = True
+                                st.rerun()
+                            else:
+                                st.error("No EAI reference set. Cannot assign EAI.")
+                except Exception as e:
+                    st.error(f"Failed to process references: {e}")
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")

@@ -12,7 +12,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "genesis_bots"
-version = "1.0.41"
+version = "1.0.43"
 description = "Genesis Bots Package"
 requires-python = ">=3.10"
 license = {text = "SSPL"}
@@ -24,6 +24,7 @@ dependencies = [
     "annoy==1.17.3",        # After its build dependencies
     # From requirements.txt
     "APscheduler",
+    "Brotli==1.0.9", # required for annoy to work on virtualized Windows machines
     "bs4",
     "db-dtypes",
     "dill",

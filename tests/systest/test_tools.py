@@ -53,6 +53,7 @@ class TestTools(unittest.TestCase):
         server_proxy = build_server_proxy('embedded')
         cls.db_adapter = server_proxy.genesis_app.db_adapter
         cls.db_adapter.disable_cortex()
+        os.environ["BOT_OS_DEFAULT_LLM_ENGINE"] = "openai"
 
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bot_ids = _get_available_bot_ids(cls.client)

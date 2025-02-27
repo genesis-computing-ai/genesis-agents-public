@@ -13,23 +13,35 @@ from .components import config_page_header
 
 def config_g_sheets():
     config_page_header("Setup Google Workspace API")
-    # Initialize session state variables
-    st.session_state.setdefault("google_eai_available", False)
-    st.session_state.setdefault("eai_reference_name", "google_external_access")
+    # Initialize session state variables - use direct assignment
+    st.session_state["google_eai_available"] = st.session_state.get("google_eai_available", False)
+    st.session_state["eai_reference_name"] = "google_external_access"  # Always set correctly for this page
 
-    # Check if Slack External Access Integration (EAI) is available and in Native Mode
+    # Check if Google External Access Integration (EAI) is available and in Native Mode
     if not st.session_state.google_eai_available and st.session_state.get("NativeMode", False) == True:
         try:
-            eai_status = check_eai_assigned("google_external_access")
+            eai_status = check_eai_assigned("google_external_access")  # Use direct string
             if eai_status:
                 st.session_state.google_eai_available = True
                 st.success("Google External Access Integration is available.")
             else:
                 # Request EAI if not available
-                ref = get_references(st.session_state.eai_reference_name)
-                if not ref:
-                    import snowflake.permissions as permissions
-                    permissions.request_reference(st.session_state.eai_reference_name)
+                try:
+                    ref = get_references("google_external_access")  # Use direct string
+                    if not ref:
+                        import snowflake.permissions as permissions
+                        permissions.request_reference("google_external_access")  # Use direct string
+                    else:
+                        # Reference exists but not assigned, show the button
+                        if st.button("Assign EAI to Genesis", key="assigneai"):
+                            # Use direct string literals
+                            eai_type = "GOOGLE"
+                            upgrade_result = upgrade_services(eai_type, "google_external_access")
+                            st.success(f"Genesis Bots upgrade result: {upgrade_result}")
+                            st.session_state.google_eai_available = True
+                            st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to process references: {e}")
         except Exception as e:
             st.error(f"Failed to check EAI status: {e}")
 
@@ -70,17 +82,8 @@ def config_g_sheets():
         unsafe_allow_html=True,
     )
 
-    if not st.session_state.google_eai_available and st.session_state.get("NativeMode", False) == True:
-        if st.button("Assign EAI to Genesis", key="assigneai"):
-            if st.session_state.eai_reference_name:
-                eai_type = st.session_state.eai_reference_name.split("_")[0].upper()
-                upgrade_result = upgrade_services(eai_type, st.session_state.eai_reference_name)
-                st.success(f"Genesis Bots upgrade result: {upgrade_result}")
-                st.session_state.google_eai_available = True
-                st.rerun()
-            else:
-                st.error("No EAI reference set.")
-    else:
+    # Only show the Google Sheets form if EAI is available or not in Native Mode
+    if st.session_state.google_eai_available or not st.session_state.get("NativeMode", False):
         project_id = st.text_input("Project ID*:")
         client_id = st.text_input("Client ID*:")
         client_email = st.text_input("Client Email*:")

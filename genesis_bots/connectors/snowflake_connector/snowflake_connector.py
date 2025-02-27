@@ -5232,7 +5232,21 @@ result = 'Table FAKE_CUST created successfully.'
             SET ACTIVE = False
             WHERE LLM_TYPE = 'cortex'
         '''
-        self.run_query(query)
+        res = self.run_query(query)
+
+        query = f'''
+            DELETE FROM {self.genbot_internal_project_and_schema}.LLM_TOKENS
+            WHERE LLM_TYPE = 'openai'
+        '''
+        res = self.run_query(query)
+
+        openai_token = os.getenv("OPENAI_API_KEY", "")
+        runner_id = os.getenv("RUNNER_ID", "jl-local-runner")
+        query = f'''
+            INSERT INTO {self.genbot_internal_project_and_schema}.LLM_TOKENS
+            (RUNNER_ID, LLM_KEY, LLM_TYPE, ACTIVE) VALUES ('{runner_id}', '{openai_token}', 'openai', True)
+        '''
+        res = self.run_query(query)
 
 
 snowflake_tools = ToolFuncGroup(

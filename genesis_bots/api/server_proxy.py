@@ -21,6 +21,8 @@ from   typing                   import Any, Dict, Union
 import uuid
 import logging
 
+from  getpass                  import getpass
+
 DEFAULT_GENESIS_DB = "GENESIS_BOTS"
 
 class GenesisServerProxyBase(ABC):
@@ -558,8 +560,11 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
     if not silent:
         print(f"Loading Snowflake private key from {filename}")
     with open(filename, "rb") as finp:
-        p_key= serialization.load_pem_private_key(finp.read(), password=None, backend=default_backend()
-        )
+        try:
+            p_key= serialization.load_pem_private_key(finp.read(), password=''.encode(), backend=default_backend())
+        else:
+            p_key= serialization.load_pem_private_key(finp.read(), password=getpass('Passphrase for private key: ').encode(), backend=default_backend())
+
     pkb = p_key.private_bytes(encoding=serialization.Encoding.DER, format=serialization.PrivateFormat.PKCS8,encryption_algorithm=serialization.NoEncryption())
     return pkb
 

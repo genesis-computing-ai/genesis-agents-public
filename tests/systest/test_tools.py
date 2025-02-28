@@ -36,6 +36,7 @@ from genesis_bots.core.tools.git_action import git_action
 from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
 from genesis_bots.core.tools.send_email import send_email
 from api_examples.cli_chat import get_available_bots
+from genesis_bots.core.tools.google_drive import google_drive
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -274,6 +275,13 @@ class TestTools(unittest.TestCase):
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
         self.assertTrue('_SearchGoogle_' in response)
         # self.assertTrue('Dollars' in response or '$' in response) # it is flaky
+
+    @unittest.skipIf(True, "Skipping test_google_drive_tools for now")
+    def test_google_drive_tools(self):
+        bot_id = self.eve_id
+        thread_id = str(uuid4())
+        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query='SELECT * FROM MESSAGE_LOG',
+                                 thread_id=thread_id)
 
     @classmethod
     def tearDownClass(cls):

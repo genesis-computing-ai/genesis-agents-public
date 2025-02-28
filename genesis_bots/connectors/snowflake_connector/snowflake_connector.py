@@ -1141,6 +1141,9 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
+
+        print(f"LOADED GOOGLE CREDS FROM DB - creds_dict: {creds_dict}")
+
         return True
 
     def create_g_drive_oauth_creds(self):

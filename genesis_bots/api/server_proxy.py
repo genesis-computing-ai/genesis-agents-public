@@ -562,7 +562,7 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
     with open(filename, "rb") as finp:
         try:
             p_key= serialization.load_pem_private_key(finp.read(), password=''.encode(), backend=default_backend())
-        else:
+        except Exception as e:
             p_key= serialization.load_pem_private_key(finp.read(), password=getpass('Passphrase for private key: ').encode(), backend=default_backend())
 
     pkb = p_key.private_bytes(encoding=serialization.Encoding.DER, format=serialization.PrivateFormat.PKCS8,encryption_algorithm=serialization.NoEncryption())

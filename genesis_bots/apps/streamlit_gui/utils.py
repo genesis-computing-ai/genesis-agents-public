@@ -265,20 +265,19 @@ def get_artifact(artifact_id):
                    the error message from the server response.
     """
     if st.session_state.NativeMode:
-        raise NotImplementedError()
         session = get_session()
         prefix = st.session_state.get('prefix', '')
         sql = f"select {prefix}.get_artifact('{artifact_id}')"
         data = session.sql(sql).collect()
         response = data[0][0]
         payload = json.loads(response)
-        is_success = payload.get["Success"]
+        is_success = payload.get("Success")
         if is_success:
-            metadata = payload["Metadata"]
-            data = payload["Data"]
+            metadata = payload.get("Metadata")
+            data = payload.get("Data")
             return metadata, data
         else:
-            raise Exception(f"Failed to get artifact {artifact_id}: {payload.get('Error', 'No error details provided')}")
+            raise Exception(f"Failed to get artifact {artifact_id} (Native mode): {payload.get('Error', 'No error details provided')}")
     else:
         url = LOCAL_SERVER_URL + "udf_proxy/get_artifact"
         headers = {"Content-Type": "application/json"}
@@ -458,11 +457,11 @@ def check_eai_assigned(reference_name):
         eai_data = get_metadata("check_eai_assigned")
         if not eai_data or not isinstance(eai_data, list) or not eai_data[0]:
             return False
-            
+
         eai_str = eai_data[0].get('eai_list')
         if not eai_str:
             return False
-            
+
         if reference_name.upper() in eai_str.upper():
             return True
         return False

@@ -561,7 +561,7 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
         print(f"Loading Snowflake private key from {filename}")
     with open(filename, "rb") as finp:
         try:
-            p_key= serialization.load_pem_private_key(finp.read(), password=''.encode(), backend=default_backend())
+            p_key= serialization.load_pem_private_key(finp.read(), password=None, backend=default_backend())
         except Exception as e:
             p_key= serialization.load_pem_private_key(finp.read(), password=getpass('Passphrase for private key: ').encode(), backend=default_backend())
 

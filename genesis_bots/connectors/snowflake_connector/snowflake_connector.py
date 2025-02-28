@@ -1122,7 +1122,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         return True
 
     def create_google_sheets_creds(self):
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
 
         # # TEMP PATCH TO SWITCH USER SINCE self.user is not being set
         # query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE (ext_service_name = 'g-sheets' AND user = 'Jeff') OR (ext_service_name = 'g-sheets' AND user != 'Justin');"

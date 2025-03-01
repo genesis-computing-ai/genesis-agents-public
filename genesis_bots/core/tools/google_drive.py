@@ -20,7 +20,9 @@ from genesis_bots.google_sheets.g_sheets import (
     get_g_folder_directory,
     read_g_sheet,
     write_g_sheet_cell_v4,
-    create_g_sheet_v4
+    create_g_sheet_v4,
+    get_root_folder,
+    set_root_folder,
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -40,7 +42,8 @@ google_drive_tools = ToolFuncGroup(
         The action to be performed on Google Drive.  Possible actions are:
             LOGIN - Used to login in to Google Workspace with OAuth2.0.
             LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
-            SET_ROOT_FOLDER - Sets the root folder for the user on their drive
+            SET_ROOT_FOLDER / SET_SHARED_FOLDER_ID - Sets the root folder for the user on their drive
+            GET_ROOT_FOLDER / GET_SHARED_FOLDER_ID - Gets the root folder for the user on their drive
             GET_FILE_VERSION_NUM - Gets the version number given a g_file id
             GET_COMMENTS - Gets the comments and replies for a file give a g_file_id.  Also includes the anchor tag which specifies the cell where the comment is located
             ADD_COMMENT - Adds a comment to a file given a g_file_id
@@ -149,8 +152,19 @@ def google_drive(
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
-    elif action == "SET_ROOT_FOLDER":
-        raise NotImplementedError
+    elif action == "SET_ROOT_FOLDER" or action = 'SET_SHARED_FOLDER_ID':
+        try:
+            set_root_folder(g_folder_id)
+            return {"Success": True, "Message": "Root folder set."}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+    elif action == "GET_ROOT_FOLDER" or action = 'GET_SHARED_FOLDER_ID':
+        try:
+            root_folder = get_root_folder()
+            return {"Success": True, "Root Folder": root_folder}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
 
     elif action == "GET_LINK_FROM_FILE_ID":
         try:

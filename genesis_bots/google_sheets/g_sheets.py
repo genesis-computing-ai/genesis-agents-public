@@ -70,6 +70,56 @@ def parse_cell_range(cell_range):
     num_cells = (end_col_num - start_col_num + 1) * (end_row_num - start_row_num + 1)
     return start_col_num, start_row_num, end_col_num, end_row_num, num_cells
 
+def get_root_folder_id(folder_id):
+    connection = self.connection
+    cursor = connection.cursor()
+
+    select_query = f"""
+    SELECT value
+    FROM {self.schema}.EXT_SERVICE_CONFIG
+    WHERE key = 'shared_folder_id' AND ext_service_name = 'g-sheets'
+    """
+    cursor.execute(select_query)
+    result = cursor.fetchone()
+
+    cursor.close()
+
+    if result:
+        return result[0]
+    else:
+        return None
+
+def set_root_folder_id(folder_id):
+    connection = self.connection
+    cursor = connection.cursor()
+
+    # Check if the key exists
+    select_query = f"""
+    SELECT COUNT(*)
+    FROM {self.schema}.EXT_SERVICE_CONFIG
+    WHERE key = 'shared_folder_id' AND ext_service_name = 'g-sheets'
+    """
+    cursor.execute(select_query)
+    key_exists = cursor.fetchone()[0]
+
+    if key_exists:
+        # Update the existing key
+        update_query = f"""
+        UPDATE {self.schema}.EXT_SERVICE_CONFIG
+        SET value = %s, updated = CURRENT_TIMESTAMP
+        WHERE parameter = 'shared_folder_id' AND ext_service_name = 'g-sheets'
+        """
+        cursor.execute(update_query, (folder_id,))
+    else:
+        # Insert a new row
+        insert_query = f"""
+        INSERT INTO {self.schema}.EXT_SERVICE_CONFIG (parameter, value, ext_service_name, created, updated)
+        VALUES ('shared_folder_id', %s, 'g-sheets', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """
+        cursor.execute(insert_query, (folder_id,))
+
+    connection.commit()
+    cursor.close()
 
 def insert_into_g_drive_file_version_table(self, data):
     """

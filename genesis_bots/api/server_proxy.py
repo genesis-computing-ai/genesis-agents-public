@@ -481,7 +481,7 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
         self.genesis_app = genesis_app  # Note that genesis_app is a global singleton instance of GenesisApp;
                                         # this pointer is for convenience and encapsulation
         self.genesis_app.set_internal_project_and_schema()
-        self.genesis_app.setup_databse(fast_start=fast_start)
+        self.genesis_app.setup_database(fast_start=fast_start)
         self.genesis_app.set_llm_key_handler()
 
         self.flask_app = None

@@ -70,7 +70,7 @@ def parse_cell_range(cell_range):
     num_cells = (end_col_num - start_col_num + 1) * (end_row_num - start_row_num + 1)
     return start_col_num, start_row_num, end_col_num, end_row_num, num_cells
 
-def get_root_folder_id(folder_id):
+def get_root_folder():
     connection = self.connection
     cursor = connection.cursor()
 
@@ -89,7 +89,7 @@ def get_root_folder_id(folder_id):
     else:
         return None
 
-def set_root_folder_id(folder_id):
+def set_root_folder(folder_id):
     connection = self.connection
     cursor = connection.cursor()
 

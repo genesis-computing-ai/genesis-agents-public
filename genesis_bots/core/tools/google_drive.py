@@ -21,8 +21,8 @@ from genesis_bots.google_sheets.g_sheets import (
     read_g_sheet,
     write_g_sheet_cell_v4,
     create_g_sheet_v4,
-    get_root_folder,
-    set_root_folder,
+    get_root_folder_id,
+    set_root_folder_id,
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -154,14 +154,14 @@ def google_drive(
 
     elif action == "SET_ROOT_FOLDER" or action == 'SET_SHARED_FOLDER_ID':
         try:
-            set_root_folder(g_folder_id)
+            set_root_folder_id(db_adapter, g_folder_id)
             return {"Success": True, "Message": "Root folder set."}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
     elif action == "GET_ROOT_FOLDER" or action == 'GET_SHARED_FOLDER_ID':
         try:
-            root_folder = get_root_folder()
+            root_folder = get_root_folder_id(db_adapter)
             return {"Success": True, "Root Folder": root_folder}
         except Exception as e:
             return {"Success": False, "Error": str(e)}

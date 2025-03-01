@@ -124,7 +124,7 @@ class GenesisApp:
         self.dataset_name = dataset_name
 
 
-    def setup_databse(self, fast_start=None):
+    def setup_database(self, fast_start=None):
         """
         Configures the internal database for the GenesisApp.
 
@@ -488,7 +488,7 @@ class GenesisApp:
         """
         self.generate_index_file()
         self.set_internal_project_and_schema()
-        self.setup_databse()
+        self.setup_database()
         self.set_llm_key_handler()
         self.set_slack_config()
         self.run_ngrok()

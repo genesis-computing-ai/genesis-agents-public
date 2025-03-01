@@ -152,14 +152,14 @@ def google_drive(
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
-    elif action == "SET_ROOT_FOLDER" or action = 'SET_SHARED_FOLDER_ID':
+    elif action == "SET_ROOT_FOLDER" or action == 'SET_SHARED_FOLDER_ID':
         try:
             set_root_folder(g_folder_id)
             return {"Success": True, "Message": "Root folder set."}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
-    elif action == "GET_ROOT_FOLDER" or action = 'GET_SHARED_FOLDER_ID':
+    elif action == "GET_ROOT_FOLDER" or action == 'GET_SHARED_FOLDER_ID':
         try:
             root_folder = get_root_folder()
             return {"Success": True, "Root Folder": root_folder}

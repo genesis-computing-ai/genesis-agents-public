@@ -160,7 +160,7 @@ def insert_into_g_drive_file_version_table(self, data):
 
 
 def update_g_drive_file_version_table(
-    self, g_file_id, g_file_version, g_file_name, g_file_size, g_folder_id, g_file_type
+    db_adapter, g_file_id, g_file_version, g_file_name, g_file_size, g_folder_id, g_file_type
 ):
     """
     Update the version of a file in the G_DRIVE_FILE_VERSION table.
@@ -173,13 +173,13 @@ def update_g_drive_file_version_table(
         g_folder_id (str): The ID of the folder containing the file.
         g_file_type (str): The type of the file.
     """
-    connection = self.db_adapter.connection
+    connection = db_adapter.connection
     cursor = connection.cursor()
 
     # Check if the file ID exists in the table
     select_query = f"""
     SELECT COUNT(*)
-    FROM {self.db_adapter.schema}.G_DRIVE_FILE_VERSION
+    FROM {db_adapter.schema}.G_DRIVE_FILE_VERSION
     WHERE g_file_id = %s
     """
     cursor.execute(select_query, (g_file_id,))
@@ -187,13 +187,13 @@ def update_g_drive_file_version_table(
 
     if file_exists == 0:
         insert_query = f"""
-        INSERT INTO {self.db_adapter.schema}.G_DRIVE_FILE_VERSION (g_file_id, g_file_version, g_file_name, g_file_size, g_file_parent_id, g_file_type)
+        INSERT INTO {db_adapter.schema}.G_DRIVE_FILE_VERSION (g_file_id, g_file_version, g_file_name, g_file_size, g_file_parent_id, g_file_type)
         VALUES (%s, %s, %s, %s, %s, %s)
         """
         cursor.execute(insert_query, (g_file_id, g_file_version, g_file_name, g_file_size, g_folder_id, g_file_type))
     else:
         update_query = f"""
-        UPDATE {self.db_adapter.schema}.G_DRIVE_FILE_VERSION
+        UPDATE {db_adapter.schema}.G_DRIVE_FILE_VERSION
         SET g_file_version = %s
         WHERE g_file_id = %s
         """
@@ -571,7 +571,7 @@ def get_g_folder_web_link(folder_id, creds):
         return None
 
 
-def get_g_file_version(g_file_id = None, creds = None, self = None):
+def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
     """
     Get the version number of a file in Google Drive.
 
@@ -606,7 +606,7 @@ def get_g_file_version(g_file_id = None, creds = None, self = None):
     parent_folder_id = file_metadata.get("parents")[0] if file_metadata.get("parents") else None
     g_file_type = 'sheet'
 
-    update_g_drive_file_version_table(self, g_file_id, version, file_name, file_size, parent_folder_id, g_file_type)
+    update_g_drive_file_version_table(db_adapter, g_file_id, version, file_name, file_size, parent_folder_id, g_file_type)
 
     # Print the file version
     return version
@@ -957,6 +957,8 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
     """
     # if not self.user:
     #     raise Exception("User not specified for google drive conventions.")
+    if not data:
+        return {"Success": True, "message": "No data provided."}
 
     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
     try:

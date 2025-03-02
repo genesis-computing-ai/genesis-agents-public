@@ -136,7 +136,7 @@ def google_drive(
     if action == "LIST":
         try:
             files = get_g_folder_directory(
-                g_folder_id, None, user=db_adapter.user
+                g_folder_id, None, db_adapter=db_adapter
             )
             if files is False:
                 return {"Success": False, "Error": "Could not get files from Google Drive, missing credentials."}

@@ -2757,7 +2757,7 @@ def get_status(site):
             #     f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
             # )
 
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
             cursor.execute(query)
             row = cursor.fetchone()
             cursor.close()

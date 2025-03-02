@@ -25,6 +25,7 @@ import unittest
 from genesis_bots.api import GenesisAPI, build_server_proxy
 from uuid import uuid4
 from datetime import datetime, timedelta
+import json
 
 from genesis_bots.core.tools.process_scheduler import process_scheduler
 from genesis_bots.connectors.data_connector import _query_database, _search_metadata, _list_database_connections
@@ -63,6 +64,30 @@ class TestTools(unittest.TestCase):
         for bot_id in cls.available_bot_ids:
             if 'Eve' in bot_id:
                 cls.eve_id = bot_id
+
+
+        project_id = os.getenv('GOOGLE_PROJECT_ID', '')
+        private_key_id = os.getenv('GOOGLE_PRIVATE_KEY_ID', '')
+        private_key = os.getenv('GOOGLE_PRIVATE_KEY', '')
+        client_email = os.getenv('GOOGLE_CLIENT_EMAIL', '')
+        client_id = os.getenv('GOOGLE_CLIENT_ID', '')
+        shared_folder_id = os.getenv('GOOGLE_SHARED_FOLDER_ID', '')
+        key_pairs = {
+                    "type": "service_account",
+                    "project_id": project_id,
+                    "private_key_id": private_key_id,
+                    "private_key": private_key.replace('\n','&'),
+                    "client_email": client_email,
+                    "client_id": client_id,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/genesis-workspace-creds%40" + project_id + ".iam.gserviceaccount.com",
+                    "universe_domain": "googleapis.com",
+                    "shared_folder_id": shared_folder_id
+                }
+        cls.db_adapter.set_api_config_params('g-sheets', json.dumps(key_pairs))
+        cls.db_adapter.create_google_sheets_creds()
 
     def test_process_scheduler(self):
         bot_id = self.eve_id
@@ -280,8 +305,42 @@ class TestTools(unittest.TestCase):
     def test_google_drive_tools(self):
         bot_id = self.eve_id
         thread_id = str(uuid4())
-        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query='SELECT * FROM MESSAGE_LOG',
+        g_folder_id = '1-o_QvvejVllkz0XZeRYRl6-KcZGQYeub'
+
+        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query='SELECT * FROM HARVEST_CONTROL',
                                  thread_id=thread_id)
+        self.assertTrue(response['Success'])
+        file_id = response['file_id']
+
+        response = google_drive(action="LIST", g_folder_id=g_folder_id, thread_id=thread_id)
+        self.assertTrue(response['Success'])
+        filename = response['files']['File Names'][0]['name']
+        
+        response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id,
+                                 thread_id=thread_id)
+        self.assertTrue(response['Success'])
+
+        response = google_drive(action="GET_FILE_VERSION_NUM", g_file_id=file_id,
+                                 thread_id=thread_id)
+        self.assertTrue(response['Success'])
+
+        response = google_drive(action="GET_SHEET", g_file_id=file_id, g_sheet_cell='A1',
+                                 thread_id=thread_id)
+        self.assertTrue(response['Success'])
+
+        response = google_drive(action="GET_FILE_BY_NAME", g_file_name=filename,
+                                 thread_id=thread_id)
+        self.assertTrue(response['Success'])
+
+        response = google_drive(action="ADD_COMMENT", g_file_id=file_id, g_sheet_values='Test Comment',
+                                 thread_id=thread_id)
+        self.assertTrue(response['Success'])
+
+        response = google_drive(action="GET_COMMENTS", g_file_id=file_id,
+                                 thread_id=thread_id)
+        self.assertTrue(response['Success'])
+
+
 
     @classmethod
     def tearDownClass(cls):

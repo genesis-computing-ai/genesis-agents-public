@@ -411,7 +411,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
     except Exception as e:
         return {"Success": False, "Error": str(e)}
 
-def get_g_folder_directory(folder_id, creds=None, user=None):
+def get_g_folder_directory(folder_id, creds=None, db_adapter=None):
     """
     Get all files in a Google Drive folder.
 
@@ -424,6 +424,11 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
     # if not folder_id or (not creds and not user):
     #     raise Exception("Missing credentials, user name, or folder ID.")
     logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
+
+    if not folder_id:
+        folder_id = get_root_folder_id(db_adapter)
+        if not folder_id:
+            return {"Success": False, "Error": "Root folder ID not found."}
 
     if not creds:
         SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
@@ -443,11 +448,49 @@ def get_g_folder_directory(folder_id, creds=None, user=None):
         service = build("drive", "v3", credentials=creds)
 
         # Get the list of files in the folder
-        query = f"'{folder_id}' in parents"
-        response = service.files().list(q=query, fields="files(id, name)").execute()
-        files = response.get("files", [])
+        query = f"'{folder_id}' in parents and trashed = false"
+        fields = "files(id, name, mimeType, createdTime, modifiedTime, webViewLink, size)"
 
-        return {"Success": True, "File Names": files}
+        files = []
+        page_token = None
+        while True:
+            try:
+                response = service.files().list(
+                    q=query,
+                    fields=fields,
+                    pageSize=1000,
+                    orderBy="name",
+                    pageToken=page_token,
+                ).execute()
+
+                files.extend(response.get("files", []))
+                page_token = response.get("nextPageToken")
+
+                if not page_token:
+                    break
+
+            except HttpError as error:
+                logger.error(f"Error listing files: {error}")
+                return {"Success": False, "Error": f"API error: {str(error)}"}
+
+        logger.info(f"Found {len(files)} files in folder {folder_id}")
+
+        # Format response
+        file_list = [{
+            "id": f.get("id"),
+            "name": f.get("name"),
+            "type": f.get("mimeType"),
+            "created": f.get("createdTime"),
+            "modified": f.get("modifiedTime"),
+            "url": f.get("webViewLink"),
+            "size": f.get("size")
+        } for f in files]
+
+        return {
+            "Success": True,
+            "Files": file_list,
+            "Total": len(file_list)
+        }
 
     except Exception as e:
         return {"Success": False, "Error": str(e)}

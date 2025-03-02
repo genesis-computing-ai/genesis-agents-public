@@ -2780,7 +2780,8 @@ def get_status(site):
                 "Success": True,
                 "result": "Data successfully sent to Google Sheets",
                 "folder_url": result["folder_url"],
-                "file_url": result["file_url"]
+                "file_url": result["file_url"],
+                "file_id": result["file_id"],
             }
 
         return sample_data

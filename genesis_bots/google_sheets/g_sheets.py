@@ -1062,8 +1062,8 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
     Create a Google Sheet with the given values.
     Load pre-authorized user credentials from the environment.
     """
-    if not user:
-        raise Exception("User not specified for google drive conventions.")
+    # if not user:
+    #     raise Exception("User not specified for google drive conventions.")
 
     SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
     try:

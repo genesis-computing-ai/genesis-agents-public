@@ -175,7 +175,7 @@ def google_drive(
 
     elif action == "GET_FILE_VERSION_NUM":
         try:
-            file_version_num = get_g_file_version(g_file_id, None, db_adapter.user)
+            file_version_num = get_g_file_version(g_file_id, None, db_adapter)
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
@@ -233,9 +233,7 @@ def google_drive(
     elif action == "GET_SHEET" or action == "READ_SHEET":
         # cell_range = verify_single_cell(g_sheet_cell)
         try:
-            value = read_g_sheet(
-                g_file_id, g_sheet_cell, None, db_adapter.user
-            )
+            value = read_g_sheet(g_file_id, g_sheet_cell, None, db_adapter.user)
             return {"Success": True, "value": value}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -246,13 +244,11 @@ def google_drive(
         return {"Success": "True", "auth_url": f"<{auth_url}>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
-        db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
-        return {"Success": True, "Message": "Query results saved to Google Sheet."}
+        response = db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
+        return response
 
     elif action == "CREATE_SHEET":
-        response = create_g_sheet_v4(
-            g_sheet_values, g_file_name, None, db_adapter.user
-        )
+        response = create_g_sheet_v4(g_sheet_values, g_file_name, None, db_adapter.user)
         return response
 
     return {"Success": False, "Error": "Invalid action specified."}

@@ -441,6 +441,61 @@ class ProjectManager:
                     "message": "Todo updated successfully"
                 }
 
+            elif action == "DELETE":
+                if not todo_id:
+                    return {
+                        "success": False,
+                        "error": "Todo ID is required for deletion"
+                    }
+
+                # Verify todo exists and bot has permission
+                cursor.execute(
+                    f"""
+                    SELECT todo_id FROM {self.db_adapter.schema}.TODO_ITEMS 
+                    WHERE todo_id = %s AND assigned_to_bot_id = %s
+                    """,
+                    (todo_id, bot_id)
+                )
+                if not cursor.fetchone():
+                    return {
+                        "success": False,
+                        "error": "Todo not found or you don't have permission to delete it"
+                    }
+
+                # Delete dependencies first (both where this todo depends on others and where others depend on this)
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.TODO_DEPENDENCIES
+                    WHERE todo_id = %s OR depends_on_todo_id = %s
+                    """,
+                    (todo_id, todo_id)
+                )
+
+                # Delete todo history
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.TODO_HISTORY
+                    WHERE todo_id = %s
+                    """,
+                    (todo_id,)
+                )
+
+                # Delete the todo
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.TODO_ITEMS
+                    WHERE todo_id = %s AND assigned_to_bot_id = %s
+                    """,
+                    (todo_id, bot_id)
+                )
+
+                self.db_adapter.client.commit()
+                return {
+                    "success": True,
+                    "message": "Todo and all related records deleted successfully",
+                    "todo_id": todo_id
+                }
+
             else:
                 return {
                     "success": False,

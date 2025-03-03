@@ -38,6 +38,12 @@ jobs:
           SPCS_MODE: FALSE
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          GOOGLE_PROJECT_ID: ${{ secrets.GOOGLE_PROJECT_ID }}
+          GOOGLE_PRIVATE_KEY_ID: ${{ secrets.GOOGLE_PRIVATE_KEY_ID }}
+          GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_SHARED_FOLDER_ID: ${{ secrets.GOOGLE_SHARED_FOLDER_ID }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
         run: |
           python -m pip install pytest
           pytest -v
@@ -49,6 +55,12 @@ jobs:
           SPCS_MODE: TRUE
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          GOOGLE_PROJECT_ID: ${{ secrets.GOOGLE_PROJECT_ID }}
+          GOOGLE_PRIVATE_KEY_ID: ${{ secrets.GOOGLE_PRIVATE_KEY_ID }}
+          GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_SHARED_FOLDER_ID: ${{ secrets.GOOGLE_SHARED_FOLDER_ID }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
           SNOWFLAKE_USER_OVERRIDE: ${{ secrets.SNOWFLAKE_USER_OVERRIDE }}
           SNOWFLAKE_PASSWORD_OVERRIDE: ${{ secrets.SNOWFLAKE_PASSWORD_OVERRIDE }}
         run: |

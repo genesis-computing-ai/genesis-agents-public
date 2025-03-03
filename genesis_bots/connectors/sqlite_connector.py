@@ -2633,6 +2633,7 @@ class SqliteConnector(DatabaseConnector):
         max_rows_override=False,
         job_config=None,
         connection=None,
+        export_to_google_sheet = False,
         bot_id=None,
     ):
         from genesis_bots.core import global_flags

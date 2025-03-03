@@ -1066,6 +1066,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         ).execute()
 
         # Move the document to shared folder
+        file = {}
         if top_level_folder_id:
             file = (
                 drive_service.files()
@@ -1102,7 +1103,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         logger.info(f"An error occurred: {error}")
         return error
 
-def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None, user=None):
+def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None, user=None) -> dict:
     """
     Create a Google Sheet with the given values.
     Load pre-authorized user credentials from the environment.
@@ -1118,7 +1119,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
         )
     except Exception as e:
         logger.info(f"Error loading credentials: {e}")
-        return None
+        return {"Success": False,"error": e}
 
     try:
         service = build("sheets", "v4", credentials=creds)
@@ -1301,7 +1302,7 @@ def write_g_sheet_cell_v4(
     }
 
 
-def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
+def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None) -> dict:
     """
     Reads the content of a Google Sheet.
     Load pre-authorized user credentials from the environment.
@@ -1319,7 +1320,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             logger.info(f"Auth success: {spreadsheet_id}")
         except Exception as e:
             logger.error(f"Error loading credentials: {spreadsheet_id} - {e}")
-            return None
+            return {"Success": False, "error": e}
     try:
         service = build("drive", "v3", credentials=creds)
 
@@ -1349,11 +1350,11 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         }
     except Exception as error:
         logger.error(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
-        return error
+        return {"Success": False,"error": error}
 
 
 
-def delete_g_sheet(file_id=None, creds=None):
+def delete_g_sheet(file_id=None, creds=None) -> dict:
     """
     Deletes a Google Sheet.
     Load pre-authorized user credentials from the environment.
@@ -1369,7 +1370,7 @@ def delete_g_sheet(file_id=None, creds=None):
             )
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
-            return None
+            return {"Success": False,"error": e}
 
     try:
         service = build("drive", "v3", credentials=creds)

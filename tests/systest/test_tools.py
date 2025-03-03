@@ -301,9 +301,8 @@ class TestTools(unittest.TestCase):
         self.assertTrue('_SearchGoogle_' in response)
         # self.assertTrue('Dollars' in response or '$' in response) # it is flaky
 
-    @unittest.skipIf(True, "Skipping test_google_drive_tools for now")
+    # @unittest.skipIf(True, "Skipping test_google_drive_tools for now")
     def test_google_drive_tools(self):
-        bot_id = self.eve_id
         thread_id = str(uuid4())
         g_folder_id = '1-o_QvvejVllkz0XZeRYRl6-KcZGQYeub'
 
@@ -312,32 +311,31 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
         file_id = response['file_id']
 
-        response = google_drive(action="LIST", g_folder_id=g_folder_id, thread_id=thread_id)
+        response = google_drive(action="LIST", g_folder_id=g_folder_id)
         self.assertTrue(response['Success'])
-        filename = response['files']['File Names'][0]['name']
+        print(response)
+        filename = response['files']['Files'][0]['name']
         
-        response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id,
-                                 thread_id=thread_id)
+        response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id)
         self.assertTrue(response['Success'])
 
-        response = google_drive(action="GET_FILE_VERSION_NUM", g_file_id=file_id,
-                                 thread_id=thread_id)
+        response = google_drive(action="GET_FILE_VERSION_NUM", g_file_id=file_id)
         self.assertTrue(response['Success'])
 
         response = google_drive(action="GET_SHEET", g_file_id=file_id, g_sheet_cell='A1',
                                  thread_id=thread_id)
         self.assertTrue(response['Success'])
 
-        response = google_drive(action="GET_FILE_BY_NAME", g_file_name=filename,
-                                 thread_id=thread_id)
+        response = google_drive(action="GET_FILE_BY_NAME", g_file_name=filename)
         self.assertTrue(response['Success'])
 
-        response = google_drive(action="ADD_COMMENT", g_file_id=file_id, g_sheet_values='Test Comment',
-                                 thread_id=thread_id)
+        response = google_drive(action="ADD_COMMENT", g_file_id=file_id, g_sheet_values='Test Comment')
         self.assertTrue(response['Success'])
 
-        response = google_drive(action="GET_COMMENTS", g_file_id=file_id,
-                                 thread_id=thread_id)
+        response = google_drive(action="GET_COMMENTS", g_file_id=file_id)
+        self.assertTrue(response['Success'])
+
+        response = google_drive(action="DELETE_SHEET", g_file_id=file_id)
         self.assertTrue(response['Success'])
 
 

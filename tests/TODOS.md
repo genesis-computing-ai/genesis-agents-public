@@ -2,7 +2,8 @@
 GENESIS BOT TODOS
 =================
 
-stop app in sg region
+GXS-Getting [] result on tool calls by source researcher to metadata queries
+x stop app in sg region
 gxs-if file not found in git, properly trigger the retry logic
 connecting to oracle docs
 bulk add todos

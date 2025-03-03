@@ -84,7 +84,7 @@ def google_drive(
     g_sheet_anchor: str = None,
     # user: str = None,
     thread_id: str = None,
-) -> None:
+) -> dict:
     """
     A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -251,7 +251,7 @@ def google_drive(
     elif action == "CREATE_SHEET":
         response = create_g_sheet_v4(g_sheet_values, g_file_name, None, db_adapter.user)
         return response
-    
+
     elif action == "DELETE_SHEET":
         response = delete_g_sheet(g_file_id, None)
         return response

@@ -1352,3 +1352,33 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         print(f"An error occurred: {error}")
         logger.info(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
         return error
+
+
+
+def delete_g_sheet(file_id=None, creds=None):
+    """
+    Deletes a Google Sheet.
+    Load pre-authorized user credentials from the environment.
+    """
+    logger.info(f"Entering delete_g_sheet with file_id: {file_id}")
+
+    if not creds:
+        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+        try:
+            # Authenticate using the service account JSON file
+            creds = Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Error loading credentials: {e}")
+            return None
+
+    try:
+        service = build("drive", "v3", credentials=creds)
+
+        service.files().delete(fileId=file_id).execute()
+
+        return {"Success": True, "message": f"File {file_id} deleted successfully"}
+    except Exception as error:
+        logger.info(f"HTTPError in read sheet: {error} - {file_id}")
+        return {"Success": False,"error": error}

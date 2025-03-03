@@ -252,7 +252,7 @@ def get_g_file_comments(user, file_id):
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            print("Download %d%%" % int(status.progress() * 100))
+            logger.info("Download %d%%" % int(status.progress() * 100))
         fh.seek(0)
         workbook = openpyxl.load_workbook(filename=fh, data_only=False)
         worksheet = workbook['Sheet1']
@@ -272,7 +272,7 @@ def get_g_file_comments(user, file_id):
         return comments.get("comments", [])
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred: {str(e)}")
         return None
 
 
@@ -320,11 +320,11 @@ def add_reply_to_g_file_comment(
             .execute()
         )
 
-        print(f"Reply added: {created_reply['content']}")
+        logger.info(f"Reply added: {created_reply['content']}")
         return created_reply
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred: {str(e)}")
         return None
 
 def get_g_file_web_link(file_id, creds=None, user=None):
@@ -348,7 +348,7 @@ def get_g_file_web_link(file_id, creds=None, user=None):
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            logger.info(f"Error loading credentials: {e}")
             return None
 
     try:
@@ -392,7 +392,7 @@ def find_g_file_by_name(file_name, creds=None, user=None):
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {e}")
             return None
 
     try:
@@ -534,11 +534,11 @@ def add_g_file_comment(
             .execute()
         )
 
-        print(f"Comment added: {created_comment['content']}")
+        logger.info(f"Comment added: {created_comment['content']}")
         return created_comment
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred: {str(e)}")
         return None
 
 
@@ -559,15 +559,15 @@ def get_g_folder_web_link(folder_id, creds):
         # Get the folder metadata including the webViewLink
         folder = service.files().get(fileId=folder_id, fields="id, name, webViewLink").execute()
 
-        # Print the folder details
-        print(f"Folder ID: {folder.get('id')}")
-        print(f"Folder Name: {folder.get('name')}")
-        print(f"Web View Link: {folder.get('webViewLink')}")
+        # logger.info the folder details
+        logger.info(f"Folder ID: {folder.get('id')}")
+        logger.info(f"Folder Name: {folder.get('name')}")
+        logger.info(f"Web View Link: {folder.get('webViewLink')}")
 
         return folder.get("webViewLink")
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.info(f"An error occurred: {str(e)}")
         return None
 
 
@@ -592,7 +592,7 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {e}")
             return None
 
     service = build("drive", "v3", credentials=creds)
@@ -608,7 +608,7 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
 
     update_g_drive_file_version_table(db_adapter, g_file_id, version, file_name, file_size, parent_folder_id, g_file_type)
 
-    # Print the file version
+    # logger.info the file version
     return version
 
 
@@ -630,7 +630,7 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
 #     file = (
 #         service.files().create(body=file_metadata, media_body=media, fields="id").execute()
 #     )
-#     print(f'File ID: "{file.get("id")}".')
+#     logger.info(f'File ID: "{file.get("id")}".')
 #     return file.get("id")
 
 
@@ -693,7 +693,7 @@ def save_text_to_google_file(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            logger.info(f"Error loading credentials: {e}")
             return None
 
     docs_service = build("docs", "v1", credentials=creds)
@@ -708,7 +708,7 @@ def save_text_to_google_file(
 
     if files:
         for file in files:
-            print(
+            logger.info(
                 f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})"
             )
             docs_service.files().delete(fileId=file.get("id")).execute()
@@ -719,9 +719,9 @@ def save_text_to_google_file(
 
     body = {"title": file_name}
     doc = docs_service.documents().create(body=body).execute()
-    print("Created document with title: {0}".format(doc.get("title")))
+    logger.info("Created document with title: {0}".format(doc.get("title")))
     doc_id = doc.get("documentId")
-    print(f"Document ID: {doc_id}")
+    logger.info(f"Document ID: {doc_id}")
 
     # Move the document to shared folder
     if shared_folder_id:
@@ -734,7 +734,7 @@ def save_text_to_google_file(
             )
             .execute()
         )
-        print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+        logger.info(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
     # Verify the new document exists in Google Drive
     try:
@@ -743,14 +743,14 @@ def save_text_to_google_file(
             .get(fileId=doc_id, fields="id, name, parents, webViewLink")
             .execute()
         )
-        print(f"File store confirmed: {file_verify}")
+        logger.info(f"File store confirmed: {file_verify}")
     except:
         raise Exception("Error creating document in Google Drive")
 
     parent = (
         drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
     )
-    print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
+    logger.info(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
 
     requests = [{"insertText": {"location": {"index": 1}, "text": text}}]
 
@@ -760,7 +760,7 @@ def save_text_to_google_file(
         .execute()
     )
 
-    print("Document content updated: ", result)
+    logger.info("Document content updated: ", result)
 
     # Add to G_DRIVE_FILE_VERSION table
     g_file_version_data = {
@@ -795,7 +795,7 @@ def create_folder_in_folder(folder_name, parent_folder_id, user):
 
     file = service.files().create(body=file_metadata, fields="id").execute()
 
-    print(f'Folder ID: {file.get("id")} | Folder name: {folder_name}')
+    logger.info(f'Folder ID: {file.get("id")} | Folder name: {folder_name}')
 
     return file.get("id")
 
@@ -824,7 +824,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 
     #     if files:
     #         for file in files:
-    #             print(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
+    #             logger.info(f"Deleting existing file: {file.get('name')} (ID: {file.get('id')})")
     #             drive_service.files().delete(fileId=file.get("id")).execute()
 
     #     # Create a new document
@@ -833,9 +833,9 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 
     #     body = {"title": file_name}
     #     doc = docs_service.documents().create(body=body).execute()
-    #     print("Created document with title: {0}".format(doc.get("title")))
+    #     logger.info("Created document with title: {0}".format(doc.get("title")))
     #     doc_id = doc.get("documentId")
-    #     print(f"Document ID: {doc_id}")
+    #     logger.info(f"Document ID: {doc_id}")
 
     #     # Move the document to shared folder
     #     if shared_folder_id:
@@ -848,7 +848,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     #             )
     #             .execute()
     #         )
-    #         print(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
+    #         logger.info(f"File moved to folder: {file} | Parent folder {file['parents'][0]}")
 
     #     # Verify the new document exists in Google Drive
     #     try:
@@ -857,14 +857,14 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     #             .get(fileId=doc_id, fields="id, name, parents, webViewLink")
     #             .execute()
     #         )
-    #         print(f"File store confirmed: {file_verify}")
+    #         logger.info(f"File store confirmed: {file_verify}")
     #     except:
     #         raise Exception("Error creating document in Google Drive")
 
     #     parent = (
     #         drive_service.files().get(fileId=shared_folder_id, fields="id, name").execute()
     #     )
-    #     print(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
+    #     logger.info(f"Parent folder name: {parent.get('name')} (ID: {parent.get('id')})")
 
     #     if not text:
     #         text = 'No text received from Snowflake stage.'
@@ -877,12 +877,12 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
     #         .execute()
     #     )
 
-    #     print("Document content updated: ", result)
+    #     logger.info("Document content updated: ", result)
 
     #     return file_verify.get("webViewLink")
 
     # except HttpError as err:
-    #     print(err)
+    #     logger.info(err)
     #     return None
 
 
@@ -902,7 +902,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 #             SERVICE_ACCOUNT_FILE, scopes=SCOPES
 #         )
 #     except Exception as e:
-#         print(f"Error loading credentials: {e}")
+#         logger.info(f"Error loading credentials: {e}")
 #         return None
 
 #     try:
@@ -935,7 +935,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 #         )
 #         file = service.files().update(fileId=spreadsheet_id, media_body=media).execute()
 
-#         print(f"File ID: {file.get('id')}")
+#         logger.info(f"File ID: {file.get('id')}")
 #         return {
 #             "Success": True,
 #             "updatedCells": result.get("updatedCells"),
@@ -943,7 +943,7 @@ def export_to_google_docs(text: str = 'No text received.', shared_folder_id: str
 #         }
 
 #     except Exception as e:
-#         print(f"An error occurred: {str(e)}")
+#         logger.info(f"An error occurred: {str(e)}")
 #         return {
 #             "Success": False,
 #             "Error": str(e),
@@ -967,7 +967,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
     except Exception as e:
-        print(f"Error loading credentials: {e}")
+        logger.error(f"Error loading credentials: {e}")
         return None
 
     try:
@@ -984,7 +984,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         )
 
         ss_id = spreadsheet.get("spreadsheetId")
-        print(f"Spreadsheet ID: {ss_id}")
+        logger.info(f"Spreadsheet ID: {ss_id}")
         keys = list(data[0].keys())
         columns = [keys]
 
@@ -1041,7 +1041,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         width_1 = chr(64 + len(columns[0]) // 26) if len(columns[0]) > 25 else ''
         width = width_10 + width_1
         cell_range = f"Sheet1!A1:{width}{len(columns)}"
-        print(f"\n\nRange name: {cell_range} | {len(columns[0])} | {len(columns)}\n\n")
+        logger.info(f"\n\nRange name: {cell_range} | {len(columns[0])} | {len(columns)}\n\n")
         body = {
                 "values": columns
                 }
@@ -1057,7 +1057,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
             )
             .execute()
         )
-        print(f"{result.get('updatedCells')} cells created.")
+        logger.info(f"{result.get('updatedCells')} cells created.")
 
         # Apply formatting
         service.spreadsheets().batchUpdate(
@@ -1076,11 +1076,11 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
                 )
                 .execute()
             )
-            print(f"File moved to folder - File ID: {file['id']} | Folder ID {file['parents'][0]}")
+            logger.info(f"File moved to folder - File ID: {file['id']} | Folder ID {file['parents'][0]}")
 
         # Test only - read file contents to confirm write
         # results = read_g_sheet(ss_id, cell_range, creds)
-        # print(f"Results from storing, then reading sheet: {results}")
+        # logger.info(f"Results from storing, then reading sheet: {results}")
 
         folder_url = get_g_folder_web_link(top_level_folder_id, creds)
         file_url = file.get("webViewLink")
@@ -1099,7 +1099,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
 
     except HttpError as error:
-        print(f"An error occurred: {error}")
+        logger.info(f"An error occurred: {error}")
         return error
 
 def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None, user=None):
@@ -1117,7 +1117,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
     except Exception as e:
-        print(f"Error loading credentials: {e}")
+        logger.info(f"Error loading credentials: {e}")
         return None
 
     try:
@@ -1132,7 +1132,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
         )
 
         ss_id = spreadsheet.get("spreadsheetId")
-        print(f"Spreadsheet ID: {ss_id}")
+        logger.info(f"Spreadsheet ID: {ss_id}")
 
         # Prepare the body for the update request
         body = {
@@ -1152,7 +1152,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
             .execute()
         )
 
-        print(f"{result.get('updatedCells')} cells created.")
+        logger.info(f"{result.get('updatedCells')} cells created.")
 
         return {
             "Success": True,
@@ -1160,7 +1160,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
         }
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred: {str(e)}")
         return {
             "Success": False,
             "Error": str(e),
@@ -1184,7 +1184,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
             logger.info(f"Auth success: {spreadsheet_id}")
         except Exception as e:
             logger.info(f"Error loading credentials: {spreadsheet_id}")
-            print(f"Error loading credentials: {e}")
+            logger.info(f"Error loading credentials: {e}")
             return None
 
     service = build("drive", "v3", credentials=creds)
@@ -1200,7 +1200,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
     if len(value_arr) != num_cells:
         raise ValueError("Number of values does not match the number of cells in cell_range")
 
-    print(f"Start Column: {start_col}, Start Row: {start_row}, End Column: {end_col}, End Row: {end_row}")
+    logger.info(f"Start Column: {start_col}, Start Row: {start_row}, End Column: {end_col}, End Row: {end_row}")
 
     # Update the result['cell_values'] with the values from value_arr
     index = 0
@@ -1247,7 +1247,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
         media = MediaFileUpload(temp_file_path, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         file = service.files().update(fileId=spreadsheet_id, media_body=media).execute()
 
-        print(f"File ID: {file.get('id')}")
+        logger.info(f"File ID: {file.get('id')}")
         return {
             "Success": True,
             "updatedCells": result.get("updatedCells"),
@@ -1255,7 +1255,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
         }
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logger.info(f"An error occurred: {str(e)}")
         return {
             "Success": False,
             "Error": str(e),
@@ -1277,7 +1277,7 @@ def write_g_sheet_cell_v4(
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {e}")
             return None
 
     service = build("sheets", "v4", credentials=creds)
@@ -1318,8 +1318,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             )
             logger.info(f"Auth success: {spreadsheet_id}")
         except Exception as e:
-            logger.info(f"Error loading credentials: {spreadsheet_id}")
-            print(f"Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {spreadsheet_id} - {e}")
             return None
     try:
         service = build("drive", "v3", credentials=creds)
@@ -1333,7 +1332,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            print("Download %d%%" % int(status.progress() * 100))
+            logger.info("Download %d%%" % int(status.progress() * 100))
         fh.seek(0)
         workbook = openpyxl.load_workbook(filename=fh, data_only=False)
         worksheet = workbook[workbook.sheetnames[0]]
@@ -1349,8 +1348,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None):
             "service": service,
         }
     except Exception as error:
-        print(f"An error occurred: {error}")
-        logger.info(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
+        logger.error(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
         return error
 
 
@@ -1370,7 +1368,7 @@ def delete_g_sheet(file_id=None, creds=None):
                 SERVICE_ACCOUNT_FILE, scopes=SCOPES
             )
         except Exception as e:
-            print(f"Error loading credentials: {e}")
+            logger.error(f"Error loading credentials: {e}")
             return None
 
     try:

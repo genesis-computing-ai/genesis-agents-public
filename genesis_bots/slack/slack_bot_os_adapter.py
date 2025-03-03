@@ -922,11 +922,10 @@ class SlackBotAdapter(BotOsInputAdapter):
                         # Store the last 100 characters of msg_part1 in the chunk_last_100 dictionary
                         if not duplicato:
                             try:
-
                                 self.slack_app.client.chat_update(
                                     channel=message.input_metadata.get("channel", self.channel_id),
                                     ts=thinking_ts,
-                                    text=self.fix_fn_calls(msg_part1),
+                                    text=self._convert_to_slack_format(self.fix_fn_calls(msg_part1)),
                                 )
                                 thread_ts = message.input_metadata.get("thread_ts", None)
                             except Exception as e:
@@ -936,7 +935,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                             posted_message = self.slack_app.client.chat_postMessage(
                                 channel=message.input_metadata.get("channel", self.channel_id),
                                 thread_ts=thread_ts,
-                                text=msg_part2,
+                                text=self._convert_to_slack_format(msg_part2),
                             )
                             thinking_ts = posted_message["ts"]
                             if orig_thinking is not None:
@@ -968,7 +967,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,
-                            text=msg,
+                            text=self._convert_to_slack_format(msg),
                         )
                         return
                 else:
@@ -1161,7 +1160,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,
-                            text=msg_part1,
+                            text=self._convert_to_slack_format(self.fix_fn_calls(msg_part1)),
                         )
                         thread_ts = message.input_metadata.get("thread_ts", None)
                     except Exception as e:
@@ -1175,7 +1174,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     posted_message = self.slack_app.client.chat_postMessage(
                         channel=message.input_metadata.get("channel", self.channel_id),
                         thread_ts=thread_ts,
-                        text=msg_part2,
+                        text=self._convert_to_slack_format(msg_part2),
                     )
                     thinking_ts = posted_message["ts"]
                     if orig_thinking is not None:
@@ -1189,7 +1188,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         self.slack_app.client.chat_update(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             ts=thinking_ts,
-                            text=msg,
+                            text=self._convert_to_slack_format(msg),
                             blocks=blocks,
                         )
                     else:
@@ -1216,7 +1215,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                         result = self.slack_app.client.chat_postMessage(
                             channel=message.input_metadata.get("channel", self.channel_id),
                             thread_ts=thread_ts,
-                            text=msg,
+                            text=self._convert_to_slack_format(msg),
                         )
                         if message.input_metadata.get("thinking_ts", None) is None:
                             message.input_metadata.thinking_ts = result.ts
@@ -1542,3 +1541,65 @@ class SlackBotAdapter(BotOsInputAdapter):
             return {"success": True, "User_id:": user_id}
         else:
             return "Error: unknown slack user.  Maybe use the list_all_bots function to see if its a bot?"
+
+    def _convert_to_slack_format(self, msg: str) -> str:
+        import re
+        # Convert Markdown headers (e.g. "# Header") into bold text
+        msg = re.sub(r'^(#{1,6})\s*(.*)', lambda m: f"*{m.group(2).strip()}*", msg, flags=re.MULTILINE)
+        # Convert Markdown bold (e.g. **text**) to Slack bold (*text*)
+        msg = re.sub(r'\*\*(.*?)\*\*', r'*\1*', msg)
+        # Remove language specifiers from triple backticks (e.g. ```python becomes ``` )
+        msg = re.sub(r'```[\w+-]*\n', '```\n', msg)
+        
+        # Special handling for bold headers: format any standalone bold text so that it appears as a clearly delineated header with a trailing colon.
+        msg = re.sub(r'(?:^|\n)(\*[^\*\n]+\*)(?!:)', lambda m: f"\n{m.group(1)}:\n", msg, flags=re.MULTILINE)
+        
+        # Detect and reformat Markdown tables to be monospaced and aligned.
+        table_pattern = re.compile(r'((?:^\|.*\n){3,})', flags=re.MULTILINE)
+        def block_table(match):
+            table_text = match.group(1)
+            lines = [line for line in table_text.splitlines() if line.strip()]
+            rows = []
+            for line in lines:
+                if line.lstrip().startswith("|"):
+                    # Split the row into cells by the '|' delimiter.
+                    cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+                    rows.append(cells)
+            if not rows:
+                return table_text
+            # Determine the maximum number of columns.
+            num_cols = max(len(row) for row in rows)
+            # Pad rows with missing cells.
+            for row in rows:
+                if len(row) < num_cols:
+                    row.extend([""] * (num_cols - len(row)))
+            # Compute maximum width for each column.
+            col_widths = [0] * num_cols
+            for row in rows:
+                for i, cell in enumerate(row):
+                    col_widths[i] = max(col_widths[i], len(cell))
+            # Helper to check if a row is a separator row (dividing header from data)
+            def is_separator_row(row):
+                return all(re.fullmatch(r'[-:\s]+', cell) for cell in row)
+            formatted_lines = []
+            for row in rows:
+                if is_separator_row(row):
+                    formatted_cells = []
+                    for i, cell in enumerate(row):
+                        cell = cell.strip()
+                        if cell.endswith(':'):
+                            formatted_cells.append('-' * (col_widths[i] - 1) + ':')
+                        else:
+                            formatted_cells.append('-' * col_widths[i])
+                    formatted_line = "| " + " | ".join(formatted_cells) + " |"
+                else:
+                    formatted_cells = [cell.ljust(col_widths[i]) for i, cell in enumerate(row)]
+                    formatted_line = "| " + " | ".join(formatted_cells) + " |"
+                formatted_lines.append(formatted_line)
+            new_table = "\n".join(formatted_lines)
+            return f"```\n{new_table}\n```"
+        msg = table_pattern.sub(block_table, msg)
+        
+        # Convert Markdown unordered lists (e.g. "- item" or "* item") to Slack bullet lists.
+        msg = re.sub(r'^\s*[-*]\s+', '• ', msg, flags=re.MULTILINE)
+        return msg

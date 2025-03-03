@@ -123,6 +123,41 @@ class SchemaExplorer:
                         database_name=dataset['database_name']
                     )
                     
+                    if matching_connection['db_type'] == 'snowflake' and not result.get('success', True):
+                        # to get ddl for shared tables in Snowflake
+                        if table_name:
+                            describe_query = f"DESCRIBE TABLE {table_name};"
+                            try:
+                                describe_result = connector.query_database(
+                                    connection_id=dataset['source_name'],
+                                    bot_id='system',
+                                    query=describe_query,
+                                    max_rows=1000,
+                                    max_rows_override=True,
+                                    bot_id_override=True,
+                                    database_name=dataset['database_name']
+                                )
+                            except:
+                                return "CREATE TABLE (Error: Failed to retrieve DDL from Snowflake);"
+
+                            ddl_statement = f"CREATE TABLE {table_name} (\n"
+                            columns = describe_result['columns']
+                            rows = describe_result['rows']
+                            for row in rows:
+                                column_name = row[columns.index('name')]
+                                column_type = row[columns.index('type')]
+                                nullable = " NOT NULL" if row[columns.index('null?')] == 'N' else ""
+                                default = f" DEFAULT {row[columns.index('default')]}" if row[columns.index('default')] is not None else ""
+                                comment = f" COMMENT '{row[columns.index('comment')]}'" if row[columns.index('comment')] is not None else ""
+                                key = ""
+                                if row[columns.index('primary key')] == 'Y':
+                                    key = " PRIMARY KEY"
+                                elif row[columns.index('unique key')] == 'Y':
+                                    key = " UNIQUE"
+                                ddl_statement += f"    {column_name} {column_type}{nullable}{default}{key}{comment},\n"
+                            ddl_statement = ddl_statement.rstrip(',\n') + "\n);"
+                            return ddl_statement
+                       
                     # Handle different result formats
                     if isinstance(result, dict) and result.get('success') and result.get('rows'):
                         if isinstance(result['rows'][0], dict):

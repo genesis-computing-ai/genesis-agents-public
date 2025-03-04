@@ -2,7 +2,11 @@
 GENESIS BOT TODOS
 =================
 
-GXS-Getting [] result on tool calls by source researcher to metadata queries
+
+GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
+Have local listener look for Todos in a specified project, and then process them...
+
+x GXS-Getting [] result on tool calls by source researcher to metadata queries
 x stop app in sg region
 gxs-if file not found in git, properly trigger the retry logic
 connecting to oracle docs

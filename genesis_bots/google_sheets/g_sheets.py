@@ -2,7 +2,8 @@
 
 import os.path
 
-from google.oauth2.credentials import Credentials
+from google.oauth2.credentials import Credentials as Creds_Oauth
+from google.oauth2.service_account import Credentials as Creds_Service
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
@@ -42,9 +43,9 @@ def load_creds():
         if not os.path.exists(OAUTH_KEY_FILE):
             logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
         try:
-            _g_creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
+            _g_creds = Creds_Oauth.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
             json_creds = json.loads(creds.to_json())
-            logger.info(f"Credentials loaded: {json_creds}")
+            logger.info(f"Creds_Oauth loaded: {json_creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             _g_creds = None
@@ -55,7 +56,7 @@ def get_g_creds_service_account():
     SERVICE_ACCOUNT_FILE = f"g-workspace-sa-credentials.json"
     try:
         # Authenticate using the service account JSON file
-        creds = Credentials.from_service_account_file(
+        creds = Creds_Service.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
     except Exception as e:
@@ -708,7 +709,7 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
 
 
 # def upload_file_to_folder(path_to_file, parent_folder_id):
-#     creds = Credentials.from_service_account_file(
+#     creds = Creds_Oauth.from_service_account_file(
 #             SERVICE_ACCOUNT_FILE, scopes=SCOPES
 #         )
 #     service = build("drive", "v3", credentials=creds)
@@ -785,9 +786,9 @@ def save_text_to_google_file(
         if not os.path.exists(OAUTH_KEY_FILE):
             logger.info(f"Service account file not found: {OAUTH_KEY_FILE}")
         try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
+            creds = Creds_Oauth.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
 
-            logger.info(f"Credentials loaded: {creds}")
+            logger.info(f"Creds_Oauth loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False

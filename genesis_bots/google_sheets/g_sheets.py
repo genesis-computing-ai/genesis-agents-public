@@ -101,7 +101,9 @@ def read_g_doc(doc_id, creds=None):
         return None
 
 def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
+    logger.info('Entering create_g_doc')
     if not creds:
+        logger.info('Getting creds')
         OAUTH_KEY_FILE = f"g-workspace-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
             logger.info(f"Service account file not found: {OAUTH_KEY_FILE}")
@@ -114,13 +116,16 @@ def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
             return False
 
     try:
+        logger.info('Setting up services')
         docs_service = build("docs", "v1", credentials=creds)
         drive_service = build("drive", "v3", credentials=creds)
 
+        logger.info(f'Creating doc {g_doc_title}...')
         body = {"title": g_doc_title}
         doc = docs_service.documents().create(body=body).execute()
         doc_id = doc.get("documentId")
 
+        logger.info('Inserting text...')
         requests = [{"insertText": {"location": {"index": 1}, "text": data}}]
         docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests}).execute()
 

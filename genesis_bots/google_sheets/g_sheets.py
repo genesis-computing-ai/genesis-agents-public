@@ -1246,7 +1246,7 @@ def delete_g_file(file_id=None, creds=None) -> dict:
     """
     logger.info(f"Entering delete_g_file with file_id: {file_id}")
 
-   creds = load_creds()
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)

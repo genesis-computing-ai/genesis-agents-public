@@ -995,7 +995,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
 
         # Create folder top level folder
         top_level_folder_id = create_folder_in_folder(
-            title + "(" + datetime.now().strftime("%m%d%Y_%H:%M:%S") + ")",
+            title,
             shared_folder_id,
             self.user
         )

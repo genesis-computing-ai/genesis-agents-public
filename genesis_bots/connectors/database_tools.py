@@ -13,7 +13,7 @@ notebook_manager_functions = [
         "type": "function",
         "function": {
             "name": "_manage_notebook",
-            "description": "Manages notes for bots, including creating, updating, listing and deleting notes, allowing bots to manage notebook.  Remember that this is not used to create new bots.  Make sure that the user is specifically asking for a note to be created, updated, or deleted. This tool is not used to run a note.  If you are asked to run a note, use the appropriate tool and pass the note_id, do not use this tool.  If you arent sure, ask the user to clarify.",
+            "description": "Manages notes for bots, including creating, updating, listing and deleting notes, allowing bots to manage notebook.  Remember that this is not used to create new bots.  Make sure that the user is specifically asking for a note to be created, updated, or deleted. This tool is not used to run a note.  If you are asked to run a note, use the appropriate tool and pass the note_id, do not use this tool.  If you arent sure, ask the user to clarify. This is not used to run queries, use query_database instead.",
             "parameters": {
                 "type": "object",
                 "properties": {

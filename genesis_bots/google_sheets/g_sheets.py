@@ -35,10 +35,10 @@ SCOPES = [
 
 _g_creds = None
 
-def get_g_creds_oauth:
+def load_creds:
     global _g_creds
     if _g_creds is None:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
+        OAUTH_KEY_FILE = f"g-workspace-oauth-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
             logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
         try:
@@ -50,6 +50,26 @@ def get_g_creds_oauth:
             _g_creds = None
             return False
     return _g_creds
+
+def get_g_creds_service_account:
+    SERVICE_ACCOUNT_FILE = f"g-workspace-sa-credentials.json"
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    except Exception as e:
+        print(f"Error loading credentials: {e}")
+        return None
+
+    return creds
+
+def load_creds:
+    if os.path.exists('g-workspace-oauth-credentials.json'):
+        return load_creds()
+    else:
+        return get_g_creds_service_account()
+
 
 def column_to_number(letter: str) -> int:
     num = 0
@@ -89,7 +109,7 @@ def parse_cell_range(cell_range):
     return start_col_num, start_row_num, end_col_num, end_row_num, num_cells
 
 def read_g_doc(doc_id, creds=None):
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("docs", "v1", credentials=creds)
@@ -110,7 +130,7 @@ def read_g_doc(doc_id, creds=None):
 
 def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
     logger.info('Entering create_g_doc')
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         logger.info('Setting up services')
@@ -133,7 +153,7 @@ def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
         return {"Success": False, "Error": str(error)}
 
 def append_g_doc(doc_id, data, creds=None):
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         docs_service = build("docs", "v1", credentials=creds)
@@ -164,7 +184,7 @@ def update_g_doc(doc_id, data, creds=None):
     Returns:
         dict: Result containing Success status and Document ID or Error
     """
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         docs_service = build("docs", "v1", credentials=creds)
@@ -359,7 +379,7 @@ def get_g_file_comments(file_id, user='Unknown User'):
     Returns:
         list: A list of comments on the document.
     """
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -431,7 +451,7 @@ def add_reply_to_g_file_comment(
         dict: The created reply.
     """
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -467,7 +487,7 @@ def get_g_file_web_link(file_id, creds=None):
         str: The web link to the file.
     """
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -500,7 +520,7 @@ def find_g_file_by_name(file_name, creds=None):
         dict: A list of file metadata if found, otherwise None.
     """
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -534,7 +554,7 @@ def get_g_folder_directory(folder_id=None, creds=None, db_adapter=None):
     if not folder_id:
         folder_id = 'root'
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -605,7 +625,7 @@ def add_g_file_comment(
         dict: The created comment.
     """
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -636,7 +656,7 @@ def get_g_folder_web_link(folder_id, creds):
     Returns:
         str: The web link to the folder.
     """
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         # Authenticate using the service account JSON file
@@ -668,7 +688,7 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
         int: The version number of the file.
     """
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     service = build("drive", "v3", credentials=creds)
 
@@ -761,7 +781,7 @@ def save_text_to_google_file(
         text = "No text received in save_text_to_google_file."
 
     if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
+        OAUTH_KEY_FILE = f"g-workspace-sa-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
             logger.info(f"Service account file not found: {OAUTH_KEY_FILE}")
         try:
@@ -857,7 +877,7 @@ def save_text_to_google_file(
 
 
 def create_folder_in_folder(folder_name, parent_folder_id):
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     service = build("drive", "v3", credentials=creds)
 
@@ -884,7 +904,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
     if not data:
         return {"Success": True, "message": "No data provided."}
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         # service = build("sheets", "v4", credentials=creds)
@@ -1023,7 +1043,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None)
     Load pre-authorized user credentials from the environment.
     """
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("sheets", "v4", credentials=creds)
@@ -1074,7 +1094,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None)
 def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, creds=None):
     logger.info(f"Entering write_g_sheet with ss_id: {spreadsheet_id}")
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     service = build("drive", "v3", credentials=creds)
 
@@ -1155,7 +1175,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
 def write_g_sheet_cell_v4(
     spreadsheet_id=None, cell_range=None, value=None, creds=None
 ):
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     service = build("sheets", "v4", credentials=creds)
 
@@ -1185,7 +1205,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
     """
     logger.info(f"Entering read_g_sheet with ss_id: {spreadsheet_id}")
 
-    creds = get_g_creds_oauth
+    creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -1226,7 +1246,7 @@ def delete_g_file(file_id=None, creds=None) -> dict:
     """
     logger.info(f"Entering delete_g_file with file_id: {file_id}")
 
-   creds = get_g_creds_oauth
+   creds = load_creds()
 
     try:
         service = build("drive", "v3", credentials=creds)

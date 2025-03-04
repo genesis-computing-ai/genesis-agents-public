@@ -23,6 +23,10 @@ from genesis_bots.google_sheets.g_sheets import (
     create_g_sheet_v4,
     get_root_folder_id,
     set_root_folder_id,
+    read_g_doc,
+    create_g_doc,
+    append_g_doc,
+    update_g_doc
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -41,7 +45,7 @@ google_drive_tools = ToolFuncGroup(
         """
         The action to be performed on Google Drive.  Possible actions are:
             LOGIN - Used to login in to Google Workspace with OAuth2.0.
-            LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
+            LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER. Defaults to root folder if none specified
             SET_ROOT_FOLDER / SET_SHARED_FOLDER_ID - Sets the root folder for the user on their drive
             GET_ROOT_FOLDER / GET_SHARED_FOLDER_ID - Gets the root folder for the user on their drive
             GET_FILE_VERSION_NUM - Gets the version number given a g_file id
@@ -56,6 +60,11 @@ google_drive_tools = ToolFuncGroup(
             GET_FILE_BY_NAME - Searches for a file by name and returns the file id
             SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet
             CREATE_SHEET - Creates a new Google Sheet with data from user
+            READ_DOC - Reads the text from a Google Drive Doc
+            CREATE_DOC - Creates a new empty Google Drive Doc
+            APPEND_DOC - Appends to a Google Drive Doc
+            UPDATE_DOC - Updates a Google Drive Doc
+            DELETE_FILE - Deletes a file from Google Drive
     """
     ),
     g_folder_id="The unique identifier of a folder stored on Google Drive.",
@@ -66,6 +75,8 @@ google_drive_tools = ToolFuncGroup(
     g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
     g_sheet_query="Query string to run and save the results to a Google Sheet.",
     g_sheet_anchor="The anchor tag which specifies the cell where the comment is located.",
+    g_doc_title="The title of a Google Drive file, sheet, or doc",
+    g_doc_content="The content to be added to a Google Doc",
     # user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id
     #     ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.""",
     thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
@@ -81,6 +92,8 @@ def google_drive(
     g_file_name: str = None,
     g_sheet_query: str = None,
     g_sheet_anchor: str = None,
+    g_doc_title: str = None,
+    g_doc_content: str = None,
     # user: str = None,
     thread_id: str = None,
 ) -> None:
@@ -248,7 +261,23 @@ def google_drive(
         return response
 
     elif action == "CREATE_SHEET":
-        response = create_g_sheet_v4(g_sheet_values, g_file_name, None, db_adapter.user)
+        response = create_g_sheet_v4(g_sheet_values, g_file_name)
+        return response
+
+    elif action == "READ_DOC":
+        response = read_g_doc(g_file_id)
+        return response
+
+    elif action == "CREATE_DOC":
+        response = create_g_doc(g_doc_content, g_doc_title)
+        return response
+
+    elif action == "APPEND_DOC":
+        response = append_g_doc(g_file_id, g_doc_content)
+        return response
+
+    elif action == "UPDATE_DOC":
+        response = update_g_doc(g_file_id, g_doc_content)
         return response
 
     return {"Success": False, "Error": "Invalid action specified."}

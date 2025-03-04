@@ -161,7 +161,7 @@ def google_drive(
 
     elif action == "GET_FILE_BY_NAME":
         try:
-            file_id = find_g_file_by_name(g_file_name, None, db_adapter.user)
+            file_id = find_g_file_by_name(g_file_name, None)
             return {"Success": True, "id": file_id}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -182,7 +182,7 @@ def google_drive(
 
     elif action == "GET_LINK_FROM_FILE_ID":
         try:
-            web_link = get_g_file_web_link(g_file_id, None, db_adapter.user)
+            web_link = get_g_file_web_link(g_file_id, None)
             return {"Success": True, "web_link": web_link}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -197,7 +197,7 @@ def google_drive(
 
     elif action == "GET_COMMENTS":
         try:
-            comments_and_replies = get_g_file_comments(db_adapter.user, g_file_id)
+            comments_and_replies = get_g_file_comments(g_file_id, db_adapter.user)
             return {"Success": True, "Comments & Replies": comments_and_replies}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -236,7 +236,7 @@ def google_drive(
         )
 
         write_g_sheet_cell_v4(
-            g_file_id, g_sheet_cell, g_sheet_values, None, db_adapter.user
+            g_file_id, g_sheet_cell, g_sheet_values, None
         )
 
         return {
@@ -247,14 +247,14 @@ def google_drive(
     elif action == "GET_SHEET" or action == "READ_SHEET":
         # cell_range = verify_single_cell(g_sheet_cell)
         try:
-            value = read_g_sheet(g_file_id, g_sheet_cell, None, db_adapter.user)
+            value = read_g_sheet(g_file_id, g_sheet_cell, None)
             return {"Success": True, "value": value}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
     elif action == "LOGIN":
         auth_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/google_drive_login"
-        # auth_url = "localhost:8080/oauth/google_drive_login"
+        auth_url = "localhost:8080/oauth/google_drive_login"
         return {"Success": "True", "auth_url": f"<{auth_url}>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":

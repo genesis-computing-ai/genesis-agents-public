@@ -29,7 +29,7 @@ def google_drive_login():
     # Use consistent redirect URI
     # redirect_uri = url_for('oauth_routes.oauth2callback', _external=True)
     base_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app"
-    # base_url = "http://localhost:8080"
+    base_url = "http://localhost:8080"
     redirect_uri = f"{base_url}/oauth/oauth2"
     logger.info(f"Redirect URI for Google Drive Login: {redirect_uri}")
 
@@ -67,7 +67,7 @@ def oauth2callback():
 
     # Use same redirect URI as in login
     base_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app"
-    # base_url = "http://localhost:8080"
+    base_url = "http://localhost:8080"
     flow.redirect_uri = f"{base_url}/oauth/oauth2"
     logger.info(f'Flow redirect URI: {flow.redirect_uri}')
 

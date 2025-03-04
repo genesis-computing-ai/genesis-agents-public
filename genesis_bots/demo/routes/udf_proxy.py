@@ -199,6 +199,8 @@ def get_metadata():
 
         if metadata_type == "harvest_control":
             result = genesis_app.db_adapter.get_harvest_control_data_as_json()
+        elif metadata_type == "project_dashboard":
+            pass
         elif metadata_type == "db_connections":
             db_connector = DatabaseConnector()
             db_result = db_connector.list_database_connections(bot_id = '', bot_id_override=True)

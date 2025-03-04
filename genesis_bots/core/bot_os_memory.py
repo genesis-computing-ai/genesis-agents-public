@@ -328,13 +328,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
         """
         if full_ddl.lower() == 'true':
             verbosity='high'
-        # If connection_id is not specified, check if global connector is Snowflake
-        if (database or schema or table) and not connection_id:
-            from genesis_bots.connectors import get_global_db_connector
-            db_adapter = get_global_db_connector()
-            if isinstance(db_adapter, SnowflakeConnector):
-                connection_id = 'Snowflake'
-
+            
         # If table is provided with database.schema.table format but no database/schema parameters, split them
         if table and not database and not schema and table.count('.') == 2:
             database, schema, table = table.split('.')

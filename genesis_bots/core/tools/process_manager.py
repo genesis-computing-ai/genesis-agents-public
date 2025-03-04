@@ -66,7 +66,7 @@ process_manager_tools = ToolFuncGroup(
     process_instructions="DETAILED instructions for completing the process  Do NOT summarize or simplify instructions provided by a user.",
     process_config="Configuration string used by process when running.",
     hidden="If true, the process will not be shown in the list of processes.  This is used to create processes to test the bots functionality without showing them to the user.",
-    allow_code="If true, the process will be allowed to include code directly in the process instructions.  This is not recommended, but is allowed for short code snippets or for testing purposes.  It preferred that code exists in notes",
+    allow_code="If true, the process will be allowed to include sql, python, or other source code directly in the process instructions.  This is not recommended, but is allowed for short code snippets or for testing purposes.  It preferred that code exists in notes",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[process_manager_tools],
@@ -180,7 +180,7 @@ def manage_processes(
 
         if action == "CREATE" or action == "CREATE_CONFIRMED":
             # Check for dupe name
-            sql = f"SELECT * FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
+            sql = f"SELECT process_id FROM {db_adapter.schema}.PROCESSES WHERE bot_id = %s and process_name = %s"
             cursor.execute(sql, (bot_id, process_details['process_name']))
 
             record = cursor.fetchone()
@@ -188,7 +188,8 @@ def manage_processes(
             if record:
                 return {
                     "Success": False,
-                    "Error": f"Process with name {process_details['process_name']} already exists.  Please choose a different name."
+                    "Error": f"Process with name {process_details['process_name']} already exists, it's id is {record[0]}.  Please choose a different name.",
+                    "existing_process_id": record[0],
                 }
 
         if action == "UPDATE" or action == 'UPDATE_CONFIRMED':
@@ -485,7 +486,7 @@ def manage_processes(
                 "Suggestion": "Now that the process is updated, offer to test it using run_process, and if there are any issues you can later on UPDATE the process again using manage_processes to clarify anything needed.  OFFER to test it, but don't just test it unless the user agrees.",
                 "Reminder": "If you are asked to test the process, use _run_process function to each step, don't skip ahead since you already know what the steps are, pretend you don't know what the process is and let run_process give you one step at a time!",
             }
-
+        
         return {"Success": True, "Message": f"process update or delete confirmed."}
     except Exception as e:
         return {"Success": False, "Error": str(e)}

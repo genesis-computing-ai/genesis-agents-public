@@ -4,7 +4,7 @@ from genesis_bots.connectors import get_global_db_connector
 db_adapter = get_global_db_connector()
 from genesis_bots.core.bot_os_project_manager import ProjectManager
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Callable, Any
 
 from genesis_bots.core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -136,10 +136,12 @@ def manage_projects(
     bot_id: str,
     project_id: str=None,
     project_details: Dict=None,
-    thread_id: str=None
+    thread_id: str=None,
+    static_project_id: bool = False
 ):
     """
-    Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+    Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST, DELETE)
+    These tools allow you to list, create, update, and remove projects, and change the status of projects.
     """
     return project_manager.manage_projects(
         action=action,
@@ -147,6 +149,7 @@ def manage_projects(
         project_id=project_id,
         project_details=project_details,
         thread_id=thread_id,
+        static_project_id=static_project_id
     )
 
 
@@ -285,15 +288,121 @@ def manage_project_assets(
         asset_details=asset_details,
     )
 
-project_manager_functions = [manage_todos,
+
+@gc_tool(
+    todo_ids=ToolFuncParamDescriptor(
+        name="todo_ids",
+        description="Array of todo IDs to delete",
+        required=True,
+        llm_type_desc=dict(
+            type="array",
+            items=dict(type="string"),
+        ),
+    ),
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[project_manager_tools],
+)
+def delete_todos_bulk(
+    todo_ids: List[str],
+    bot_id: str,
+    thread_id: str = None,
+) -> None:
+    """
+    Delete multiple todo items in bulk. This will permanently remove the specified todos and their work history.
+    """
+    results = []
+    for todo_id in todo_ids:
+        result = project_manager.manage_todos(
+            action="DELETE",
+            bot_id=bot_id,
+            todo_id=todo_id,
+            thread_id=thread_id,
+        )
+        results.append(result)
+    return results
+
+
+@gc_tool(
+    project_id=ToolFuncParamDescriptor(
+        name="project_id",
+        description="ID of the project the todos belong to",
+        required=True,
+        llm_type_desc=dict(type="string"),
+    ),
+    todos=ToolFuncParamDescriptor(
+        name="todos",
+        description="Array of todo items to create. Each todo requires todo_name, what_to_do, and optional depends_on.",
+        required=True,
+        llm_type_desc=dict(
+            type="array",
+            items=dict(
+                type="object",
+                properties=dict(
+                    todo_name=dict(type="string", description="Name of the todo item"),
+                    what_to_do=dict(type="string", description="What the todo item is about"),
+                    assigned_to_bot_id=dict(
+                        type="string",
+                        description="The bot_id of the bot assigned to this todo. Omit to assign it to yourself.",
+                    ),
+                    depends_on=dict(
+                        type=["string", "array"],
+                        description="ID or array of IDs of todos that this todo depends on",
+                        items=dict(type="string")
+                    ),
+                ),
+                required=["todo_name", "what_to_do"]
+            )
+        ),
+    ),
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[project_manager_tools],
+)
+def create_todos_bulk(
+    project_id: str,
+    todos: List[Dict[str, Any]],
+    bot_id: str,
+    thread_id: str = None,
+) -> None:
+    """
+    Create multiple todo items in bulk for a project. Each todo in the array can specify its name,
+    description, assignments, and dependencies.
+    """
+    results = []
+    for todo in todos:
+        todo_details = {
+            "project_id": project_id,
+            "todo_name": todo["todo_name"],
+            "what_to_do": todo["what_to_do"],
+            "depends_on": todo.get("depends_on", []),
+        }
+        if "assigned_to_bot_id" in todo:
+            todo_details["assigned_to_bot_id"] = todo["assigned_to_bot_id"]
+            
+        result = project_manager.manage_todos(
+            action="CREATE",
+            bot_id=bot_id,
+            todo_details=todo_details,
+            thread_id=thread_id,
+        )
+        results.append(result)
+    return results
+
+
+project_manager_functions: List[Callable[..., Any]] = [
+    manage_todos,
     manage_projects,
     record_todo_work,
     get_project_todos,
     get_todo_dependencies,
     manage_todo_dependencies,
-    manage_project_assets,]
+    manage_project_assets,
+    create_todos_bulk,
+    delete_todos_bulk,
+]
 
 
 # Called from bot_os_tools.py to update the global list of functions
-def get_project_manager_functions():
+def get_project_manager_functions() -> List[Callable[..., Any]]:
     return project_manager_functions

@@ -742,6 +742,8 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         model_name = self.get_model(input_message, bot_os_thread)
         run_id = thread_id + "_" + str(datetime.datetime.now().timestamp())
         openai_messages = self.get_openai_messages(bot_os_thread, model_name, input_message)
+        if '!o3-mini!' in openai_messages[0]["content"]:
+            model_name = 'o3-mini'
         params = {'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {}
         run = types.SimpleNamespace(
             id = run_id,

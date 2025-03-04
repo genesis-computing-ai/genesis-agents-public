@@ -161,33 +161,76 @@ def append_g_doc(doc_id, data, creds=None):
         return {"Success": False, "Error": str(error)}
 
 def update_g_doc(doc_id, data, creds=None):
+    """
+    Update a Google Doc's content by replacing all existing content with new data.
+    
+    Args:
+        doc_id (str): The ID of the document to update
+        data (str): The new content to write
+        creds: Optional credentials object
+        
+    Returns:
+        dict: Result containing Success status and Document ID or Error
+    """
     if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
+        OAUTH_KEY_FILE = "g-workspace-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
             logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
+            return {"Success": False, "Error": "Credentials file not found"}
         try:
             creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
+            logger.info("Credentials loaded successfully")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
-            return False
+            return {"Success": False, "Error": str(e)}
 
     try:
         docs_service = build("docs", "v1", credentials=creds)
 
-        # Prepare the request to replace the content
-        requests = [
-            {"deleteContentRange": {"range": {"startIndex": 1, "endIndex": 1}}},
-            {"insertText": {"location": {"index": 1}, "text": data}}
-        ]
-        docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests}).execute()
+        # First, get the current document to find its length
+        document = docs_service.documents().get(documentId=doc_id).execute()
+        end_index = document.get('body').get('content')[-1].get('endIndex', 1)
 
-        return {"Success": True, "Document ID": doc_id}
+        # Prepare the requests to replace content
+        requests = [
+            # Delete all content if document is not empty
+            {
+                "deleteContentRange": {
+                    "range": {
+                        "startIndex": 1,
+                        "endIndex": end_index - 1
+                    }
+                }
+            } if end_index > 1 else None,
+            # Insert new content
+            {
+                "insertText": {
+                    "location": {"index": 1},
+                    "text": data
+                }
+            }
+        ]
+
+        # Remove None entries
+        requests = [r for r in requests if r is not None]
+
+        # Execute the update
+        docs_service.documents().batchUpdate(
+            documentId=doc_id,
+            body={"requests": requests}
+        ).execute()
+
+        return {
+            "Success": True,
+            "Document ID": doc_id
+        }
 
     except HttpError as error:
-        print(f"An error occurred: {error}")
+        logger.error(f"HTTP error updating document: {error}")
         return {"Success": False, "Error": str(error)}
+    except Exception as e:
+        logger.error(f"Error updating document: {e}")
+        return {"Success": False, "Error": str(e)}
 
 def get_root_folder_id(db_adapter):
     connection = db_adapter.connection
@@ -1528,23 +1571,23 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None) ->
 
 
 
-def delete_g_sheet(file_id=None, creds=None) -> dict:
+def delete_g_file(file_id=None, creds=None) -> dict:
     """
     Deletes a Google Sheet.
     Load pre-authorized user credentials from the environment.
     """
-    logger.info(f"Entering delete_g_sheet with file_id: {file_id}")
+    logger.info(f"Entering delete_g_file with file_id: {file_id}")
 
-    if not creds:
-        SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
-        try:
-            # Authenticate using the service account JSON file
-            creds = Credentials.from_service_account_file(
-                SERVICE_ACCOUNT_FILE, scopes=SCOPES
-            )
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return {"Success": False,"error": e}
+    OAUTH_KEY_FILE = f"g-workspace-credentials.json"
+    if not os.path.exists(OAUTH_KEY_FILE):
+        logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
+    try:
+        creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
+
+        logger.info(f"Credentials loaded: {creds}")
+    except Exception as e:
+        logger.error(f"Error loading credentials: {spreadsheet_id} - {e}")
+        return {"Success": False, "error": e}
 
     try:
         service = build("drive", "v3", credentials=creds)

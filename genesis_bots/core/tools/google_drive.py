@@ -21,7 +21,7 @@ from genesis_bots.google_sheets.g_sheets import (
     read_g_sheet,
     write_g_sheet_cell_v4,
     create_g_sheet_v4,
-    delete_g_sheet,
+    delete_g_file,
     get_root_folder_id,
     set_root_folder_id,
     read_g_doc,
@@ -281,8 +281,8 @@ def google_drive(
         response = update_g_doc(g_file_id, g_doc_content)
         return response
 
-    elif action == "DELETE_SHEET":
-        response = delete_g_sheet(g_file_id, None)
+    elif action == "DELETE_FILE":
+        response = delete_g_file(g_file_id, None)
         return response
 
     return {"Success": False, "Error": "Invalid action specified."}

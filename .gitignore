@@ -24,6 +24,7 @@ genesis.db
 bot_git/
 runtime/
 genesis_sample/
+process_cache/
 
 # Build and distribution directories
 build/

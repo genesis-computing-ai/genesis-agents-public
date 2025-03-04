@@ -492,7 +492,7 @@ class DatabaseConnector:
                             if row is not None:
                                 return {"Success": True, "result": row[0]}
                             else:
-                                raise Exception("Missing shared folder ID")
+                                raise Exception("Missing shared folder ID, please configure the google workspace extension's shared folder ID via Streamlit")
 
                         if export_to_google_sheet:
                             from datetime import datetime

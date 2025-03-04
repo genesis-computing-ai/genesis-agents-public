@@ -521,6 +521,13 @@ def find_g_file_by_name(file_name, creds=None, user=None):
             creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
 
             logger.info(f"Credentials loaded: {creds}")
+        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
+        if not os.path.exists(OAUTH_KEY_FILE):
+            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
+        try:
+            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
+
+            logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False

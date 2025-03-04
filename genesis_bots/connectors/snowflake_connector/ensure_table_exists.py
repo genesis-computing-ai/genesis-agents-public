@@ -25,53 +25,7 @@ from   genesis_bots.core.logging_config \
                                 import logger
 
 def one_time_db_fixes(self):
-    try:
-        add_user_col_ddl = f"""
-            ALTER TABLE {self.schema}.EXT_SERVICE_CONFIG
-            ADD COLUMN user VARCHAR;
-        """
-        cursor = self.client.cursor()
-        cursor.execute(add_user_col_ddl)
-        self.client.commit()
-        logger.info(f"User column added to EXT_SERVICE_CONFIG table.")
-    except Exception as e:
-        pass
-
-    try:
-        remove_null_user_ddl = f"""
-            DELETE FROM {self.schema}.EXT_SERVICE_CONFIG
-            WHERE user IS NULL;
-        """
-        cursor = self.client.cursor()
-        cursor.execute(remove_null_user_ddl)
-        self.client.commit()
-        logger.info(f"Remove rows with no user EXT_SERVICE_CONFIG table.")
-    except Exception as e:
-        pass
-
-    # Remove BOT_FUNCTIONS is it exists
-    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_FUNCTIONS' IN SCHEMA {self.schema};"
-    cursor = self.client.cursor()
-    cursor.execute(bot_functions_table_check_query)
-
-    if cursor.fetchone():
-        query = f"DROP TABLE {self.schema}.BOT_FUNCTIONS"
-        cursor.execute(query)
-        logger.info(f"Table {self.schema}.BOT_FUNCTIONS dropped.")
-
-    # REMOVE BOT_NOTEBOOK if it exists
-    bot_functions_table_check_query = f"SHOW TABLES LIKE 'BOT_NOTEBOOK' IN SCHEMA {self.schema};"
-    cursor = self.client.cursor()
-    cursor.execute(bot_functions_table_check_query)
-
-    if cursor.fetchone():
-        query = f"DROP TABLE {self.schema}.BOT_NOTEBOOK"
-        cursor.execute(query)
-        logger.info(f"Table {self.schema}.BOT_NOTEBOOK renamed NOTEBOOK.")
-
-    # Add manage_notebook_tool to existing bots
-    # JL REMOVED 1-9-2025, not needed
-
+   
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bots_table_check_query)
@@ -98,7 +52,7 @@ def one_time_db_fixes(self):
 
                 if "todo_manager_tools" in tools_list:
                     tools_list.remove("todo_manager_tools")
-                    if "prject_manager_tools" not in tools_list:
+                    if "project_manager_tools" not in tools_list:
                         tools_list.append('project_manager_tools')
 
                 if 'database_tools' in tools_list:
@@ -127,61 +81,14 @@ def one_time_db_fixes(self):
                     """
                     cursor.execute(update_query, (updated_tools, bot_name))
 
-                    ### If database_tools, remove it and add snowflake_tools and database_tools
-
-            # else:
-            #    update_query = f"""
-            #    UPDATE {self.schema}.BOT_SERVICING
-            #    SET AVAILABLE_TOOLS = '[notebook_manager_tools]'
-            #    WHERE NAME = %s
-            #    """
-            #    cursor.execute(update_query, (bot_name,))
 
         self.client.commit()
     # logger.info("Added notebook_manager_tools to all existing bots.")
     else:
         logger.info("BOTS table does not exist. Skipping tool addition.")
-
-    check_llm_endpoint_query = f"DESCRIBE TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING;"
-    try:
-        cursor = self.client.cursor()
-        cursor.execute(check_llm_endpoint_query)
-        columns = [col[0] for col in cursor.fetchall()]
-
-        if "TEAMS_ACTIVE" not in columns:
-            # Add TEAMS_ACTIVE column if it doesn't exist
-            alter_table_query_teams_active = f"""ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_ACTIVE VARCHAR(16777216);"""
-            cursor.execute(alter_table_query_teams_active)
-            self.client.commit()
-            logger.info(
-                f"Column 'TEAMS_ACTIVE' added to table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
-            )
-
-            set_to_false_query = f"UPDATE {self.genbot_internal_project_and_schema}.BOT_SERVICING SET TEAMS_ACTIVE = 'N';"
-            cursor.execute(set_to_false_query)
-            self.client.commit()
-            logger.info(
-                f"Column 'TEAMS_ACTIVE' set to 'N' for all rows in table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
-            )
-
-        if "TEAMS_APP_ID" not in columns:
-            # Add TEAMS_APP_ID and related columns if they don't exist
-            alter_table_query_teams_app = f"""ALTER TABLE {self.genbot_internal_project_and_schema}.BOT_SERVICING ADD COLUMN TEAMS_APP_ID VARCHAR(16777216),
-                TEAMS_APP_PASSWORD VARCHAR(16777216),
-                TEAMS_APP_TYPE VARCHAR(16777216),
-                TEAMS_APP_TENANT_ID VARCHAR(16777216);"""
-            cursor.execute(alter_table_query_teams_app)
-            self.client.commit()
-            logger.info(
-                f"Columns 'TEAMS_APP_ID', 'TEAMS_APP_PASSWORD', 'TEAMS_APP_TYPE', 'TEAMS_APP_TENANT_ID' added to table {self.genbot_internal_project_and_schema}.BOT_SERVICING."
-            )
-    except Exception as e:
-        logger.error(
-            f"An error occurred while checking or altering table {self.genbot_internal_project_and_schema}.BOT_SERVICING to add TEAMS_ACTIVE column: {e}"
-        )
-    finally:
-        if cursor is not None:
-            cursor.close()
+    
+    if cursor is not None:
+        cursor.close()
 
     return
 

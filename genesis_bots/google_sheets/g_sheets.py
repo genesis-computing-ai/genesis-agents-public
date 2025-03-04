@@ -33,6 +33,24 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
+_g_creds = None
+
+def get_g_creds_oauth:
+    global _g_creds
+    if _g_creds is None:
+        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
+        if not os.path.exists(OAUTH_KEY_FILE):
+            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
+        try:
+            _g_creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
+            json_creds = json.loads(creds.to_json())
+            logger.info(f"Credentials loaded: {json_creds}")
+        except Exception as e:
+            logger.error(f"Error loading credentials: {e}")
+            _g_creds = None
+            return False
+    return _g_creds
+
 def column_to_number(letter: str) -> int:
     num = 0
     for char in letter:
@@ -71,19 +89,7 @@ def parse_cell_range(cell_range):
     return start_col_num, start_row_num, end_col_num, end_row_num, num_cells
 
 def read_g_doc(doc_id, creds=None):
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            json_creds = json.loads(creds.to_json())
-
-            logger.info(f"Credentials loaded: {json_creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("docs", "v1", credentials=creds)
@@ -104,18 +110,7 @@ def read_g_doc(doc_id, creds=None):
 
 def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
     logger.info('Entering create_g_doc')
-    if not creds:
-        logger.info('Getting creds')
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Service account file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         logger.info('Setting up services')
@@ -138,17 +133,7 @@ def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
         return {"Success": False, "Error": str(error)}
 
 def append_g_doc(doc_id, data, creds=None):
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user account file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         docs_service = build("docs", "v1", credentials=creds)
@@ -179,17 +164,7 @@ def update_g_doc(doc_id, data, creds=None):
     Returns:
         dict: Result containing Success status and Document ID or Error
     """
-    if not creds:
-        OAUTH_KEY_FILE = "g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-            return {"Success": False, "Error": "Credentials file not found"}
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-            logger.info("Credentials loaded successfully")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return {"Success": False, "Error": str(e)}
+    creds = get_g_creds_oauth
 
     try:
         docs_service = build("docs", "v1", credentials=creds)
@@ -384,17 +359,7 @@ def get_g_file_comments(file_id, user='Unknown User'):
     Returns:
         list: A list of comments on the document.
     """
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -466,17 +431,7 @@ def add_reply_to_g_file_comment(
         dict: The created reply.
     """
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -512,17 +467,7 @@ def get_g_file_web_link(file_id, creds=None):
         str: The web link to the file.
     """
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -555,24 +500,7 @@ def find_g_file_by_name(file_name, creds=None):
         dict: A list of file metadata if found, otherwise None.
     """
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -606,17 +534,7 @@ def get_g_folder_directory(folder_id=None, creds=None, db_adapter=None):
     if not folder_id:
         folder_id = 'root'
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -687,17 +605,7 @@ def add_g_file_comment(
         dict: The created comment.
     """
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -728,17 +636,7 @@ def get_g_folder_web_link(folder_id, creds):
     Returns:
         str: The web link to the folder.
     """
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         # Authenticate using the service account JSON file
@@ -770,17 +668,7 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
         int: The version number of the file.
     """
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     service = build("drive", "v3", credentials=creds)
 
@@ -969,17 +857,7 @@ def save_text_to_google_file(
 
 
 def create_folder_in_folder(folder_name, parent_folder_id):
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     service = build("drive", "v3", credentials=creds)
 
@@ -1006,17 +884,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
     if not data:
         return {"Success": True, "message": "No data provided."}
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         # service = build("sheets", "v4", credentials=creds)
@@ -1155,17 +1023,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None)
     Load pre-authorized user credentials from the environment.
     """
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("sheets", "v4", credentials=creds)
@@ -1216,17 +1074,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None)
 def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, creds=None):
     logger.info(f"Entering write_g_sheet with ss_id: {spreadsheet_id}")
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     service = build("drive", "v3", credentials=creds)
 
@@ -1307,17 +1155,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
 def write_g_sheet_cell_v4(
     spreadsheet_id=None, cell_range=None, value=None, creds=None
 ):
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     service = build("sheets", "v4", credentials=creds)
 
@@ -1347,17 +1185,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
     """
     logger.info(f"Entering read_g_sheet with ss_id: {spreadsheet_id}")
 
-    if not creds:
-        OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-        if not os.path.exists(OAUTH_KEY_FILE):
-            logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-        try:
-            creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-            logger.info(f"Credentials loaded: {creds}")
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return False
+    creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -1398,16 +1226,7 @@ def delete_g_file(file_id=None, creds=None) -> dict:
     """
     logger.info(f"Entering delete_g_file with file_id: {file_id}")
 
-    OAUTH_KEY_FILE = f"g-workspace-credentials.json"
-    if not os.path.exists(OAUTH_KEY_FILE):
-        logger.info(f"Authorized user file not found: {OAUTH_KEY_FILE}")
-    try:
-        creds = Credentials.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
-
-        logger.info(f"Credentials loaded: {creds}")
-    except Exception as e:
-        logger.error(f"Error loading credentials: {spreadsheet_id} - {e}")
-        return {"Success": False, "error": e}
+   creds = get_g_creds_oauth
 
     try:
         service = build("drive", "v3", credentials=creds)

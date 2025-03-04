@@ -35,7 +35,7 @@ SCOPES = [
 
 _g_creds = None
 
-def load_creds:
+def load_creds():
     global _g_creds
     if _g_creds is None:
         OAUTH_KEY_FILE = f"g-workspace-oauth-credentials.json"
@@ -51,7 +51,7 @@ def load_creds:
             return False
     return _g_creds
 
-def get_g_creds_service_account:
+def get_g_creds_service_account():
     SERVICE_ACCOUNT_FILE = f"g-workspace-sa-credentials.json"
     try:
         # Authenticate using the service account JSON file
@@ -64,7 +64,7 @@ def get_g_creds_service_account:
 
     return creds
 
-def load_creds:
+def load_creds():
     if os.path.exists('g-workspace-oauth-credentials.json'):
         return load_creds()
     else:

@@ -76,17 +76,6 @@ def oauth2callback():
         flow.fetch_token(authorization_response=authorization_response)
         credentials = flow.credentials
 
-        # credentials_dict = {
-        #     "web": {
-        #         'token': credentials.token,
-        #         'refresh_token': credentials.refresh_token,
-        #         'token_uri': credentials.token_uri,
-        #         'client_id': credentials.client_id,
-        #         'client_secret': credentials.client_secret,
-        #         'scopes': credentials.scopes
-        #     }
-        # }
-
         credentials_dict = {
             'token': credentials.token,
             'refresh_token': credentials.refresh_token,
@@ -99,7 +88,7 @@ def oauth2callback():
         logger.info(f"Credentials from OAUTH: {credentials_dict}")
         session['credentials'] = credentials_dict
 
-        with open('g-workspace-credentials.json', 'w') as json_file:
+        with open('g-workspace-oauth-credentials.json', 'w') as json_file:
             json.dump(credentials_dict, json_file, indent=4)
 
         return "Authorization successful! You may close this page now"

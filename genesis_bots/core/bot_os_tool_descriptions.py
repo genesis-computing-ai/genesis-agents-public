@@ -72,6 +72,10 @@ process_runner_functions = [
                         "default": False,
                         "description": "Optional, to run in low-verbosity/concise mode. Default to False.",
                     },
+                    "process_config": {
+                        "type": "string", 
+                        "description": "Optional configuration parameters for the process run in JSON format. Provide these only on the KICKOFF_PROCESS call."
+                    },
                     #           "goto_step": {
                     #               "type": "string",
                     #               "description": "Directs the process runner to update the program counter",

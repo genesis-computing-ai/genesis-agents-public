@@ -136,10 +136,11 @@ def manage_projects(
     bot_id: str,
     project_id: str=None,
     project_details: Dict=None,
-    thread_id: str=None
+    thread_id: str=None,
+    static_project_id: bool = False
 ):
     """
-    Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+    Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST, DELETE)
     These tools allow you to list, create, update, and remove projects, and change the status of projects.
     """
     return project_manager.manage_projects(
@@ -148,6 +149,7 @@ def manage_projects(
         project_id=project_id,
         project_details=project_details,
         thread_id=thread_id,
+        static_project_id=static_project_id
     )
 
 

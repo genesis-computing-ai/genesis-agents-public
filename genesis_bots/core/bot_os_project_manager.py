@@ -528,7 +528,7 @@ class ProjectManager:
              previous_status, current_status, status_changed_flag, work_description, work_results)
         )
 
-    def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id = None, requested_by_user=None):
+    def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id = None, requested_by_user=None, static_project_id = False):
         """Manages projects with various actions."""
         action = action.upper()
         cursor = self.db_adapter.client.cursor()
@@ -543,7 +543,10 @@ class ProjectManager:
                 if missing_fields:
                     return {"success": False, "error": f"Missing required fields: {', '.join(missing_fields)}"}
 
-                project_id = f"proj_{bot_id}_{int(time.time())}_{random.randint(1000, 9999)}"
+                if static_project_id:
+                    project_id = project_id
+                else:
+                    project_id = f"proj_{bot_id}_{int(time.time())}_{random.randint(1000, 9999)}"
                 
                 insert_query = f"""
                 INSERT INTO {self.db_adapter.schema}.PROJECTS 
@@ -730,6 +733,93 @@ class ProjectManager:
 
                 self.db_adapter.client.commit()
                 return {"success": True, "message": f"Project status changed to {new_status}"}
+
+            elif action == "REMOVE" or action == "DELETE":
+                if not project_id:
+                    return {"success": False, "error": "Project ID is required for deletion"}
+
+                # Verify project exists and bot has permission
+                cursor.execute(
+                    f"""
+                    SELECT project_id FROM {self.db_adapter.schema}.PROJECTS 
+                    WHERE project_id = %s AND project_manager_bot_id = %s
+                    """,
+                    (project_id, bot_id)
+                )
+                if not cursor.fetchone():
+                    return {
+                        "success": False,
+                        "error": "Project not found or you don't have permission to delete it"
+                    }
+
+                # Delete project assets
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.PROJECT_ASSETS
+                    WHERE project_id = %s
+                    """,
+                    (project_id,)
+                )
+
+                # Delete todo dependencies for all todos in the project
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.TODO_DEPENDENCIES
+                    WHERE todo_id IN (
+                        SELECT todo_id FROM {self.db_adapter.schema}.TODO_ITEMS
+                        WHERE project_id = %s
+                    ) OR depends_on_todo_id IN (
+                        SELECT todo_id FROM {self.db_adapter.schema}.TODO_ITEMS
+                        WHERE project_id = %s
+                    )
+                    """,
+                    (project_id, project_id)
+                )
+
+                # Delete todo history for all todos in the project
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.TODO_HISTORY
+                    WHERE todo_id IN (
+                        SELECT todo_id FROM {self.db_adapter.schema}.TODO_ITEMS
+                        WHERE project_id = %s
+                    )
+                    """,
+                    (project_id,)
+                )
+
+                # Delete all todos in the project
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.TODO_ITEMS
+                    WHERE project_id = %s
+                    """,
+                    (project_id,)
+                )
+
+                # Delete project history
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.PROJECT_HISTORY
+                    WHERE project_id = %s
+                    """,
+                    (project_id,)
+                )
+
+                # Finally, delete the project
+                cursor.execute(
+                    f"""
+                    DELETE FROM {self.db_adapter.schema}.PROJECTS
+                    WHERE project_id = %s AND project_manager_bot_id = %s
+                    """,
+                    (project_id, bot_id)
+                )
+
+                self.db_adapter.client.commit()
+                return {
+                    "success": True,
+                    "message": "Project and all related records deleted successfully"
+                }
 
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
@@ -973,10 +1063,25 @@ class ProjectManager:
                 """,
                 (project_id, bot_id)
             )
-            if not cursor.fetchone():
+
+            project = cursor.fetchone()
+            if not project:
+                # Project not found, get list of valid projects
+                projects_result = self.manage_projects(
+                    action="LIST", 
+                    bot_id=bot_id
+                )
+                    
+                if not projects_result.get("projects"):
+                    return {
+                        "success": False,
+                        "error": "You don't currently have any projects"
+                    }
+                    
                 return {
                     "success": False,
-                    "error": "Project not found or you don't have permission to view it"
+                    "error": "Project not found. Your valid projects are: " + 
+                            ", ".join([p["project_id"] for p in projects_result["projects"]])
                 }
 
             # Get todos for the project
@@ -1125,10 +1230,24 @@ class ProjectManager:
                 """,
                 (project_id, bot_id)
             )
-            if not cursor.fetchone():
+            project = cursor.fetchone()
+            if not project:
+                # Project not found, get list of valid projects
+                projects_result = self.manage_projects(
+                    action="LIST", 
+                    bot_id=bot_id
+                )
+                    
+                if not projects_result.get("projects"):
+                    return {
+                        "success": False,
+                        "error": "You don't currently have any projects"
+                    }
+                    
                 return {
                     "success": False,
-                    "error": "Project not found or you don't have permission to modify it"
+                    "error": "Project not found. Your valid projects are: " + 
+                            ", ".join([p["project_id"] for p in projects_result["projects"]])
                 }
 
             if action == "CREATE":

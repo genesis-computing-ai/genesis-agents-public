@@ -2,8 +2,9 @@
 
 // local
 cd {genesis_project_root}
+mkdir -p $HOME/test_docker
 docker build --rm -t genesis_app:latest .
-docker rm -f genesis && docker run --name genesis --env-file ./snowflake_app/docker.env -p 8501:8501 -p 8080:8080 -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db genesis_app:latest
+docker rm -f genesis && docker run --name genesis --env-file ./genesis_bots/apps/genesis_server/deployments/snowflake_app/docker.env -p 8501:8501 -p 8080:8080 -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db genesis_app:latest
 docker rm -f genesis && docker run --name genesis -p 8501:8501 -p 8080:8080 -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db genesis_app:latest
 
 // push to docker hub

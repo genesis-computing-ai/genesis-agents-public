@@ -27,7 +27,8 @@ from genesis_bots.google_sheets.g_sheets import (
     read_g_doc,
     create_g_doc,
     append_g_doc,
-    update_g_doc
+    update_g_doc,
+    use_service_account,
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -66,6 +67,7 @@ google_drive_tools = ToolFuncGroup(
             APPEND_DOC - Appends to a Google Drive Doc
             UPDATE_DOC - Updates a Google Drive Doc
             DELETE_FILE - Deletes a file from Google Drive
+            USE_SERVICE_ACCOUNT - Overwrite any Oauth2.0 credentials to use default service account set in database
     """
     ),
     g_folder_id="The unique identifier of a folder stored on Google Drive.",
@@ -283,6 +285,10 @@ def google_drive(
 
     elif action == "DELETE_FILE":
         response = delete_g_file(g_file_id, None)
+        return response
+
+    elif action == "USE_SERVICE_ACCOUNT":
+        response = use_service_account()
         return response
 
     return {"Success": False, "Error": "Invalid action specified."}

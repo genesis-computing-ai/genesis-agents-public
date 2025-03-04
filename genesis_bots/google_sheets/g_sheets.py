@@ -36,6 +36,14 @@ SCOPES = [
 
 _g_creds = None
 
+def delete_oauth_credentials():
+    file_path = "g-workspace-credentials.json"
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        logger.info(f"Deleted oauth credentials {file_path}.  Google Drive will now use service account.")
+    else:
+        logger.info(f"Oath file not found: {file_path}")
+
 def load_creds():
     global _g_creds
     if _g_creds is None:
@@ -1096,9 +1104,7 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
     logger.info(f"Entering write_g_sheet with ss_id: {spreadsheet_id}")
 
     creds = load_creds()
-
     service = build("drive", "v3", credentials=creds)
-
     result = read_g_sheet(spreadsheet_id, cell_range, creds)
 
     start_col, start_row, end_col, end_row, num_cells = (

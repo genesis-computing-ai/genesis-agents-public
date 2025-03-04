@@ -477,8 +477,13 @@ def get_g_file_web_link(file_id, creds=None, user=None):
 
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
+<<<<<<< HEAD
+            logger.info(f"Error loading credentials: {e}")
+            return None
+=======
             logger.error(f"Error loading credentials: {e}")
             return False
+>>>>>>> jeff_safety
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -523,7 +528,11 @@ def find_g_file_by_name(file_name, creds=None, user=None):
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
+<<<<<<< HEAD
+            return None
+=======
             return False
+>>>>>>> jeff_safety
 
     try:
         service = build("drive", "v3", credentials=creds)
@@ -748,7 +757,11 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
+<<<<<<< HEAD
+            return None
+=======
             return False
+>>>>>>> jeff_safety
 
     service = build("drive", "v3", credentials=creds)
 
@@ -1124,6 +1137,17 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
     if not data:
         return {"Success": True, "message": "No data provided."}
 
+<<<<<<< HEAD
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    except Exception as e:
+        logger.error(f"Error loading credentials: {e}")
+        return None
+=======
     if not creds:
         OAUTH_KEY_FILE = f"g-workspace-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
@@ -1135,6 +1159,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False
+>>>>>>> jeff_safety
 
     try:
         # service = build("sheets", "v4", credentials=creds)
@@ -1277,6 +1302,17 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
     # if not user:
     #     raise Exception("User not specified for google drive conventions.")
 
+<<<<<<< HEAD
+    SERVICE_ACCOUNT_FILE = f"g-workspace-credentials.json"
+    try:
+        # Authenticate using the service account JSON file
+        creds = Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    except Exception as e:
+        logger.info(f"Error loading credentials: {e}")
+        return {"Success": False,"error": e}
+=======
     if not creds:
         OAUTH_KEY_FILE = f"g-workspace-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
@@ -1288,6 +1324,7 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None,
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
             return False
+>>>>>>> jeff_safety
 
     try:
         service = build("sheets", "v4", credentials=creds)
@@ -1351,8 +1388,14 @@ def write_g_sheet_cell_v3(spreadsheet_id=None, cell_range=None, value=None, cred
 
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
+<<<<<<< HEAD
+            logger.info(f"Error loading credentials: {spreadsheet_id}")
+            logger.info(f"Error loading credentials: {e}")
+            return None
+=======
             logger.error(f"Error loading credentials: {e}")
             return False
+>>>>>>> jeff_safety
 
     service = build("drive", "v3", credentials=creds)
 
@@ -1446,7 +1489,11 @@ def write_g_sheet_cell_v4(
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
+<<<<<<< HEAD
+            return None
+=======
             return False
+>>>>>>> jeff_safety
 
     service = build("sheets", "v4", credentials=creds)
 
@@ -1485,9 +1532,14 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None, user=None) ->
 
             logger.info(f"Credentials loaded: {creds}")
         except Exception as e:
+<<<<<<< HEAD
+            logger.error(f"Error loading credentials: {spreadsheet_id} - {e}")
+            return {"Success": False, "error": e}
+=======
             logger.error(f"Error loading credentials: {e}")
             return False
 
+>>>>>>> jeff_safety
     try:
         service = build("drive", "v3", credentials=creds)
 

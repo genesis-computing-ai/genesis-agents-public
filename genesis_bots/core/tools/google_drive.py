@@ -233,9 +233,9 @@ def google_drive(
     elif action == "EDIT_SHEET":
         # cell_range = verify_single_cell(g_sheet_cell)
 
-        print(
-            f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_values}\n"
-        )
+        # print(
+        #     f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_values}\n"
+        # )
 
         write_g_sheet_cell_v4(
             g_file_id, g_sheet_cell, g_sheet_values, None

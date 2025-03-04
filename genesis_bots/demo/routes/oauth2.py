@@ -85,7 +85,7 @@ def oauth2callback():
             'granted_scopes': credentials.scopes
         }
 
-        logger.info(f"Credentials from OAUTH: {credentials_dict}")
+        # logger.info(f"Credentials from OAUTH: {credentials_dict}")
         session['credentials'] = credentials_dict
 
         with open('g-workspace-oauth-credentials.json', 'w') as json_file:

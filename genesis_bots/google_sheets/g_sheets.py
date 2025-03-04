@@ -36,7 +36,7 @@ SCOPES = [
 
 _g_creds = None
 
-def delete_oauth_credentials():
+def use_service_account():
     file_path = "g-workspace-credentials.json"
     if os.path.exists(file_path):
         os.remove(file_path)

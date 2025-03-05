@@ -319,31 +319,31 @@ class TestTools(unittest.TestCase):
 
         response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query='SELECT * FROM HARVEST_CONTROL',
                                  thread_id=thread_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
         file_id = response['file_id']
 
         response = google_drive(action="LIST", g_folder_id=g_folder_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
         filename = response['files']['Files'][0]['name']
 
         response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_FILE_VERSION_NUM", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success', response])
 
         response = google_drive(action="GET_SHEET", g_file_id=file_id, g_sheet_cell='A1',
                                  thread_id=thread_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_FILE_BY_NAME", g_file_name=filename)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="ADD_COMMENT", g_file_id=file_id, g_sheet_values='Test Comment')
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_COMMENTS", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="DELETE_FILE", g_file_id=file_id)
         self.assertTrue(response['Success'], response)

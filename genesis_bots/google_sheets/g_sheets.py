@@ -37,16 +37,13 @@ SCOPES = [
 _g_creds = None
 root_folder = None
 
-def use_service_account():
-    file_path = "g-workspace-credentials.json"
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        root_folder = get_root_folder_id()
-        logger.info(f"Deleted oauth credentials {file_path}.  Google Drive will now use service account.")
-    else:
-        logger.info(f"Oath file not found: {file_path}")
-
 def load_creds():
+    if os.path.exists('g-workspace-oauth-credentials.json'):
+        return get_g_creds_oauth()
+    else:
+        return get_g_creds_service_account()
+
+def get_g_creds_oauth():
     global _g_creds
     if _g_creds is None:
         OAUTH_KEY_FILE = f"g-workspace-oauth-credentials.json"
@@ -76,11 +73,14 @@ def get_g_creds_service_account():
 
     return creds
 
-def load_creds():
-    if os.path.exists('g-workspace-oauth-credentials.json'):
-        return load_creds()
+def use_service_account():
+    file_path = "g-workspace-credentials.json"
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        root_folder = get_root_folder_id()
+        logger.info(f"Deleted oauth credentials {file_path}.  Google Drive will now use service account.")
     else:
-        return get_g_creds_service_account()
+        logger.info(f"Oath file not found: {file_path}")
 
 
 def column_to_number(letter: str) -> int:

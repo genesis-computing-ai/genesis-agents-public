@@ -139,7 +139,7 @@ def chat_completion(
     process_name="",
     note_id=None,
     fast=False,
-):
+) -> str:
     process_name = "" if process_name is None else process_name
     process_id = "" if process_id is None else process_id
     message_metadata = {"process_id": process_id, "process_name": process_name}
@@ -157,6 +157,8 @@ def chat_completion(
         )
 
     model = None
+
+    bot_llms = {}
 
     if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
         # Convert the JSON string back to a dictionary
@@ -176,11 +178,13 @@ def chat_completion(
     assert model in ("openai", "cortex")
     # TODO: handle other engine types, use BotLlmEngineEnum instead of strings
 
+    return_msg = ''
+
     if model == "openai":
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             logger.info("OpenAI API key is not set in the environment variables.")
-            return None
+            return 'OpenAI API key is not set in the environment variables.'
 
         openai_model = os.getenv(
             "OPENAI_MODEL_SUPERVISOR", os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
@@ -202,6 +206,7 @@ def chat_completion(
                     },
                 ],
             )
+            return_msg = response.choices[0].message.content
         except Exception as e:
             if os.getenv("OPENAI_MODEL_SUPERVISOR", None) is not None:
                 logger.info(
@@ -220,20 +225,21 @@ def chat_completion(
                         },
                     ],
                 )
+                return_msg = response.choices[0].message.content
             else:
                 logger.info(f"Error occurred while calling OpenAI API: {e}")
 
-        return_msg = response.choices[0].message.content
+
 
     elif model == "cortex":
         if not db_adapter.check_cortex_available():
             logger.info("Cortex is not available.")
-            return None
+            return "Cortex is not available."
         else:
             response, status_code = db_adapter.cortex_chat_completion(message)
             return_msg = response
 
-    if return_msg is None:
+    if not return_msg:
         return_msg = (
             "Error _chat_completion, return_msg is none, llm_type = ",
             os.getenv("BOT_OS_DEFAULT_LLM_ENGINE").lower(),

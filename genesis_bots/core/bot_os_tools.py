@@ -211,7 +211,7 @@ class ToolBelt:
     ):
         #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
         #         self.recurse_level = 0
-        self.recurse_stack = {thread_id: thread_id, process_id: process_id}
+        self.recurse_stack.append({thread_id: thread_id, process_id: process_id})
 
         if process_id is not None and process_id == '':
             process_id = None

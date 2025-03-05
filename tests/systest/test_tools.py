@@ -59,6 +59,7 @@ class TestTools(unittest.TestCase):
 
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bot_ids = _get_available_bot_ids(cls.client)
+        cls.tool_belt = cls.client._server_proxy.genesis_app.sessions[0].tool_belt
 
         cls.eve_id = cls.available_bot_ids[0]
         for bot_id in cls.available_bot_ids:
@@ -154,7 +155,10 @@ class TestTools(unittest.TestCase):
     def test_process_manager(self):
         bot_id = self.eve_id
         process_name = 'test_process'
-        process_instructions = 'Run test_process each day'
+        process_instructions = f'''
+            Run test_process each day where you need to run a query and report the number of rows in harvest_control table using the SQL following query:
+                SELECT COUNT(*) FROM {self.db_adapter.harvest_control_table_name}'
+        '''
 
         response = manage_processes(action='CREATE', bot_id=bot_id, process_name=process_name,
                                     process_instructions=process_instructions)
@@ -168,6 +172,15 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
         self.assertTrue(response['processes'][-1]['process_name'] == 'test_process')
         process_id = response['processes'][-1]['process_id']
+
+        response = self.tool_belt.run_process(action='KICKOFF_PROCESS', process_id=process_id, bot_id=bot_id)
+        self.assertTrue(response['Success'])
+
+        response = self.tool_belt.run_process(action='GET_NEXT_STEP', process_id=process_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
+
+        response = self.tool_belt.run_process(action='END_PROCESS', process_id=process_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
 
         response = manage_processes(action='DELETE_CONFIRMED', bot_id=bot_id, process_id=process_id)
         self.assertTrue(response['Success'])
@@ -315,7 +328,7 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
         print(response)
         filename = response['files']['Files'][0]['name']
-        
+
         response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id)
         self.assertTrue(response['Success'])
 

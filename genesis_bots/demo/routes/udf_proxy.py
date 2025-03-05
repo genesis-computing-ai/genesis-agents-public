@@ -352,7 +352,71 @@ def set_metadata():
         # print('input_rows: ', input_rows)
         # print('metadata_type: ', metadata_type)
 
-        if metadata_type.startswith('set_endpoint '):
+        if metadata_type.startswith('add_todo '):
+            # Split on first 3 spaces to get PROJECT_ID, BOT_ID, TODO_NAME
+            parts = metadata_type.split(' ', 3)
+            if len(parts) < 4:
+                raise ValueError("add_todo requires PROJECT_ID BOT_ID TODO_NAME WHAT_TO_DO")
+            
+            _, project_id, bot_id, rest = parts
+            # Split remaining text on first space to separate TODO_NAME from WHAT_TO_DO
+            todo_parts = rest.split(' ', 1)
+            if len(todo_parts) < 2:
+                raise ValueError("add_todo requires both TODO_NAME and WHAT_TO_DO")
+                
+            todo_name, what_to_do = todo_parts
+
+            # URL decode todo_name if it's URL encoded
+            try:
+                from urllib.parse import unquote
+                todo_name = unquote(todo_name)
+            except Exception as e:
+                logger.warning(f"Failed to URL decode todo_name: {str(e)}")
+            
+            # Call project manager to add todo
+            todo_details = {
+                "project_id": project_id,
+                "todo_name": todo_name,
+                "what_to_do": what_to_do,
+                "assigned_to_bot_id": bot_id
+            }
+            result = project_manager.manage_todos(
+                action="CREATE",
+                bot_id=bot_id,
+                todo_details=todo_details,
+                thread_id=None
+            )
+
+        elif metadata_type.startswith('create_project '):
+            # Split on first 3 spaces to get BOT_ID, PROJECT_NAME, DESCRIPTION
+            parts = metadata_type.split(' ', 3)
+            if len(parts) < 4:
+                raise ValueError("create_project requires BOT_ID PROJECT_NAME DESCRIPTION")
+            
+            _, bot_id, project_name, description = parts
+
+            # URL decode project_name if it's URL encoded
+            try:
+                from urllib.parse import unquote
+                project_name = unquote(project_name)
+            except Exception as e:
+                logger.warning(f"Failed to URL decode project_name: {str(e)}")
+
+            # Call project manager to create project
+            project_details = {
+                "project_name": project_name,
+                "description": description,
+                "requested_by_user": bot_id
+            }
+            result = project_manager.manage_projects(
+                action="CREATE",
+                bot_id=bot_id,
+                project_details=project_details
+            )
+
+
+
+        elif metadata_type.startswith('set_endpoint '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 4:
                 group_name = metadata_parts[1].strip()
@@ -394,8 +458,13 @@ def set_metadata():
                 "Invalid metadata_type provided."
             )
 
-        if result["Success"]:
-            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+
+
+        if result.get("Success", False) or result.get("success", False):
+            if "Data" not in result:
+                output_rows = [[input_rows[0][0], result]]
+            else:
+                output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
         else:
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 

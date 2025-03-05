@@ -180,6 +180,23 @@ def record_todo_work(
         thread_id=thread_id,
     )
 
+@gc_tool(
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    todo_id="ID of the todo item to get history for",
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[project_manager_tools],
+)
+def get_todo_history(
+    bot_id: str,
+    todo_id: str,
+    thread_id: str=None
+):
+    """
+    Get the complete history of a todo item, including status changes, work records, and other actions.
+    Returns a chronological list of all actions and changes made to the todo.
+    """
+    return project_manager.get_todo_history(todo_id=todo_id)
+
 
 @gc_tool(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,

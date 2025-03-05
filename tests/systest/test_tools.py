@@ -196,8 +196,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
-        print(response)
-        self.assertTrue('process' in response)
+        self.assertTrue('process' in response, response)
 
         prompt = f'Run manage_processes function with the following action: CREATE_CONFIRMED, bot_id: {bot_id}, process_id: {process_id}, process_name: {process_name}, process_instructions: {process_instructions}'
         thread_id = str(uuid4())
@@ -243,8 +242,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=40)
-        print(response)
-        self.assertTrue('_ImageGeneration_' in response)
+        self.assertTrue('_ImageGeneration_' in response, response)
         self.assertTrue('.png' in response)
 
     @unittest.skipIf(not SNOWFLAKE, "Skipping test_snowflake_tools on Sqlite")

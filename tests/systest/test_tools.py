@@ -177,7 +177,7 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
 
         response = self.tool_belt.run_process(action='GET_NEXT_STEP', process_id=process_id, bot_id=bot_id)
-        self.assertTrue(response['success'])
+        self.assertTrue(response['success'], response)
 
         response = self.tool_belt.run_process(action='END_PROCESS', process_id=process_id, bot_id=bot_id)
         self.assertTrue(response['success'])
@@ -326,7 +326,6 @@ class TestTools(unittest.TestCase):
 
         response = google_drive(action="LIST", g_folder_id=g_folder_id)
         self.assertTrue(response['Success'])
-        print(response)
         filename = response['files']['Files'][0]['name']
 
         response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id)
@@ -348,8 +347,8 @@ class TestTools(unittest.TestCase):
         response = google_drive(action="GET_COMMENTS", g_file_id=file_id)
         self.assertTrue(response['Success'])
 
-        response = google_drive(action="DELETE_SHEET", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        response = google_drive(action="DELETE_FILE", g_file_id=file_id)
+        self.assertTrue(response['Success'], response)
 
 
 

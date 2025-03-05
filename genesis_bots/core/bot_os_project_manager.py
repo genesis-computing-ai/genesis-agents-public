@@ -603,15 +603,15 @@ class ProjectManager:
                         "project_manager_bot_id": project[3],
                         "current_status": project[4],
                         "target_completion_date": project[5],
-                        "created_at": project[6],
-                        "updated_at": project[7],
+                        "created_at": str(project[6]),
+                        "updated_at": str(project[7]),
                         "todo_count": project[8],
                         "history": [
                             {
                                 "action_taken": h[0],
                                 "action_by_bot_id": h[1],
                                 "action_details": h[2],
-                                "action_timestamp": h[3]
+                                "action_timestamp": str(h[3])
                             } for h in history
                         ]
                     })
@@ -923,6 +923,61 @@ class ProjectManager:
         finally:
             cursor.close()
 
+    def get_todo_history(self, todo_id):
+        """
+        Gets the history of a todo item.
+        
+        Args:
+            todo_id (str): The ID of the todo to get history for
+            
+        Returns:
+            dict: Contains success status and either history entries or error message
+        """
+        cursor = self.db_adapter.client.cursor()
+        
+        try:
+            # Get all history entries for this todo
+            cursor.execute(
+                f"""
+                SELECT history_id, action_taken, action_by_bot_id, action_details,
+                       previous_status, current_status, status_changed_flag,
+                       work_description, work_results, created_at
+                FROM {self.db_adapter.schema}.TODO_HISTORY
+                WHERE todo_id = %s
+                ORDER BY created_at DESC
+                """,
+                (todo_id,)
+            )
+            
+            history_entries = []
+            for row in cursor.fetchall():
+                history_entries.append({
+                    "history_id": row[0],
+                    "action_taken": row[1],
+                    "action_by_bot_id": row[2],
+                    "action_details": row[3],
+                    "previous_status": row[4],
+                    "current_status": row[5],
+                    "status_changed": row[6] == 'Y',
+                    "work_description": row[7],
+                    "work_results": row[8],
+                    "created_at": str(row[9])
+                })
+                
+            return {
+                "success": True,
+                "history": history_entries
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+        finally:
+            cursor.close()
+
+
     def manage_todo_dependencies(self, action, bot_id, todo_id, depends_on_todo_id=None):
         """
         Manages todo dependencies.
@@ -1059,19 +1114,24 @@ class ProjectManager:
             cursor.execute(
                 f"""
                 SELECT project_id FROM {self.db_adapter.schema}.PROJECTS 
-                WHERE project_id = %s AND project_manager_bot_id = %s
+                WHERE project_id = %s 
                 """,
-                (project_id, bot_id)
+                (project_id)
             )
 
             project = cursor.fetchone()
             if not project:
                 # Project not found, get list of valid projects
-                projects_result = self.manage_projects(
-                    action="LIST", 
-                    bot_id=bot_id
-                )
-                    
+                if bot_id is not None:
+                    projects_result = self.manage_projects(
+                        action="LIST", 
+                        bot_id=bot_id
+                    )
+                else:
+                    return {
+                        "success": False,
+                        "error": "Project not found"
+                    }
                 if not projects_result.get("projects"):
                     return {
                         "success": False,
@@ -1098,7 +1158,7 @@ class ProjectManager:
             result_todos = []
             for todo in todos:
                 history_query = f"""
-                SELECT action_taken, action_by_bot_id, action_details, action_timestamp
+                SELECT action_taken, action_by_bot_id, action_details, action_timestamp, work_description, work_results, previous_status, current_status, status_changed_flag
                 FROM {self.db_adapter.schema}.TODO_HISTORY
                 WHERE todo_id = %s
                 ORDER BY action_timestamp DESC
@@ -1112,15 +1172,20 @@ class ProjectManager:
                     "current_status": todo[2],
                     "assigned_to_bot_id": todo[3],
                     "what_to_do": todo[4],
-                    "created_at": todo[5],
-                    "updated_at": todo[6],
+                    "created_at": str(todo[5]),
+                    "updated_at": str(todo[6]),
                     "dependencies": self._get_todo_dependencies(cursor, todo[0]),
                     "history": [
                         {
                             "action_taken": h[0],
                             "action_by_bot_id": h[1],
                             "action_details": h[2],
-                            "action_timestamp": h[3]
+                            "action_timestamp": str(h[3]),
+                            "work_description": h[4],
+                            "work_results": h[5],
+                            "previous_status": h[6],
+                            "current_status": h[7],
+                            "status_changed_flag": h[8]
                         } for h in history
                     ]
                 })

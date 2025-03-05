@@ -250,6 +250,11 @@ def google_drive(
         # cell_range = verify_single_cell(g_sheet_cell)
         try:
             value = read_g_sheet(g_file_id, g_sheet_cell, None)
+            # Check if value is JSON serializable, if not convert to string
+            if isinstance(value, dict) and 'service' in value:
+                del value['service']
+            if not isinstance(value, (str, int, float, bool, list, dict)):
+                value = str(value)
             return {"Success": True, "value": value}
         except Exception as e:
             return {"Success": False, "Error": str(e)}

@@ -67,6 +67,7 @@ def get_g_creds_service_account():
         creds = Creds_Service.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
+        root_folder = get_root_folder_id()
     except Exception as e:
         print(f"Error loading credentials: {e}")
         return None

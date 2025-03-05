@@ -38,6 +38,7 @@ from   genesis_bots.demo.routes.slack \
                                 import bot_install_followup
 
 from genesis_bots.connectors.data_connector import DatabaseConnector
+from genesis_bots.core.tools.project_manager import project_manager
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -222,6 +223,31 @@ def get_metadata():
             result = genesis_app.db_adapter.get_llm_info()
         elif metadata_type == 'cortex_search_services':
             result = genesis_app.db_adapter.get_cortex_search_service()
+        elif metadata_type.startswith('list_projects '):
+            bot_id = metadata_type.split('list_projects ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(project_manager.manage_projects(
+                action="LIST",
+                bot_id=bot_id,
+                thread_id=None
+            ))}
+        elif metadata_type.startswith('list_todos '):
+            project_id = metadata_type.split('list_todos ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(project_manager.get_project_todos(
+                bot_id=None,  # Not needed for listing todos
+                project_id=project_id
+            ))}
+        elif metadata_type.startswith('list_todo_history '):
+            todo_id = metadata_type.split('list_todo_history ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(project_manager.get_todo_history(
+                todo_id=todo_id
+            ))}
+        elif metadata_type.startswith('list_project_artifacts '):
+            project_id = metadata_type.split('list_project_artifacts ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(project_manager.manage_project_assets(
+                action="LIST",
+                bot_id=None,  # Not needed for listing assets
+                project_id=project_id
+            ))}
         elif metadata_type == "bot_llms":
             if "BOT_LLMS" in os.environ and os.environ["BOT_LLMS"]:
                 result = {"Success": True, "Data": os.environ["BOT_LLMS"]}

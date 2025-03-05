@@ -76,101 +76,106 @@ def bot_projects():
             # Filter and display only the selected project
             selected_project_data = next((project for project in projects['projects'] 
                                         if project['project_name'] == selected_project), None)
-            
+        else:
+            st.info("No projects yet - create your first project!")
+            selected_project_data = None
+
+        # Place expanders side by side - always show these
+        col1, col2 = st.columns(2)
+        
+        # Create New Project expander in first column - always visible
+        with col1:
+            with st.expander("➕ Create New Project"):
+                with st.form("new_project_form"):
+                    project_name = st.text_input("Project Name*")
+                    project_description = st.text_area("Project Description*")
+                    submit_project = st.form_submit_button("Add Project")
+                    
+                    if submit_project:
+                        if not project_name or not project_description:
+                            st.error("Both project name and description are required.")
+                        else:
+                            try:
+                                encoded_project_name = quote(project_name)
+                                result = set_metadata(f"create_project {selected_bot_id} {encoded_project_name} {project_description}")
+                                if result.get("success", False):
+                                    st.success("Project created successfully!")
+                                    st.rerun()
+                                else:
+                                    st.error(f"Failed to create project: {result.get('Message', 'Unknown error')}")
+                            except Exception as e:
+                                st.error(f"Error creating project: {e}")
+        
+        # Create New Todo expander in second column - only show if there's a selected project
+        with col2:
             if selected_project_data:
-                # Place expanders side by side
-                col1, col2 = st.columns(2)
-                
-                # Create New Project expander in first column
-                with col1:
-                    with st.expander("➕ Create New Project"):
-                        with st.form("new_project_form"):
-                            project_name = st.text_input("Project Name")
-                            project_description = st.text_area("Project Description")
-                            submit_project = st.form_submit_button("Add Project")
-                            
-                            if submit_project and project_name and project_description:
-                                try:
-                                    # URL encode the project name to handle special characters
-                                    encoded_name = quote(project_name)
-                                    result = set_metadata(f"create_project {selected_bot_id} {encoded_name} {project_description}")
-                                    if result.get("success", False):
-                                        st.success("Project created successfully!")
-                                     #   st.rerun()
-                                    else:
-                                        st.error(f"Failed to create project: {result.get('Message', 'Unknown error')}")
-                                except Exception as e:
-                                    st.error(f"Error creating project: {e}")
-                # Create New Todo expander in second column
-                with col2:
-                    with st.expander("➕ Create New Todo"):
-                        with st.form("new_todo_form"):
-                            todo_title = st.text_input("Todo Title")
-                            todo_description = st.text_area("Todo Description")
-                            submit_todo = st.form_submit_button("Add Todo")
-                            
-                            if submit_todo and todo_title and todo_description:
+                with st.expander("➕ Create New Todo"):
+                    with st.form("new_todo_form"):
+                        todo_title = st.text_input("Todo Title*")
+                        todo_description = st.text_area("Todo Description*")
+                        submit_todo = st.form_submit_button("Add Todo")
+                        
+                        if submit_todo:
+                            if not todo_title or not todo_description:
+                                st.error("Both todo title and description are required.")
+                            else:
                                 try:
                                     project_id = selected_project_data['project_id']
-                                    # URL encode the todo title to handle special characters
                                     encoded_title = quote(todo_title)
-                                    # Call set_metadata to add the todo
                                     result = set_metadata(f"add_todo {project_id} {selected_bot_id} {encoded_title} {todo_description}")
                                     if result.get("success", False):
                                         st.success("Todo added successfully!")
-                                      #  st.rerun()
+                                        st.rerun()
                                     else:
                                         st.error(f"Failed to add todo: {result.get('Message', 'Unknown error')}")
                                 except Exception as e:
                                     st.error(f"Error adding todo: {e}")
-                
-                # Get and display todos for this project
-                project_id = selected_project_data.get('project_id')
-                if project_id:
-                    todos = get_metadata(f"list_todos {project_id}")
-                    if todos and todos.get('todos'):
-                        st.markdown("**Project Todo Status:**")
-                        
-                        # Create rows of 3 todos each
-                        todos_list = todos['todos']
-                        for i in range(0, len(todos_list), 3):
-                            cols = st.columns(3)
-                            for j in range(3):
-                                if i + j < len(todos_list):
-                                    todo = todos_list[i + j]
-                                    with cols[j]:
-                                        status_emoji = "✅" if todo.get('current_status') == 'COMPLETED' else "⏳"
-                                        st.markdown(f"""
-                                        <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
-                                            <h4>{status_emoji} {todo.get('todo_name', 'No name')}</h4>
-                                            <p><i>Status: {todo.get('current_status', 'N/A')} | Created: {todo.get('created_at', 'N/A')} | Assigned: {todo.get('assigned_to_bot_id', 'N/A')}</i></p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
 
-                                        # Details with expansion option
-                                        details = todo.get('what_to_do', 'No details')
-                                        with st.expander("Show Details"):
-                                            st.markdown(f"<p>{details}</p>", unsafe_allow_html=True)
-                                        
-                                        # History expander
-                                        if todo.get('history'):
-                                            with st.expander("View History"):
-                                                for entry in todo['history']:
-                                                    st.markdown(
-                                                        f"<small>"
-                                                        f"Action: {entry.get('action_taken', 'N/A')}<br>"
-                                                        f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
-                                                     #   f"By: {entry.get('action_by_bot_id', 'N/A')}<br>"
-                                                        f"Details: {entry.get('action_details', 'N/A')}<br>"
-                                                        f"Work Description: {entry.get('work_description', 'N/A')}<br>"
-                                                    #    f"Previous Status: {entry.get('previous_status', 'N/A')}<br>"
-                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
-                                                    #    f"Status Changed: {'Yes' if entry.get('status_changed_flag') else 'No'}<br>"
-                                                   #     f"---"
-                                                        f"</small>", 
-                                                        unsafe_allow_html=True
-                                                    )
-                st.markdown("---")
+        # Only show todos if we have a selected project
+        if selected_project_data:
+            # Get and display todos for this project
+            project_id = selected_project_data.get('project_id')
+            if project_id:
+                todos = get_metadata(f"list_todos {project_id}")
+                if todos and todos.get('todos'):
+                    st.markdown("**Project Todo Status:**")
+                    
+                    # Create rows of 3 todos each
+                    todos_list = todos['todos']
+                    for i in range(0, len(todos_list), 3):
+                        cols = st.columns(3)
+                        for j in range(3):
+                            if i + j < len(todos_list):
+                                todo = todos_list[i + j]
+                                with cols[j]:
+                                    status_emoji = "✅" if todo.get('current_status') == 'COMPLETED' else "⏳"
+                                    st.markdown(f"""
+                                    <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                                        <h4>{status_emoji} {todo.get('todo_name', 'No name')}</h4>
+                                        <p><i>Status: {todo.get('current_status', 'N/A')} | Created: {todo.get('created_at', 'N/A')} | Assigned: {todo.get('assigned_to_bot_id', 'N/A')}</i></p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                                    # Details with expansion option
+                                    details = todo.get('what_to_do', 'No details')
+                                    with st.expander("Show Details"):
+                                        st.markdown(f"<p>{details}</p>", unsafe_allow_html=True)
+                                    
+                                    # History expander
+                                    if todo.get('history'):
+                                        with st.expander("View History"):
+                                            for entry in todo['history']:
+                                                st.markdown(
+                                                    f"<small>"
+                                                    f"Action: {entry.get('action_taken', 'N/A')}<br>"
+                                                    f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
+                                                    f"Details: {entry.get('action_details', 'N/A')}<br>"
+                                                    f"Work Description: {entry.get('work_description', 'N/A')}<br>"
+                                                    f"Current Status: {entry.get('current_status', 'N/A')}<br>"
+                                                    f"</small>", 
+                                                    unsafe_allow_html=True
+                                                )
+                    st.markdown("---")
         else:
             st.info("No projects available.")
     except Exception as e:

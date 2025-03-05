@@ -1255,6 +1255,57 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
         for row in worksheet.iter_rows(values_only=True):
             rows.append(list(row))
 
+        # Parse and validate the cell range
+        if cell_range:
+            # Handle whole column ranges like A:A
+            col_range_match = re.match(r"([A-Za-z]{1,2}):([A-Za-z]{1,2})", cell_range)
+            if col_range_match:
+                start_col, end_col = col_range_match.groups()
+                start_col_num = column_to_number(start_col) - 1
+                end_col_num = column_to_number(end_col) - 1
+                
+                # Get all rows but only the specified columns
+                rows = [row[start_col_num:end_col_num + 1] for row in rows]
+                
+            else:
+                # Handle normal ranges like A1:B2
+                match = re.match(r"([A-Za-z]{1,2})(\d+):([A-Za-z]{1,2})(\d+)", cell_range)
+                if match:
+                    start_col, start_row, end_col, end_row = match.groups()
+                    
+                    # Convert column letters to numbers (A=1, B=2, AA=27, etc)
+                    start_col_num = column_to_number(start_col) - 1  # Convert to 0-based index
+                    end_col_num = column_to_number(end_col) - 1
+                    
+                    # Convert row numbers to 0-based indices
+                    start_row_num = int(start_row) - 1
+                    end_row_num = int(end_row) - 1
+
+                    # Ensure valid ranges
+                    start_col_num = max(0, start_col_num)
+                    end_col_num = min(len(rows[0])-1 if rows else 0, end_col_num)
+                    start_row_num = max(0, start_row_num)
+                    end_row_num = min(len(rows)-1 if rows else 0, end_row_num)
+
+                    # Filter rows based on range
+                    rows = rows[start_row_num:end_row_num + 1]
+                    
+                    # Filter columns for each row
+                    rows = [row[start_col_num:end_col_num + 1] for row in rows]
+                else:
+                    # Handle single cell case (e.g. "A1" or "AA1") 
+                    match = re.match(r"([A-Za-z]{1,2})(\d+)", cell_range)
+                    if match:
+                        col, row = match.groups()
+                        col_num = column_to_number(col) - 1
+                        row_num = int(row) - 1
+                        
+                        # Ensure valid indices
+                        if 0 <= row_num < len(rows) and 0 <= col_num < len(rows[0]):
+                            rows = [[rows[row_num][col_num]]]
+                        else:
+                            rows = [[None]]
+
         return {
             "Success": True,
             "cell_values": rows,

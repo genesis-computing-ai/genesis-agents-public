@@ -8,6 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from datetime import datetime
+
 # import mimetypes
 import os, json
 
@@ -25,7 +26,6 @@ from io import BytesIO
 from genesis_bots.core.logging_config import logger
 import re
 
-
 # If modifying these scopes, delete the file token.json.
 SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
@@ -38,13 +38,14 @@ _g_creds = None
 root_folder = None
 
 def load_creds():
+    root_folder = get_root_folder_id()
     if os.path.exists('g-workspace-oauth-credentials.json'):
         return get_g_creds_oauth()
     else:
         return get_g_creds_service_account()
 
 def get_g_creds_oauth():
-    global _g_creds
+    global _g_creds, root_folder
     if _g_creds is None:
         OAUTH_KEY_FILE = f"g-workspace-oauth-credentials.json"
         if not os.path.exists(OAUTH_KEY_FILE):
@@ -61,6 +62,7 @@ def get_g_creds_oauth():
     return _g_creds
 
 def get_g_creds_service_account():
+    global _g_creds, root_folder
     SERVICE_ACCOUNT_FILE = f"g-workspace-sa-credentials.json"
     try:
         # Authenticate using the service account JSON file
@@ -75,6 +77,7 @@ def get_g_creds_service_account():
     return creds
 
 def use_service_account():
+    global root_folder
     file_path = "g-workspace-credentials.json"
     if os.path.exists(file_path):
         os.remove(file_path)
@@ -247,27 +250,37 @@ def update_g_doc(doc_id, data, creds=None):
         logger.error(f"Error updating document: {e}")
         return {"Success": False, "Error": str(e)}
 
-def get_root_folder_id(db_adapter):
-    return root_folder
-    # connection = db_adapter.connection
-    # cursor = connection.cursor()
+def get_root_folder_id():
+    global root_folder
 
-    # select_query = f"""
-    # SELECT value
-    # FROM {db_adapter.schema}.EXT_SERVICE_CONFIG
-    # WHERE parameter = 'shared_folder_id' AND ext_service_name = 'g-sheets'
-    # """
-    # cursor.execute(select_query)
-    # result = cursor.fetchone()
+    if root_folder:
+        return root_folder
 
-    # cursor.close()
+    from genesis_bots.connectors import get_global_db_connector
+    db_adapter = get_global_db_connector()
 
-    # if result:
-    #     return result[0]
-    # else:
-    #     return None
+    connection = db_adapter.connection
+    cursor = connection.cursor()
+
+    select_query = f"""
+    SELECT value
+    FROM {db_adapter.schema}.EXT_SERVICE_CONFIG
+    WHERE parameter = 'shared_folder_id' AND ext_service_name = 'g-sheets'
+    """
+    cursor.execute(select_query)
+    result = cursor.fetchone()
+
+    cursor.close()
+
+    if result:
+        root_folder = result[0]
+        return result[0]
+    else:
+        root_folder = None
+        return None
 
 def set_root_folder_id(db_adapter, folder_id):
+    global root_folder
     root_folder = folder_id
     connection = db_adapter.connection
     cursor = connection.cursor()
@@ -563,7 +576,7 @@ def get_g_folder_directory(folder_id=None, creds=None, db_adapter=None):
     Returns:
         list: A list of files in the folder.
     """
-
+    global root_folder
     logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
 
     creds = load_creds()
@@ -1245,7 +1258,6 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
         return {
             "Success": True,
             "cell_values": rows,
-            "service": service,
         }
     except Exception as error:
         logger.error(f"HTTPError in read sheet: {error} - {spreadsheet_id}")

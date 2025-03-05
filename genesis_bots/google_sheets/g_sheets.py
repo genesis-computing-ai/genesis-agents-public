@@ -35,11 +35,13 @@ SCOPES = [
 ]
 
 _g_creds = None
+root_folder = None
 
 def use_service_account():
     file_path = "g-workspace-credentials.json"
     if os.path.exists(file_path):
         os.remove(file_path)
+        root_folder = get_root_folder_id()
         logger.info(f"Deleted oauth credentials {file_path}.  Google Drive will now use service account.")
     else:
         logger.info(f"Oath file not found: {file_path}")
@@ -53,6 +55,7 @@ def load_creds():
         try:
             _g_creds = Creds_Oauth.from_authorized_user_file(OAUTH_KEY_FILE, SCOPES)
             json_creds = json.loads(creds.to_json())
+            root_folder = 'root'
             logger.info(f"Creds_Oauth loaded: {json_creds}")
         except Exception as e:
             logger.error(f"Error loading credentials: {e}")
@@ -244,25 +247,27 @@ def update_g_doc(doc_id, data, creds=None):
         return {"Success": False, "Error": str(e)}
 
 def get_root_folder_id(db_adapter):
-    connection = db_adapter.connection
-    cursor = connection.cursor()
+    return root_folder
+    # connection = db_adapter.connection
+    # cursor = connection.cursor()
 
-    select_query = f"""
-    SELECT value
-    FROM {db_adapter.schema}.EXT_SERVICE_CONFIG
-    WHERE parameter = 'shared_folder_id' AND ext_service_name = 'g-sheets'
-    """
-    cursor.execute(select_query)
-    result = cursor.fetchone()
+    # select_query = f"""
+    # SELECT value
+    # FROM {db_adapter.schema}.EXT_SERVICE_CONFIG
+    # WHERE parameter = 'shared_folder_id' AND ext_service_name = 'g-sheets'
+    # """
+    # cursor.execute(select_query)
+    # result = cursor.fetchone()
 
-    cursor.close()
+    # cursor.close()
 
-    if result:
-        return result[0]
-    else:
-        return None
+    # if result:
+    #     return result[0]
+    # else:
+    #     return None
 
 def set_root_folder_id(db_adapter, folder_id):
+    root_folder = folder_id
     connection = db_adapter.connection
     cursor = connection.cursor()
 
@@ -560,10 +565,10 @@ def get_g_folder_directory(folder_id=None, creds=None, db_adapter=None):
 
     logger.info(f"Entering get_g_folder_directory with folder_id: {folder_id}")
 
-    if not folder_id:
-        folder_id = 'root'
-
     creds = load_creds()
+
+    if not folder_id:
+        folder_id = root_folder
 
     try:
         service = build("drive", "v3", credentials=creds)

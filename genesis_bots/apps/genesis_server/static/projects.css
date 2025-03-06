@@ -79,13 +79,23 @@
     margin: 4px;
 }
 
-#todo-table-wrapper{
-    display: none;
+/* #todo-table-wrapper{
+    visibility: hidden;
+    opacity: 0;
+} */
+
+#todo-table-wrapper.visible {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s ease;
 }
 
 /* Table Styles */
-.project-table {
-    width: 100%;
+.todo-table {
+    /* position: absolute;
+    left: 380px;
+    top: 300px; */
+    width: 100px;
     border-collapse: collapse;
     margin: 25px 0;
     font-size: 0.9em;
@@ -93,35 +103,36 @@
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     border-radius: 10px;
     overflow: hidden;
+    min-width: 1000px;
 }
 
-.project-table thead tr {
+.todo-table thead tr {
     background-color: #FF4B4B;
     color: #ffffff;
     text-align: left;
     font-weight: bold;
 }
 
-.project-table th,
-.project-table td {
+.todo-table th,
+.todo-table td {
     padding: 12px 15px;
     border-bottom: 1px solid #dddddd;
 }
 
-.project-table tbody tr {
+.todo-table tbody tr {
     border-bottom: 1px solid #dddddd;
     transition: background-color 0.2s ease;
 }
 
-.project-table tbody tr:nth-of-type(even) {
+.todo-table tbody tr:nth-of-type(even) {
     background-color: #f3f3f3;
 }
 
-.project-table tbody tr:last-of-type {
+.todo-table tbody tr:last-of-type {
     border-bottom: 2px solid #FF4B4B;
 }
 
-.project-table tbody tr:hover {
+.todo-table tbody tr:hover {
     background-color: #f5f5f5;
     color: #FF4B4B;
     cursor: pointer;
@@ -129,9 +140,32 @@
 
 /* Make table responsive */
 @media screen and (max-width: 768px) {
-    .project-table {
+    .todo-table {
         display: block;
         overflow-x: auto;
         white-space: nowrap;
     }
+}
+
+.spinner {
+    position: absolute;
+    left: 900px;
+    top: 440px;
+    width: 80px;
+    height: 80px;
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #FF4B4B;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: none;
+    /* margin: 20px auto; */
+}
+
+.spinner.visible {
+    display: block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

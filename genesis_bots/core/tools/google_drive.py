@@ -20,7 +20,14 @@ from genesis_bots.google_sheets.g_sheets import (
     get_g_folder_directory,
     read_g_sheet,
     write_g_sheet_cell_v4,
-    create_g_sheet_v4
+    create_g_sheet_v4,
+    delete_g_sheet,
+    get_root_folder_id,
+    set_root_folder_id,
+    read_g_doc,
+    create_g_doc,
+    append_g_doc,
+    update_g_doc
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -39,8 +46,9 @@ google_drive_tools = ToolFuncGroup(
         """
         The action to be performed on Google Drive.  Possible actions are:
             LOGIN - Used to login in to Google Workspace with OAuth2.0.
-            LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER
-            SET_ROOT_FOLDER - Sets the root folder for the user on their drive
+            LIST - Get's list of files in a folder.  Same as DIRECTORY, DIR, GET FILES IN FOLDER. Defaults to root folder if none specified
+            SET_ROOT_FOLDER / SET_SHARED_FOLDER_ID - Sets the root folder for the user on their drive
+            GET_ROOT_FOLDER / GET_SHARED_FOLDER_ID - Gets the root folder for the user on their drive
             GET_FILE_VERSION_NUM - Gets the version number given a g_file id
             GET_COMMENTS - Gets the comments and replies for a file give a g_file_id.  Also includes the anchor tag which specifies the cell where the comment is located
             ADD_COMMENT - Adds a comment to a file given a g_file_id
@@ -53,6 +61,11 @@ google_drive_tools = ToolFuncGroup(
             GET_FILE_BY_NAME - Searches for a file by name and returns the file id
             SAVE_QUERY_RESULTS_TO_G_SHEET - Saves the results of a query to a Google Sheet
             CREATE_SHEET - Creates a new Google Sheet with data from user
+            READ_DOC - Reads the text from a Google Drive Doc
+            CREATE_DOC - Creates a new empty Google Drive Doc
+            APPEND_DOC - Appends to a Google Drive Doc
+            UPDATE_DOC - Updates a Google Drive Doc
+            DELETE_FILE - Deletes a file from Google Drive
     """
     ),
     g_folder_id="The unique identifier of a folder stored on Google Drive.",
@@ -63,6 +76,8 @@ google_drive_tools = ToolFuncGroup(
     g_file_name="The name of a file, files, folder, or folders stored on Google Drive.",
     g_sheet_query="Query string to run and save the results to a Google Sheet.",
     g_sheet_anchor="The anchor tag which specifies the cell where the comment is located.",
+    g_doc_title="The title of a Google Drive file, sheet, or doc",
+    g_doc_content="The content to be added to a Google Doc",
     # user="""The unique identifier of the process_id. MAKE SURE TO DOUBLE-CHECK THAT YOU ARE USING THE CORRECT test_process_id
     #     ON UPDATES AND DELETES!  Required for CREATE, UPDATE, and DELETE.""",
     thread_id="THREAD_ID_IMPLICIT_FROM_CONTEXT",
@@ -78,9 +93,11 @@ def google_drive(
     g_file_name: str = None,
     g_sheet_query: str = None,
     g_sheet_anchor: str = None,
+    g_doc_title: str = None,
+    g_doc_content: str = None,
     # user: str = None,
     thread_id: str = None,
-) -> None:
+) -> dict:
     """
     A wrapper for LLMs to access/manage Google Drive files by performing specified actions such as listing or downloading files.
 
@@ -133,7 +150,7 @@ def google_drive(
     if action == "LIST":
         try:
             files = get_g_folder_directory(
-                g_folder_id, None, user=db_adapter.user
+                g_folder_id, None, db_adapter=db_adapter
             )
             if files is False:
                 return {"Success": False, "Error": "Could not get files from Google Drive, missing credentials."}
@@ -149,8 +166,19 @@ def google_drive(
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
-    elif action == "SET_ROOT_FOLDER":
-        raise NotImplementedError
+    elif action == "SET_ROOT_FOLDER" or action == 'SET_SHARED_FOLDER_ID':
+        try:
+            set_root_folder_id(db_adapter, g_folder_id)
+            return {"Success": True, "Message": "Root folder set."}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+
+    elif action == "GET_ROOT_FOLDER" or action == 'GET_SHARED_FOLDER_ID':
+        try:
+            root_folder = get_root_folder_id(db_adapter)
+            return {"Success": True, "Root Folder": root_folder}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
 
     elif action == "GET_LINK_FROM_FILE_ID":
         try:
@@ -161,7 +189,7 @@ def google_drive(
 
     elif action == "GET_FILE_VERSION_NUM":
         try:
-            file_version_num = get_g_file_version(g_file_id, None, db_adapter.user)
+            file_version_num = get_g_file_version(g_file_id, None, db_adapter)
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
@@ -219,9 +247,7 @@ def google_drive(
     elif action == "GET_SHEET" or action == "READ_SHEET":
         # cell_range = verify_single_cell(g_sheet_cell)
         try:
-            value = read_g_sheet(
-                g_file_id, g_sheet_cell, None, db_adapter.user
-            )
+            value = read_g_sheet(g_file_id, g_sheet_cell, None, db_adapter.user)
             return {"Success": True, "value": value}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -232,13 +258,31 @@ def google_drive(
         return {"Success": "True", "auth_url": f"<{auth_url}>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
-        db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
-        return {"Success": True, "Message": "Query results saved to Google Sheet."}
+        response = db_adapter.run_query(g_sheet_query, export_to_google_sheet = True)
+        return response
 
     elif action == "CREATE_SHEET":
-        response = create_g_sheet_v4(
-            g_sheet_values, g_file_name, None, db_adapter.user
-        )
+        response = create_g_sheet_v4(g_sheet_values, g_file_name)
+        return response
+
+    elif action == "READ_DOC":
+        response = read_g_doc(g_file_id)
+        return response
+
+    elif action == "CREATE_DOC":
+        response = create_g_doc(g_doc_content, g_doc_title)
+        return response
+
+    elif action == "APPEND_DOC":
+        response = append_g_doc(g_file_id, g_doc_content)
+        return response
+
+    elif action == "UPDATE_DOC":
+        response = update_g_doc(g_file_id, g_doc_content)
+        return response
+
+    elif action == "DELETE_SHEET":
+        response = delete_g_sheet(g_file_id, None)
         return response
 
     return {"Success": False, "Error": "Invalid action specified."}

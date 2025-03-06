@@ -396,12 +396,22 @@ def get_artifact_data():
         - Data: The base64-encoded data of the artifact if successful.
         - [Message]: An error message if the operation fails.
     """
+    artifact_id = None
+    is_udf_proxy_mode = False
     try:
         message = request.json
-        artifact_id = message.get("artifact_id")
+        # extract the artifact_id from the request. We handle either a direct REST call or a UDF proxy call
+        if "artifact_id" in message: # direct REST call
+            artifact_id = message.get("artifact_id")
+        elif "data" in message: # UDF proxy call
+            input_rows = message["data"]
+            if len(input_rows) == 1 and len(input_rows[0]) == 2: # UDF proxy call will look like this: [[0, artifact_id]]
+                artifact_id = input_rows[0][1]
+                is_udf_proxy_mode = True
         if not artifact_id:
-            return jsonify({"Success": False, "Message": "Missing 'artifact_id' parameter."}), 400
-
+            logger.warning(f"/udf_proxy/get_artifact - Could not resolve 'artifact_id' from. payload: {message}")
+            return jsonify({"Success": False, "Message": f"Missing 'artifact_id' or 'data' parameter. payload: {message}"}), 400
+        logger.info(f"/udf_proxy/get_artifact - artifact_id: {artifact_id}")
         af = get_artifacts_store(genesis_app.db_adapter)
         # Retrieve artifact metadata
         metadata = af.get_artifact_metadata(artifact_id)
@@ -418,13 +428,23 @@ def get_artifact_data():
         }
 
     except Exception as e:
+        logger.error(f"/udf_proxy/get_artifact - Error: {str(e)}")
         response = {
             "Success": False,
             "Message": f"An error occurred while retrieving artifact data: {str(e)}"
         }
-
-    return jsonify(response)
-
+    logger.info(f"/udf_proxy/get_artifact - Response: Success: {response['Success']}, "
+                f"mime type: {response['Metadata'].get('mime_type')}, "
+                f"Data len: {len(response['Data'])} bytes")
+    if not is_udf_proxy_mode:
+        # we were called in simple REST mode.
+        return jsonify(response)
+    else:
+        # we were called in UDF proxy mode. Snowflake is expecting a certain output format for UDF calls
+        output_rows = [[input_rows[0][0], response]]
+        response = make_response({"data": output_rows})
+        response.headers["Content-type"] = "application/json"
+        return response
 
 
 @udf_routes.route("/udf_proxy/get_slack_tokens", methods=["POST"])

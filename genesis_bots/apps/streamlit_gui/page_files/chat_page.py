@@ -250,14 +250,16 @@ def chat_page():
                 # special handling for the 'artifact' URLs which are used for our account-global permament artifact storage
                 try:
                     metadata, file_content64 = get_artifact(file_path.name)
-                    mtype, msubtype = metadata['mime_type'].split("/")
+                except Exception as e:
+                    # Show an error but leave the url as is.
+                    st.error(f"Error fetching artifact {file_path.name}: {e}")
+                else:
+                    _, msubtype = metadata['mime_type'].split("/")
                     if msubtype in known_img_types:
                         image_format = msubtype
                     elif msubtype in known_txt_types:
                         text_format = msubtype
                     # TODO: handle more mime types, not just images or text. We fallback to a generic href with octet-stream)
-                except:
-                    pass # best effort failed. fallback to a generic link (which is likely broken)
             elif url_parts.scheme == 'https' or url_parts.scheme == 'http':
                 file_content64 = None
             else:

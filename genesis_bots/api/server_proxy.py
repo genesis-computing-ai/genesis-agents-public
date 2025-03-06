@@ -21,6 +21,8 @@ from   typing                   import Any, Dict, Union
 import uuid
 import logging
 
+from  getpass                  import getpass
+
 DEFAULT_GENESIS_DB = "GENESIS_BOTS"
 
 class GenesisServerProxyBase(ABC):
@@ -41,6 +43,7 @@ class GenesisServerProxyBase(ABC):
         self._client_tool_func_map: Dict[str, callable] = {} # maps function names to the tool functions (callable)
         self._client_tool_func_to_bots_map: Dict[str, Dict[str, set]] = {} # # maps function names to teh set of bots to which  was assigned
         self._is_connected = False
+        self.genesis_app = None
 
 
     @abstractmethod
@@ -479,7 +482,7 @@ class EmbeddedGenesisServerProxy(RESTGenesisServerProxy):
         self.genesis_app = genesis_app  # Note that genesis_app is a global singleton instance of GenesisApp;
                                         # this pointer is for convenience and encapsulation
         self.genesis_app.set_internal_project_and_schema()
-        self.genesis_app.setup_databse(fast_start=fast_start)
+        self.genesis_app.setup_database(fast_start=fast_start)
         self.genesis_app.set_llm_key_handler()
 
         self.flask_app = None
@@ -558,8 +561,11 @@ def _load_snowflake_private_key(filename: str, silent: bool=True) -> bytes:
     if not silent:
         print(f"Loading Snowflake private key from {filename}")
     with open(filename, "rb") as finp:
-        p_key= serialization.load_pem_private_key(finp.read(), password=None, backend=default_backend()
-        )
+        try:
+            p_key= serialization.load_pem_private_key(finp.read(), password=None, backend=default_backend())
+        except Exception as e:
+            p_key= serialization.load_pem_private_key(finp.read(), password=getpass('Passphrase for private key: ').encode(), backend=default_backend())
+
     pkb = p_key.private_bytes(encoding=serialization.Encoding.DER, format=serialization.PrivateFormat.PKCS8,encryption_algorithm=serialization.NoEncryption())
     return pkb
 

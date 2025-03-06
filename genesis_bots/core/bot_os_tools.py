@@ -233,6 +233,7 @@ class ToolBelt:
 
         # Invert silent_mode if it's a boolean
         silent_mode = concise_mode
+        verbose = False
         if isinstance(silent_mode, bool):
             verbose = not silent_mode
 
@@ -963,8 +964,8 @@ class ToolBelt:
             if note_id is not None:
                 return self.get_note_info(bot_id=bot_id, note_id=note_id)
             else:
-                note_name = note_content['note_id']
-                return self.get_note_info(bot_id=bot_id, note_name=note_name)
+                note_id = note_content['note_id']
+                return self.get_note_info(bot_id=bot_id, note_id=note_id)
 
         note_id_created = False
         if note_id is None:
@@ -1105,6 +1106,7 @@ class ToolBelt:
                 %s, %s, %s, %s, %s, %s, %s, %s
             )
         """
+        cursor = None
         try:
             cursor = db_adapter.client.cursor()
             cursor.execute(
@@ -1214,7 +1216,7 @@ def get_tools(
     ) -> tuple[list, dict, dict]:
     """
     Retrieve a list of tools (function groups), available functions, and a mapping of functions to tools based on the specified tool names.
-    
+
     This function combines information from 'old style' and 'new style' tools (those which are registered in the global tools registry).
 
     Args:

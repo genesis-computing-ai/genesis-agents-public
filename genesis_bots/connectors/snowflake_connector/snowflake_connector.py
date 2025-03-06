@@ -1122,10 +1122,10 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         return True
 
     def create_google_sheets_creds(self):
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' and user='{self.user}';"
+        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets';"
 
-        # TEMP PATCH TO SWITCH USER SINCE self.user is not being set
-        query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE (ext_service_name = 'g-sheets' AND user = 'Jeff') OR (ext_service_name = 'g-sheets' AND user != 'Justin');"
+        # # TEMP PATCH TO SWITCH USER SINCE self.user is not being set
+        # query = f"SELECT parameter, value FROM {self.schema}.EXT_SERVICE_CONFIG WHERE (ext_service_name = 'g-sheets' AND user = 'Jeff') OR (ext_service_name = 'g-sheets' AND user != 'Justin');"
 
         cursor = self.client.cursor()
         cursor.execute(query)
@@ -1141,6 +1141,9 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         creds_json = json.dumps(creds_dict, indent=4)
         with open(f'g-workspace-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
+
+        print(f"LOADED GOOGLE CREDS FROM DB - creds_dict: {creds_dict}")
+
         return True
 
     def create_g_drive_oauth_creds(self):
@@ -2754,7 +2757,7 @@ def get_status(site):
             #     f"call core.run_arbitrary($$ grant read,write on stage app1.bot_git to application role app_public $$);"
             # )
 
-            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id' and user = '{self.user}'"
+            query = f"SELECT value from {self.schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = 'g-sheets' AND parameter = 'shared_folder_id'"
             cursor.execute(query)
             row = cursor.fetchone()
             cursor.close()
@@ -2777,7 +2780,8 @@ def get_status(site):
                 "Success": True,
                 "result": "Data successfully sent to Google Sheets",
                 "folder_url": result["folder_url"],
-                "file_url": result["file_url"]
+                "file_url": result["file_url"],
+                "file_id": result["file_id"],
             }
 
         return sample_data

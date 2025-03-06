@@ -12,7 +12,7 @@ from   genesis_bots.demo.app.genesis_app \
                                         genesis_app)
 from   genesis_bots.demo.routes import (oauth_routes, main_routes,
                                         realtime_routes, slack_routes,
-                                        udf_routes)
+                                        udf_routes, projects_routes)
 
 main_server = None
 
@@ -33,6 +33,7 @@ def main():
     app.register_blueprint(realtime_routes)
     app.register_blueprint(slack_routes)
     app.register_blueprint(udf_routes)
+    app.register_blueprint(projects_routes, url_prefix='/projects')
     app_https.register_blueprint(oauth_routes)
 
     app.register_blueprint(oauth_routes, url_prefix='/oauth')

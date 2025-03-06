@@ -1,3 +1,4 @@
+from genesis_bots.demo.routes.projects import projects_routes
 from genesis_bots.demo.routes.main import main_routes
 from genesis_bots.demo.routes.realtime import realtime_routes
 from genesis_bots.demo.routes.slack import slack_routes

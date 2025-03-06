@@ -132,6 +132,8 @@ def read_g_doc(doc_id, creds=None):
         document = service.documents().get(documentId=doc_id).execute()
         content = document.get('body').get('content')
 
+        service._http.http.close()
+
         text = ""
         for element in content:
             if 'paragraph' in element:
@@ -195,12 +197,12 @@ def append_g_doc(doc_id, data, creds=None):
 def update_g_doc(doc_id, data, creds=None):
     """
     Update a Google Doc's content by replacing all existing content with new data.
-    
+
     Args:
         doc_id (str): The ID of the document to update
         data (str): The new content to write
         creds: Optional credentials object
-        
+
     Returns:
         dict: Result containing Success status and Document ID or Error
     """
@@ -459,6 +461,7 @@ def get_g_file_comments(file_id, user='Unknown User'):
                     comments["comments"][comment_index]["columnIndex"] = (
                         number_to_column(j + 1)
                     )
+        service._http.http.close()
 
         return comments.get("comments", [])
 
@@ -501,6 +504,8 @@ def add_reply_to_g_file_comment(
             .execute()
         )
 
+        service._http.http.close()
+
         logger.info(f"Reply added: {created_reply['content']}")
         return created_reply
 
@@ -526,6 +531,8 @@ def get_g_file_web_link(file_id, creds=None):
 
         # Get the file metadata including the webViewLink
         file_metadata = service.files().get(fileId=file_id, fields="name, webViewLink, parents").execute()
+
+        service._http.http.close()
 
         return {
             "Success": True,
@@ -561,6 +568,8 @@ def find_g_file_by_name(file_name, creds=None):
         query = f"name='{file_name}'"
         response = service.files().list(q=query, fields="files(id, name, webViewLink, createdTime)").execute()
         files = response.get("files", [])
+
+        service._http.http.close()
 
         if files:
             return {"Success": True, "Files": files}
@@ -630,6 +639,8 @@ def get_g_folder_directory(folder_id=None, creds=None, db_adapter=None):
             "size": f.get("size")
         } for f in files]
 
+        service._http.http.close()
+
         return {
             "Success": True,
             "Files": file_list,
@@ -670,6 +681,8 @@ def add_g_file_comment(
             .execute()
         )
 
+        service._http.http.close()
+
         logger.info(f"Comment added: {created_comment['content']}")
         return created_comment
 
@@ -702,6 +715,8 @@ def get_g_folder_web_link(folder_id, creds):
         logger.info(f"Folder Name: {folder.get('name')}")
         logger.info(f"Web View Link: {folder.get('webViewLink')}")
 
+        service._http.http.close()
+
         return folder.get("webViewLink")
 
     except Exception as e:
@@ -732,6 +747,8 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
     file_size = file_metadata.get("size")
     parent_folder_id = file_metadata.get("parents")[0] if file_metadata.get("parents") else None
     g_file_type = 'sheet'
+
+    service._http.http.close()
 
     update_g_drive_file_version_table(db_adapter, g_file_id, version, file_name, file_size, parent_folder_id, g_file_type)
 
@@ -921,6 +938,8 @@ def create_folder_in_folder(folder_name, parent_folder_id):
 
     file = service.files().create(body=file_metadata, fields="id").execute()
 
+    service._http.http.close()
+
     logger.info(f'Folder ID: {file.get("id")} | Folder name: {folder_name}')
 
     return file.get("id")
@@ -1060,6 +1079,9 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
             "g_file_size": None,
             "g_file_version": "1",
         }
+
+        service._http.http.close()
+        drive_service._http.http.close()
 
         insert_into_g_drive_file_version_table(self, g_file_version_data)
 
@@ -1314,6 +1336,8 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
                         else:
                             rows = [[None]]
 
+        service._http.http.close()
+
         return {
             "Success": True,
             "cell_values": rows,
@@ -1336,6 +1360,8 @@ def delete_g_file(file_id=None, creds=None) -> dict:
         service = build("drive", "v3", credentials=creds)
 
         service.files().delete(fileId=file_id).execute()
+
+        service._http.http.close()
 
         return {"Success": True, "message": f"File {file_id} deleted successfully"}
     except Exception as error:

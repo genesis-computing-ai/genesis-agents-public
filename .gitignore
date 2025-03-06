@@ -39,4 +39,6 @@ apps/vscode-curosr-ext/node_modules/
 genesis_api_public.egg-info/
 genesis_api_whl.egg-info/
 genesis_bots.egg-info/
+
 customer_demos/*
+

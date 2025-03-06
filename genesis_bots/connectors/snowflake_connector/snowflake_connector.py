@@ -1142,6 +1142,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         with open(f'g-workspace-sa-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
 
+
         return True
 
     def create_g_drive_oauth_creds(self):

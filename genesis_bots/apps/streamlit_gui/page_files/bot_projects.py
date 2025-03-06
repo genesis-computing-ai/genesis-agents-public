@@ -3,6 +3,7 @@ import uuid
 from utils import get_bot_details, get_metadata, set_metadata
 from urllib.parse import quote
 from page_files.chat_page import ChatMessage, set_initial_chat_sesssion_data
+import os
 
 def bot_projects():
     # Custom CSS for back button
@@ -243,17 +244,59 @@ def bot_projects():
                                     # History expander
                                     if todo.get('history'):
                                         with st.expander("View History"):
-                                            for entry in todo['history']:
-                                                st.markdown(
-                                                    f"<small>"
-                                                    f"Action: {entry.get('action_taken', 'N/A')}<br>"
-                                                    f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
-                                                    f"Details: {entry.get('action_details', 'N/A')}<br>"
-                                                    f"Work Description: {entry.get('work_description', 'N/A')}<br>"
-                                                    f"Current Status: {entry.get('current_status', 'N/A')}<br>"
-                                                    f"</small>", 
-                                                    unsafe_allow_html=True
-                                                )
+                                            history_entries = todo.get('history', [])
+                                            if not history_entries:
+                                                st.info("No history entries available.")
+                                            else:
+                                                for entry in history_entries:
+                                                    if not isinstance(entry, dict):
+                                                        continue
+                                                        
+                                                    # Process all text fields for file paths
+                                                    history_text = {
+                                                        'action_taken': entry.get('action_taken', 'N/A'),
+                                                        'action_details': entry.get('action_details', 'N/A'),
+                                                        'work_description': entry.get('work_description', 'N/A')
+                                                    }
+                                                    
+                                                    # Convert file paths to links in all fields
+                                                    for key, text in history_text.items():
+                                                        if isinstance(text, str) and 'tmp/' in text:
+                                                            import re
+                                                            pattern = r'tmp/[^\s)]*\.txt'
+                                                            matches = re.finditer(pattern, text)
+                                                            for match in matches:
+                                                                file_path = match.group(0)
+                                                                # Button to navigate to file viewer
+                                                                if st.button(f"💻 See Detailed Work Log", key=f"view_file_{file_path}"):
+                                                                    # Store current state
+                                                                    st.session_state["previous_bot"] = selected_bot
+                                                                    st.session_state["previous_project"] = selected_project
+                                                                    st.session_state["previous_todo_id"] = todo.get('todo_id')
+                                                                    st.session_state["previous_history_open"] = True
+                                                                    st.session_state[f"history_{todo.get('todo_id')}"] = True  # Store history expander state
+                                                                    # Navigate to file viewer
+                                                                    st.session_state["selected_page_id"] = "file_viewer"
+                                                                    st.session_state["radio"] = "File Viewer"
+                                                                    st.session_state["file_path_to_view"] = file_path
+                                                                    st.session_state['hide_chat_elements'] = True
+                                                                    st.rerun()
+                                                                
+                                                                history_text[key] = text.replace(
+                                                                    file_path, 
+                                                                    f"[View work log above]"
+                                                                )
+
+                                                    st.markdown(
+                                                        f"<small>"
+                                                        f"Action: {history_text['action_taken']}<br>"
+                                                        f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
+                                                        f"Details: {history_text['action_details']}<br>"
+                                                        f"Work Description: {history_text['work_description']}<br>"
+                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
+                                                        f"</small>", 
+                                                        unsafe_allow_html=True
+                                                    )
                     st.markdown("---")
         else:
             st.info("No projects available.")

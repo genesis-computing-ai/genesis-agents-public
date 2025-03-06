@@ -11,6 +11,8 @@ from textwrap import dedent
 import uuid
 import random
 
+from page_files.file_viewer import file_viewer
+    
 PageDesc = namedtuple('_PageEntry', ['page_id', 'display_name', 'module_name', 'entry_func_name'])
 
 class Pages:
@@ -346,6 +348,7 @@ if st.session_state.data:
     if metadata_response == True:
         st.session_state.data_source = "snowflake"
 
+    pages.add_page('file_viewer', 'File Viewer', 'file_viewer', 'file_viewer')
     pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
     pages.add_page('configuration', 'Configuration', 'configuration', 'configuration')
     pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')

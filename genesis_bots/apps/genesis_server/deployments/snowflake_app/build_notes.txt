@@ -1,0 +1,94 @@
+
+
+// local
+cd {genesis_project_root}
+mkdir -p $HOME/test_docker
+docker build --rm -t genesis_app:latest .
+docker rm -f genesis && docker run --name genesis --env-file ./genesis_bots/apps/genesis_server/deployments/snowflake_app/docker.env -p 8501:8501 -p 8080:8080 -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db genesis_app:latest
+docker rm -f genesis && docker run --name genesis -p 8501:8501 -p 8080:8080 -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db genesis_app:latest
+
+// push to docker hub
+export DOCKER_REPO_NAME=mattglickman # set this to your docker repo name
+docker buildx build --platform linux/amd64,linux/arm64 -t genesis_app:latest .
+docker tag genesis_app:latest ${DOCKER_REPO_NAME}/genesis_app:latest
+docker push ${DOCKER_REPO_NAME}/genesis_app:latest
+
+// run from docker hub
+export DOCKER_REPO_NAME=mattglickman # set this to your docker repo name
+mkdir -p $HOME/test_docker
+docker rm -f genesis && docker run -p 8501:8501 -p 8080:8080 --name genesis -v $HOME/test_docker:/src/app/db -e SQLITE_DB_PATH=/src/app/db/genesis.db ${DOCKER_REPO_NAME}/genesis_app:latest
+
+// remote 
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
+docker push dshrnxx-genesis.registry.snowflakecomputing.com/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
+
+// natapp (don't forget MFA, below)
+snow spcs image-registry token --connection USWEST-PRO --format=JSON
+snow spcs image-registry token --connection USWEST-PRO  --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+//sql: alter user justin set mins_to_bypass_mfa = 100;
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+
+/spcs_test/app_test_schema/app_test_repository/genesis_app:latest
+
+// natapp east
+
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis-east-pro.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis-east-pro.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+
+// natapp east2 - ohio
+
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesiseast2-provider.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesiseast2-provider.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest7hdshdhsh2$$5hdshf2xnagpopcornwowzers23744@@A66
+
+// genesis_dev
+
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+
+dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo
+
+// mfa for genesis account
+
+// maybe USWEST below instead of USWEST-PRO with mfa turned on?
+snow spcs image-registry token --connection USWEST-PRO --format=JSON
+snow spcs image-registry token --connection USWEST-PRO  --format=JSON | docker login dshrnxx-genesis-dev.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
+instructions: https://docs.google.com/document/d/1b-Ng0oPpfnTE6TbDKJY7eE7Y0KkT0gkm4nNTbOZK3Y8/edit
+
+// alpha and dev
+docker build --rm -t genesis_app:latest --platform linux/amd64 .
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker tag genesis_app:latest dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+docker push dshrnxx-genesis-dev.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
+
+// streamlit to alpha demo for test
+snow sql -c ALPHA-DEMO -q "SHOW STAGES" 
+snow sql -c ALPHA-DEMO -q "PUT file://$(pwd)/*.* @APP_CODE_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+snow sql -c ALPHA-DEMO -q "PUT file://$(pwd)/page_files/*.py @APP_CODE_STAGE/page_files AUTO_COMPRESS=FALSE OVERWRITE=TRUE"
+
+// dev upgrade
+bash ./snowflake_app/upgrade_dev.sh
+
+// dev status
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "describe service genesis_bots.app1.genesisapp_service_service"
+
+// dev logs
+
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "SELECT SYSTEM\$GET_SERVICE_LOGS('GENESIS_BOTS.APP1.GENESISAPP_SERVICE_SERVICE',0,'genesis',1000);"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "SELECT SYSTEM\$GET_SERVICE_LOGS('GENESIS_BOTS.APP1.GENESISAPP_TASK_SERVICE',0,'genesis-task-server',1000);"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "SELECT SYSTEM\$GET_SERVICE_LOGS('GENESIS_BOTS.APP1.GENESISAPP_KNOWLEDGE_SERVICE',0,'genesis-knowledge',1000);"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "SELECT SYSTEM\$GET_SERVICE_LOGS('GENESIS_BOTS.APP1.GENESISAPP_HARVESTER_SERVICE',0,'genesis-harvester',1000);"
+
+
+snow sql -c GENESIS-ALPHA-CONSUMER -q "SHOW WAREHOUSES;"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "SHOW WAREHOUSES;"
+snow sql -c GENESIS-ALPHA-CONSUMER -q "ALTER WAREHOUSE XSMALL SUSPEND;"
+snow sql -c GENESIS-DEV-CONSUMER-2 -q "ALTER WAREHOUSE XSMALL SUSPEND;"
+
+

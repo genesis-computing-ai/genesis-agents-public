@@ -1,0 +1,7 @@
+channels:
+ - snowflake
+dependencies:
+ - streamlit=1.35.0
+ - pandas
+ - snowflake-snowpark-python
+ - snowflake-native-apps-permission

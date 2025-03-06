@@ -1,0 +1,187 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Flask",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "./demo/bot_os_multibot_1.py",
+        "FLASK_DEBUG": "1"
+      },
+      "args": ["run", "--no-debugger", "--no-reload", "--port", "8080"],
+      "jinja": true,
+      "justMyCode": true,
+      "python": "/Users/jeff/anaconda3/envs/genesis_env/bin/python"
+    },
+    {
+      "name": "Launch App (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://teams.microsoft.com/l/app/${{local:TEAMS_APP_ID}}?installAppPackage=true&webjoin=true&${account-hint}",
+      "cascadeTerminateToConfigurations": ["Python: Run App Locally"],
+      "presentation": {
+        "group": "all",
+        "hidden": true
+      },
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Python: Run App Locally",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/demo/bot_os_multibot_1.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Echo Bot",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "./echo_bot/app.py",
+        "FLASK_DEBUG": "1"
+      },
+      "args": ["run", "--no-debugger", "--no-reload", "--port", "3978"],
+      "jinja": true,
+      "justMyCode": true,
+      "python": "/Users/jeff/anaconda3/envs/genesis_env/bin/python"
+    },
+    {
+      "name": "Python: Harvester",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "./schema_explorer/standalone_harvester.py",
+        "FLASK_DEBUG": "1"
+      },
+      "args": ["run", "--no-debugger", "--no-reload", "--port", "8080"],
+      "jinja": true,
+      "justMyCode": true,
+      "python": "/Users/jeff/anaconda3/envs/genesis_env/bin/python"
+    },
+    {
+      "name": "Python: TaskServer",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "./demo/bot_os_task_server.py",
+        "FLASK_DEBUG": "1"
+      },
+      "args": ["run", "--no-debugger", "--no-reload", "--port", "8081"],
+      "jinja": true,
+      "justMyCode": true,
+      "python": "/Users/jeff/anaconda3/envs/genesis_env/bin/python"
+    },
+    {
+      "name": "Python: KnowledgeServer",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "./knowledge/bot_os_knowledge.py",
+        "FLASK_DEBUG": "1"
+      },
+      "args": ["run", "--no-debugger", "--no-reload", "--port", "8080"],
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Python: Regtest",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "./tests/hello_world_regtest_01.py",
+        "FLASK_DEBUG": "1",
+        "SNOWFLAKE_ACCOUNT_OVERRIDE": "RDB46973",
+        "SNOWFLAKE_PASSWORD_OVERRIDE": "pa$$word1234",
+        "SNOWFLAKE_USER_OVERRIDE": "test_runner"
+      },
+      "args": ["run", "--no-debugger", "--no-reload", "--port", "8080"],
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Streamlit: GENESIS_BOTS_ALPHA",
+      "type": "python",
+      "request": "launch",
+      "module": "streamlit",
+      "args": [
+        "run",
+        "streamlit_gui/streamlit_sis_v1.py",
+        "--server.port",
+        "8501"
+      ],
+      "jinja": true,
+      "justMyCode": true
+    },
+
+    {
+      "name": "Streamlit: DataCube",
+      "type": "python",
+      "request": "launch",
+      "module": "streamlit",
+      "args": [
+        "run",
+        "streamlit_gui/streamlit_show_datacube.py",
+        "--server.port",
+        "8501"
+      ],
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Python: Remote Attach",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "ogaaoakz-dshrnxx-genesis-dev-consumer.snowflakecomputing.app",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/src/app"
+        }
+      ]
+    },
+    {
+      "name": "Python: Current File with Genesis",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/bot_os:${workspaceFolder}/src/app:${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug (Edge)",
+      "configurations": ["Launch App (Edge)", "Python: Run App Locally"],
+      "preLaunchTask": "Prepare Teams App Resources",
+      "presentation": {
+        "group": "all",
+        "order": 1
+      },
+      "stopAll": true
+    },
+    {
+      "name": "Debug (Chrome)",
+      "configurations": ["Launch App (Chrome)", "Python: Run App Locally"],
+      "preLaunchTask": "Prepare Teams App Resources",
+      "presentation": {
+        "group": "all",
+        "order": 2
+      },
+      "stopAll": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang=“en”>
+
+<head>
+  <title>Welcome to submit service!</title>
+</head>
+
+<body>
+  <h1>Welcome to echo service!</h1>
+  <form action="{{ url_for("submit_fn") }}" method="post">
+    <label for="input">Input:<label><br>
+    <input type="text" id="input" name="input"><br>
+    <label for="input">Thread_ID:<label><br>
+      <input type="text" id="thread_text" name="thread_text"><br>
+    <input type="submit" name="submit_button" value="Send">
+  </form>
+  <h2>Input:</h2>
+    {{ echo_input }}
+  <h2>Output:</h2>
+    {{ echo_reponse }}
+</body>
+
+</html>

@@ -38,6 +38,7 @@ from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
 from genesis_bots.core.tools.send_email import send_email
 from api_examples.cli_chat import get_available_bots
 from genesis_bots.core.tools.google_drive import google_drive
+from genesis_bots.core.tools.pdf_tools import pdf_parser
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -347,6 +348,10 @@ class TestTools(unittest.TestCase):
         response = google_drive(action="DELETE_FILE", g_file_id=file_id)
         self.assertTrue(response['Success'], response)
 
+    def test_pdf_tools(self):
+        filepath = 'https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf'
+        response = pdf_parser(filepath)
+        self.assertTrue(response['Success'], response)
 
 
     @classmethod

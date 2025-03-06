@@ -13,6 +13,17 @@ import random
 
 PageDesc = namedtuple('_PageEntry', ['page_id', 'display_name', 'module_name', 'entry_func_name'])
 
+def redirect_to_url(url):
+    return f"""
+        <html>
+            <head>
+                <script>
+                    window.parent.location.href = '{url}';
+                </script>
+            </head>
+        </html>
+    """
+
 class Pages:
     """
     An internal helper structure serving as a poor man's page registry
@@ -366,7 +377,7 @@ if st.session_state.data:
     pages.add_page('support', 'Support and Community', 'support', 'support')
     pages.add_page('db_connections', 'Database Connections', 'db_connections', 'db_connections')
     pages.add_page('bot_projects', 'Bot Projects', 'bot_projects', 'bot_projects')
-    pages.add_page('projects_dashboard','Projects Dashboard','projects_dashboard','projects_dashboard')
+    # pages.add_page('bot_config','Projects Dashboard','bot_config','bot_config')
 
     #    st.sidebar.subheader("**Genesis App**")
 
@@ -799,11 +810,19 @@ if st.session_state.data:
                 is_selected = (selected_page_id == key) or (selected_page_id is None and key == "chat_page")
                 if not is_selected:
                     if st.button(page.display_name, key=f"nav_bottom_{key}", use_container_width=True,
-                                help=f"Navigate to {page.display_name}", type="secondary"):
+                        help=f"Navigate to {page.display_name}", type="secondary"):
+                        # if key == "bot_projects":
+                        #     js = redirect_to_url("http://localhost:8080/projects/dashboard")
+                        #     st.markdown(js, unsafe_allow_html=True)
+                        #     st.stop()
+                        # else:
                         st.session_state["selected_page_id"] = key
                         st.session_state["radio"] = page.display_name
                         st.session_state["previous_selection"] = page.display_name
                         st.rerun()
+
+    # Add a link to localhost:8080
+    st.sidebar.markdown("[Project Manager Dashboard](http://localhost:8080/projects/dashboard)", unsafe_allow_html=True)
 
     try:
         # Use page_id directly instead of looking up by display name

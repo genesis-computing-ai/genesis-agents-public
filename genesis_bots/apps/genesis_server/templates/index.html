@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='projects.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#dropdown').change(function() {
+                alert('You selected: ' + $(this).val());
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="left-column">
+            <div id='logo'>
+                <img src="http://localhost:8501/media/4d465ae1619cad8ef5279ea3b8d118de15d7edfd4a011bce87b32e3c.png" alt="Image">
+            </div>
+            <p id='new-chat-button'>⚡  New Chat</p>
+            <select id="dropdown">
+                <option value="a">Eve</option>
+                <option value="b">Janice</option>
+                <option value="c">Eliza</option>
+                <option value="d">Devon</option>
+            </select>
+        </div>
+        <div class="right-column">
+            <h3 id="back_to_chat" onclick="window.location.href='http://localhost:8501';" style="cursor: pointer;">← Back to Chat</h3>
+            <div id="selector">
+                <div id="select-bot">
+                    Select a bot:
+                </div>
+                <div id="select-team">
+                    Filter by project:
+                </div>
+            </div>
+            <h2>Project Todo Status:</h2>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import os
 from genesis_bots.core.logging_config import logger
-from flask import Blueprint, request, make_response, redirect, session, url_for
+from flask import Blueprint, request, make_response, redirect, session, url_for, render_template
 import requests
 from google_auth_oauthlib.flow import Flow
 import google.oauth2.credentials

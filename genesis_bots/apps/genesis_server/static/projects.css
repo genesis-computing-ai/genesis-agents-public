@@ -60,12 +60,27 @@
     margin: 40px 0px 10px 10px;
 }
 
-#select-bot{
+.select-wrapper{
     width: 50%;
 }
 
-#select-team{
-    width: 50%;
+.select-wrapper select{
+    width: 300px;
+    padding: 6px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.dropdown-label{
+    font-size: 1.2rem;
+    font-weight: 400;
+    font: Source Sans Pro, sans-serif;
+    line-height: 1.6;
+    margin: 4px;
+}
+
+#todo-table-wrapper{
+    display: none;
 }
 
 /* Table Styles */

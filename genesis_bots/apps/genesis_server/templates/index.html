@@ -6,13 +6,7 @@
     <title>Project Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='projects.css') }}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#dropdown').change(function() {
-                alert('You selected: ' + $(this).val());
-            });
-        });
-    </script>
+    <script src="{{ url_for('static', filename='projects.js') }}"></script>
 </head>
 <body>
     <div class="container">
@@ -22,43 +16,51 @@
             </div>
             <p id='new-chat-button'>⚡  New Chat</p>
             <select id="dropdown">
-                <option value="a">Eve</option>
-                <option value="b">Janice</option>
-                <option value="c">Eliza</option>
-                <option value="d">Devon</option>
+                {% for bot in bots %}
+                <option value="{{ bot['bot_id'] }}">{{ bot['bot_id'] }}</option>
+                {% endfor %}
             </select>
         </div>
         <div class="right-column">
             <h3 id="back_to_chat" onclick="window.location.href='http://localhost:8501';" style="cursor: pointer;">← Back to Chat</h3>
             <div id="selector">
-                <div id="select-bot">
+                <div class="select-wrapper">
+                    <div class='dropdown-label'>
                     Select a bot:
+                    </div>
+                    <select id = 'select-bot'>
+                        {% for bot in bots %}
+                            <option value="{{ bot['bot_id'] }}">{{ bot['bot_id'] }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div id="select-team">
+                <div class="select-wrapper">
+                    <div class='dropdown-label'>
                     Filter by project:
+                    </div>
+                    <select id = 'select-project'>
+                        <option value="Select a bot first"></option>
+                    </select>
                 </div>
             </div>
-            <h2>Project List:</h2>
-            <table class="project-table">
-                <thead>
-                    <tr>
-                        <th>Project ID</th>
-                        <th>Project Name</th>
-                        <th>Todo Count</th>
-                        <th>Created At</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in projects %}
+
+            <div id='todo-table-wrapper'>
+                <h2>Project List:</h2>
+                <table class="project-table">
+                    <thead>
                         <tr>
-                            <td>{{ project.project_id }}</td>
-                            <td>{{ project.project_name }}</td>
-                            <td>{{ project.todo_count }}</td>
-                            <td>{{ project.current_status }}</td>
+                            <th>Project ID</th>
+                            <th>Project Name</th>
+                            <th>Todo Count</th>
+                            <th>Created At</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <tr>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </body>

@@ -19,13 +19,31 @@ def get_metadata(metadata_type):
     else:
         raise Exception(f"Failed to get metadata: {response.text}")
 
+def _get_bot_list():
+    url = LOCAL_SERVER_URL + "udf_proxy/list_available_bots"
+    headers = {"Content-Type": "application/json"}
+    data = json.dumps({"data": [[0]]})
+    response = requests.post(url, headers=headers, data=data)
+    if response.status_code == 200:
+        return response.json()["data"][0][1]
+    else:
+        raise Exception(f"Failed to get bot list: {response.text}")
+
 @projects_routes.get("/dashboard")
 def dashboard():
-    temp_bot_id = 'Eve'
-    results = get_metadata(f"list_projects {temp_bot_id}")
-    return render_template("index.html", projects=results['projects'])
+    bots = _get_bot_list()
+    return render_template("index.html", bots=bots)
 
-@projects_routes.get("/delete_callback")
+@projects_routes.get("/get_projects")
+def get_projects():
+    # list_projects {bot_id}
+    pass
+
+@projects_routes.get("/get_todos")
+def get_todos():
+    # list_todos {project_id}
+    pass
+
+@projects_routes.get("/delete_todo_callback")
 def delete_callback():
-    # When user clicks icon to delete a TODO item, this function is called
     pass

@@ -8,7 +8,8 @@ jobs:
     name: Build Source Distribution
     runs-on: ubuntu-latest
     env:
-      PACKAGE_VERSION: '1.0.43'
+      PACKAGE_VERSION: '1.0.46'
+    
     steps:
     - uses: actions/checkout@v4
       with:

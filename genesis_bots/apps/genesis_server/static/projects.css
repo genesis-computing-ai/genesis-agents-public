@@ -132,11 +132,11 @@
     border-bottom: 2px solid #FF4B4B;
 }
 
-.todo-table tbody tr:hover {
+/* .todo-table tbody tr:hover {
     background-color: #f5f5f5;
     color: #FF4B4B;
     cursor: pointer;
-}
+} */
 
 /* Make table responsive */
 @media screen and (max-width: 768px) {
@@ -147,9 +147,18 @@
     }
 }
 
+.delete-todo {
+    text-align: center;
+}
+
+.delete-todo:hover {
+    color: red;
+    cursor: pointer;
+}
+
 .spinner {
     position: absolute;
-    left: 900px;
+    left: 860px;
     top: 440px;
     width: 80px;
     height: 80px;

@@ -70,7 +70,11 @@ function populateTodos(projectId) {
             const row = document.createElement("tr");
 
             const todoDeleteCell = document.createElement("td");
+            todoDeleteCell.classList.add("delete-todo");
             todoDeleteCell.textContent = "🗑️";
+            todoDeleteCell.onclick = function() {
+                alert('click');
+            };
             row.appendChild(todoDeleteCell);
 
             const todoIdCell = document.createElement("td");

@@ -12,7 +12,7 @@ import uuid
 import random
 
 from page_files.file_viewer import file_viewer
-    
+
 PageDesc = namedtuple('_PageEntry', ['page_id', 'display_name', 'module_name', 'entry_func_name'])
 
 def redirect_to_url(url):

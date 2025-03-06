@@ -73,7 +73,7 @@ function populateTodos(projectId) {
             todoDeleteCell.classList.add("delete-todo");
             todoDeleteCell.textContent = "🗑️";
             todoDeleteCell.onclick = function() {
-                alert('click');
+                alert('Delete todo with id: ' + todo.todo_id);
             };
             row.appendChild(todoDeleteCell);
 

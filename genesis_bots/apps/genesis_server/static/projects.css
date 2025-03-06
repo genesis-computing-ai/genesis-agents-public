@@ -107,7 +107,7 @@
 }
 
 .todo-table thead tr {
-    background-color: #FF4B4B;
+    background-color: #E67300;
     color: #ffffff;
     text-align: left;
     font-weight: bold;
@@ -129,7 +129,7 @@
 }
 
 .todo-table tbody tr:last-of-type {
-    border-bottom: 2px solid #FF4B4B;
+    border-bottom: 2px solid #E67300;
 }
 
 /* .todo-table tbody tr:hover {
@@ -152,7 +152,7 @@
 }
 
 .delete-todo:hover {
-    color: red;
+    color: #E67300;
     cursor: pointer;
 }
 
@@ -163,7 +163,7 @@
     width: 80px;
     height: 80px;
     border: 8px solid #f3f3f3;
-    border-top: 8px solid #FF4B4B;
+    border-top: 8px solid #E67300;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     display: none;

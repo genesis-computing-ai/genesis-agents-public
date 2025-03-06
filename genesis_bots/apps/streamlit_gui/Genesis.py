@@ -821,8 +821,7 @@ if st.session_state.data:
                         st.session_state["previous_selection"] = page.display_name
                         st.rerun()
 
-    # Add a link to localhost:8080
-    st.sidebar.markdown("[Project Manager Dashboard](http://localhost:8080/projects/dashboard)", unsafe_allow_html=True)
+    st.sidebar.markdown("[Project Manager Dashboard (Local)](http://localhost:8080/projects/dashboard)", unsafe_allow_html=True)
 
     try:
         # Use page_id directly instead of looking up by display name

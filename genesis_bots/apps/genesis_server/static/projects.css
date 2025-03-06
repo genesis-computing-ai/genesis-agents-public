@@ -67,3 +67,56 @@
 #select-team{
     width: 50%;
 }
+
+/* Table Styles */
+.project-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.project-table thead tr {
+    background-color: #FF4B4B;
+    color: #ffffff;
+    text-align: left;
+    font-weight: bold;
+}
+
+.project-table th,
+.project-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #dddddd;
+}
+
+.project-table tbody tr {
+    border-bottom: 1px solid #dddddd;
+    transition: background-color 0.2s ease;
+}
+
+.project-table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+
+.project-table tbody tr:last-of-type {
+    border-bottom: 2px solid #FF4B4B;
+}
+
+.project-table tbody tr:hover {
+    background-color: #f5f5f5;
+    color: #FF4B4B;
+    cursor: pointer;
+}
+
+/* Make table responsive */
+@media screen and (max-width: 768px) {
+    .project-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

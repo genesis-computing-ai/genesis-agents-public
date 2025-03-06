@@ -38,7 +38,27 @@
                     Filter by project:
                 </div>
             </div>
-            <h2>Project Todo Status:</h2>
+            <h2>Project List:</h2>
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>Project ID</th>
+                        <th>Project Name</th>
+                        <th>Todo Count</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                        <tr>
+                            <td>{{ project.project_id }}</td>
+                            <td>{{ project.project_name }}</td>
+                            <td>{{ project.todo_count }}</td>
+                            <td>{{ project.current_status }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </body>

@@ -21,13 +21,15 @@ from genesis_bots.google_sheets.g_sheets import (
     read_g_sheet,
     write_g_sheet_cell_v4,
     create_g_sheet_v4,
-    delete_g_sheet,
+    delete_g_file,
     get_root_folder_id,
     set_root_folder_id,
     read_g_doc,
     create_g_doc,
     append_g_doc,
-    update_g_doc
+    update_g_doc,
+    use_service_account,
+
 )
 
 from genesis_bots.connectors import get_global_db_connector
@@ -66,6 +68,7 @@ google_drive_tools = ToolFuncGroup(
             APPEND_DOC - Appends to a Google Drive Doc
             UPDATE_DOC - Updates a Google Drive Doc
             DELETE_FILE - Deletes a file from Google Drive
+            USE_SERVICE_ACCOUNT - Overwrite any Oauth2.0 credentials to use default service account set in database
     """
     ),
     g_folder_id="The unique identifier of a folder stored on Google Drive.",
@@ -161,7 +164,7 @@ def google_drive(
 
     elif action == "GET_FILE_BY_NAME":
         try:
-            file_id = find_g_file_by_name(g_file_name, None, db_adapter.user)
+            file_id = find_g_file_by_name(g_file_name, None)
             return {"Success": True, "id": file_id}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -182,7 +185,7 @@ def google_drive(
 
     elif action == "GET_LINK_FROM_FILE_ID":
         try:
-            web_link = get_g_file_web_link(g_file_id, None, db_adapter.user)
+            web_link = get_g_file_web_link(g_file_id, None)
             return {"Success": True, "web_link": web_link}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -197,7 +200,7 @@ def google_drive(
 
     elif action == "GET_COMMENTS":
         try:
-            comments_and_replies = get_g_file_comments(db_adapter.user, g_file_id)
+            comments_and_replies = get_g_file_comments(g_file_id, db_adapter.user)
             return {"Success": True, "Comments & Replies": comments_and_replies}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -231,12 +234,12 @@ def google_drive(
     elif action == "EDIT_SHEET":
         # cell_range = verify_single_cell(g_sheet_cell)
 
-        print(
-            f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_values}\n"
-        )
+        # print(
+        #     f"\nG_sheet value to insert to cell {g_sheet_cell}: Value: {g_sheet_values}\n"
+        # )
 
         write_g_sheet_cell_v4(
-            g_file_id, g_sheet_cell, g_sheet_values, None, db_adapter.user
+            g_file_id, g_sheet_cell, g_sheet_values, None
         )
 
         return {
@@ -247,14 +250,19 @@ def google_drive(
     elif action == "GET_SHEET" or action == "READ_SHEET":
         # cell_range = verify_single_cell(g_sheet_cell)
         try:
-            value = read_g_sheet(g_file_id, g_sheet_cell, None, db_adapter.user)
+            value = read_g_sheet(g_file_id, g_sheet_cell, None)
+            # Check if value is JSON serializable, if not convert to string
+            if isinstance(value, dict) and 'service' in value:
+                del value['service']
+            if not isinstance(value, (str, int, float, bool, list, dict)):
+                value = str(value)
             return {"Success": True, "value": value}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
 
     elif action == "LOGIN":
         auth_url = "https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/oauth/google_drive_login"
-        auth_url = "localhost:8080/oauth/google_drive_login"
+        auth_url = "http://localhost:8080/oauth/google_drive_login" if not os.getenv("ENV") or os.getenv("ENV") == "eqb52188" else auth_url
         return {"Success": "True", "auth_url": f"<{auth_url}>"}
 
     elif action == "SAVE_QUERY_RESULTS_TO_G_SHEET":
@@ -281,8 +289,13 @@ def google_drive(
         response = update_g_doc(g_file_id, g_doc_content)
         return response
 
-    elif action == "DELETE_SHEET":
-        response = delete_g_sheet(g_file_id, None)
+    elif action == "DELETE_FILE":
+        response = delete_g_file(g_file_id, None)
+        return response
+
+    elif action == "USE_SERVICE_ACCOUNT":
+        response = use_service_account()
+
         return response
 
     return {"Success": False, "Error": "Invalid action specified."}

@@ -24,6 +24,7 @@ genesis.db
 bot_git/
 runtime/
 genesis_sample/
+process_cache/
 
 # Build and distribution directories
 build/
@@ -38,4 +39,6 @@ apps/vscode-curosr-ext/node_modules/
 genesis_api_public.egg-info/
 genesis_api_whl.egg-info/
 genesis_bots.egg-info/
+
 customer_demos/*
+

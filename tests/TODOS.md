@@ -2,9 +2,13 @@
 GENESIS BOT TODOS
 =================
 
-GXS-Getting [] result on tool calls by source researcher to metadata queries
+
+set up todos for requirments, have local listener look for fields that need mapping work, and then run them
+Have local listener look for Todos in a specified project, and then process them...
+
+x Getting [] result on tool calls by source researcher to metadata queries
 x stop app in sg region
-gxs-if file not found in git, properly trigger the retry logic
+if file not found in git, properly trigger the retry logic
 connecting to oracle docs
 bulk add todos
 streamlit page to see projects and todos
@@ -20,7 +24,7 @@ signal to reset the annoy indexes when connections or connection rbac are change
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
 (test) axure openai
 (test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
-(test) gxs: comment handler test it out
+(test) comment handler test it out
 (test) sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 
 Later:
@@ -48,13 +52,13 @@ x test new bot on yuly branch
 x data connections list with snowflake
 x can you deploy a new bot files = []
 x existing snowflake deployment has no Snowflaek database connection listed (dev)
-x fix gxs
+x fix 
 x work on system prompt
 n o3 needs dev prompt first, others need system prompt first?x finish redhsift
 x do docs for bigquery
-x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
+x (test on alpha)  - have it write in the test requirements table to a bot workspace for one of the bots
 x waive 20 tool call per thread limit for claude threads
-x (aviv) test gxs with completion mode (w/git etc)
+x (aviv) test  with completion mode (w/git etc)
 x make connection, harvest, search metadata, and query database work directly via api
 x better way to collect NGROK_TOKEN and reporting when its not set
 x  make sure ngrok key is in place when in local mode before activating slack

@@ -211,12 +211,19 @@ class ToolBelt:
     ):
         #  logger.info(f"Running processes Action: {action} | process_id: {process_id or 'None'} | Thread ID: {thread_id or 'None'}")
         #         self.recurse_level = 0
-        self.recurse_stack = {thread_id: thread_id, process_id: process_id}
+        self.recurse_stack.append({thread_id: thread_id, process_id: process_id})
 
         if process_id is not None and process_id == '':
             process_id = None
         if process_name is not None and process_name == '':
             process_name = None
+
+        if process_config is not None and action != "KICKOFF_PROCESS":
+            return {
+                "Success": False,
+                "Error": "process_config should only be supplied when action is KICKOFF_PROCESS"
+            }
+
 
         if action == "TIME":
             return {
@@ -282,10 +289,14 @@ class ToolBelt:
         process = process['Data']
         process_id = process['PROCESS_ID']
         process_name = process['PROCESS_NAME']
-        process_config = process.get('PROCESS_CONFIG', '')
+        process_config_default = process.get('PROCESS_CONFIG', '')
+        if process_config_default is None:
+            process_config_default = "None"
         if process_config is None:
-            process_config = "None"
             process['PROCESS_CONFIG'] = "None"
+            process_config = "None"
+        else:
+            process['PROCESS_CONFIG'] = process_config
 
         if action == "KICKOFF_PROCESS":
             logger.info("Kickoff process.")
@@ -312,7 +323,9 @@ class ToolBelt:
             By the way, the system default email address (SYS$DEFAULT_EMAIL) is {self.sys_default_email}.  If the instructions say to send an email
             to SYS$DEFAULT_EMAIL, replace it with {self.sys_default_email}.
             Start by returning the first step of the process instructions below.
-            Simply return the first instruction on what needs to be done first without removing or changing any details.
+            If there one or more {{dynamic parameters}} in the process instructions for the first step, replace them with the actual values from the below-provided process configuration.
+            If there is a dynamic parameter needed that is not provided in the process configuration, return an error message and stop running the process.
+            Simply return the first instruction on what needs to be done first without removing or changing any details, except for replacing dynamic parameters, if any.
 
             Also, if the instructions include a reference to note, don't look up the note contents, just pass on the note_id or note_name.
             The note contents will be unpacked by whatever tool is used depending on the type of note, either run_query if the note is of

@@ -285,6 +285,8 @@ class GitFileManager:
         try:
             action = action.lower()
 
+
+
             if action == "list_files":
                 path = kwargs.get("path")
                 files = self.list_files(path)
@@ -293,6 +295,9 @@ class GitFileManager:
             elif action == "read_file":
                 if "file_path" not in kwargs:
                     return {"success": False, "error": "file_path is required"}
+                # Check if file_path starts with / and return error if it does
+                if kwargs["file_path"].startswith('/'):
+                    return {"success": False, "error": "Please provide a relative file path without leading /"}
                 content = self.read_file(kwargs["file_path"])
                 return {"success": True, "content": content}
 
@@ -303,6 +308,9 @@ class GitFileManager:
                     kwargs["content"] = kwargs["new_content"]
                 if "file_path" not in kwargs or "content" not in kwargs:
                     return {"success": False, "error": "file_path and content are required"}
+                # Check if file_path starts with / and return error if it does
+                if kwargs["file_path"].startswith('/'):
+                    return {"success": False, "error": "Please provide a relative file path without leading /"}
                 return self.write_file(
                     kwargs["file_path"],
                     kwargs["content"],

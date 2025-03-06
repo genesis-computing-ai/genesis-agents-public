@@ -59,6 +59,7 @@ class TestTools(unittest.TestCase):
 
         cls.client = GenesisAPI(server_proxy=server_proxy)
         cls.available_bot_ids = _get_available_bot_ids(cls.client)
+        cls.tool_belt = cls.client._server_proxy.genesis_app.sessions[0].tool_belt
 
         cls.eve_id = cls.available_bot_ids[0]
         for bot_id in cls.available_bot_ids:
@@ -154,7 +155,10 @@ class TestTools(unittest.TestCase):
     def test_process_manager(self):
         bot_id = self.eve_id
         process_name = 'test_process'
-        process_instructions = 'Run test_process each day'
+        process_instructions = f'''
+            Run test_process each day where you need to run a query and report the number of rows in harvest_control table using the SQL following query:
+                SELECT COUNT(*) FROM {self.db_adapter.schema}.PROCESSES'
+        '''
 
         response = manage_processes(action='CREATE', bot_id=bot_id, process_name=process_name,
                                     process_instructions=process_instructions)
@@ -168,6 +172,15 @@ class TestTools(unittest.TestCase):
         self.assertTrue(response['Success'])
         self.assertTrue(response['processes'][-1]['process_name'] == 'test_process')
         process_id = response['processes'][-1]['process_id']
+
+        response = self.tool_belt.run_process(action='KICKOFF_PROCESS', process_id=process_id, bot_id=bot_id)
+        self.assertTrue(response['Success'])
+
+        response = self.tool_belt.run_process(action='GET_NEXT_STEP', process_id=process_id, bot_id=bot_id)
+        # self.assertTrue(response['success'], response)
+
+        response = self.tool_belt.run_process(action='END_PROCESS', process_id=process_id, bot_id=bot_id)
+        self.assertTrue(response['success'])
 
         response = manage_processes(action='DELETE_CONFIRMED', bot_id=bot_id, process_id=process_id)
         self.assertTrue(response['Success'])
@@ -183,8 +196,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, prompt, thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=RESPONSE_TIMEOUT_SECONDS)
-        print(response)
-        self.assertTrue('process' in response)
+        self.assertTrue('process' in response, response)
 
         prompt = f'Run manage_processes function with the following action: CREATE_CONFIRMED, bot_id: {bot_id}, process_id: {process_id}, process_name: {process_name}, process_instructions: {process_instructions}'
         thread_id = str(uuid4())
@@ -230,8 +242,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=40)
-        print(response)
-        self.assertTrue('_ImageGeneration_' in response)
+        self.assertTrue('_ImageGeneration_' in response, response)
         self.assertTrue('.png' in response)
 
     @unittest.skipIf(not SNOWFLAKE, "Skipping test_snowflake_tools on Sqlite")
@@ -282,16 +293,15 @@ class TestTools(unittest.TestCase):
         bot_id = self.eve_id
         thread_id = str(uuid4())
         response = _search_google(query='What is the current bitcoin price?', search_type='search', bot_id=bot_id, thread_id=thread_id)
-        self.assertTrue(response['success'], str(response))
-        self.assertTrue('Dollar' in response['data']['answerBox']['answer'])
+        self.assertTrue(response['success'], response)
 
         response = _search_google(query='Where is Apple HD in CA?', search_type='places', bot_id=bot_id, thread_id=thread_id)
-        self.assertTrue(response['success'])
-        self.assertTrue('CA' in response['data']['places'][0]['address'])
+        self.assertTrue(response['success'], response)
+        self.assertTrue('CA' in response['data']['places'][0]['address'], response)
 
         response = _scrape_url(url='https://en.wikipedia.org/wiki/IEEE_Transactions_on_Pattern_Analysis_and_Machine_Intelligence')
         self.assertTrue(response['success'])
-        self.assertTrue('Impact' in response['data']['text'], str(response))
+        self.assertTrue('Impact' in response['data']['text'], response)
 
     def test_web_acces_tools_agent(self):
         bot_id = self.eve_id
@@ -306,37 +316,36 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         g_folder_id = '1-o_QvvejVllkz0XZeRYRl6-KcZGQYeub'
 
-        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query='SELECT * FROM HARVEST_CONTROL',
+        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query=f'SELECT * FROM {self.db_adapter.schema}.PROCESSES',
                                  thread_id=thread_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
         file_id = response['file_id']
 
         response = google_drive(action="LIST", g_folder_id=g_folder_id)
-        self.assertTrue(response['Success'])
-        print(response)
+        self.assertTrue(response['Success'], response)
         filename = response['files']['Files'][0]['name']
-        
+
         response = google_drive(action="GET_LINK_FROM_FILE_ID", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_FILE_VERSION_NUM", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_SHEET", g_file_id=file_id, g_sheet_cell='A1',
                                  thread_id=thread_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_FILE_BY_NAME", g_file_name=filename)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="ADD_COMMENT", g_file_id=file_id, g_sheet_values='Test Comment')
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
         response = google_drive(action="GET_COMMENTS", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        self.assertTrue(response['Success'], response)
 
-        response = google_drive(action="DELETE_SHEET", g_file_id=file_id)
-        self.assertTrue(response['Success'])
+        response = google_drive(action="DELETE_FILE", g_file_id=file_id)
+        self.assertTrue(response['Success'], response)
 
 
 

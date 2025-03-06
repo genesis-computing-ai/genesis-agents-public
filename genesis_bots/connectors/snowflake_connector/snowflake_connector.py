@@ -1117,7 +1117,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         # creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
 
         creds_json = json.dumps(creds_dict, indent=4)
-        with open(f'g-workspace-credentials.json', 'w') as json_file:
+        with open(f'g-workspace-sa-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
         return True
 
@@ -1139,10 +1139,9 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         creds_dict["private_key"] = creds_dict.get("private_key","").replace("&", "\n")
 
         creds_json = json.dumps(creds_dict, indent=4)
-        with open(f'g-workspace-credentials.json', 'w') as json_file:
+        with open(f'g-workspace-sa-credentials.json', 'w') as json_file:
             json_file.write(creds_json)
 
-        print(f"LOADED GOOGLE CREDS FROM DB - creds_dict: {creds_dict}")
 
         return True
 

@@ -136,10 +136,11 @@ def manage_projects(
     bot_id: str,
     project_id: str=None,
     project_details: Dict=None,
-    thread_id: str=None
+    thread_id: str=None,
+    static_project_id: bool = False
 ):
     """
-    Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST)
+    Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST, DELETE)
     These tools allow you to list, create, update, and remove projects, and change the status of projects.
     """
     return project_manager.manage_projects(
@@ -148,6 +149,7 @@ def manage_projects(
         project_id=project_id,
         project_details=project_details,
         thread_id=thread_id,
+        static_project_id=static_project_id
     )
 
 
@@ -177,6 +179,23 @@ def record_todo_work(
         work_results=work_results,
         thread_id=thread_id,
     )
+
+@gc_tool(
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    todo_id="ID of the todo item to get history for",
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[project_manager_tools],
+)
+def get_todo_history(
+    bot_id: str,
+    todo_id: str,
+    thread_id: str=None
+):
+    """
+    Get the complete history of a todo item, including status changes, work records, and other actions.
+    Returns a chronological list of all actions and changes made to the todo.
+    """
+    return project_manager.get_todo_history(todo_id=todo_id)
 
 
 @gc_tool(

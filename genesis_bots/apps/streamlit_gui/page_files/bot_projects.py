@@ -159,6 +159,7 @@ def bot_projects():
                                     # Details with expansion option
                                     details = todo.get('what_to_do', 'No details')
                                     with st.expander("Show Details"):
+                                        st.markdown(f"<p>Todo ID: {todo.get('todo_id', 'N/A')}</p>", unsafe_allow_html=True)
                                         st.markdown(f"<p>{details}</p>", unsafe_allow_html=True)
                                     
                                     # History expander

@@ -1,0 +1,33 @@
+[
+    {
+        "COLUMN_DESCRIPTION": "This column stores the patient ID.",
+        "CONFIDENCE_OUTPUT": null,
+        "CONFIDENCE_SCORE": null,
+        "CONFIDENCE_SUMMARY": null,
+        "CORRECT_ANSWER": null,
+        "DATA_TYPE": "CHAR",
+        "DECIMAL": null,
+        "EVALUATION_RESULTS": null,
+        "GIT_CONFIDENCE_OUTPUT_STAGE_LINK": null,
+        "GIT_MAPPING_PROPOSAL_STAGE_LINK": null,
+        "GIT_SOURCE_RESEARCH_STAGE_LINK": null,
+        "LENGTH": "10",
+        "LIST_OF_VALUES": null,
+        "LOGICAL_COLUMN_NAME": "Patient ID",
+        "LOGICAL_TABLE_NAME": "Claims Gold",
+        "MAPPING_PROPOSAL": null,
+        "PHYSICAL_COLUMN_NAME": "PATIENT_ID",
+        "PHYSICAL_TABLE_NAME": "CLAIMS_GOLD",
+        "PM_BOT_COMMENTS": null,
+        "PRIMARY_ISSUES": null,
+        "SECONDARY_ISSUES": null,
+        "SOURCE_RESEARCH": null,
+        "STATUS": "NEW",
+        "TABLE_DESCRIPTION": "This table stores information about patient claims",
+        "TRANSFORMATION_LOGIC": null,
+        "UPSTREAM_COLUMN": null,
+        "UPSTREAM_TABLE": null,
+        "WHICH_MAPPING_CORRECT": null,
+        "CORRECT_ANSWER_FOR_EVAL": "Directly mapped from bronze.claims_bronze.patient_id"
+    }
+]

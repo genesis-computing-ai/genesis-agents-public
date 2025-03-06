@@ -10,5 +10,45 @@ target field: patient_id
 sources: bronze.claims_bronze.patient_id
 transformation: Directly from claims_bronze.patient_id
 
+Below is the lineage for each field produced by a previous project:
+For each field, we list:
+target field: <field name>
+sources: fully qualified source tables in database.schema.table notation and columns from each table if multiple columns are used
+transformation: show the exact transformations applied to source columns to generate the target field
 
+target field: patient_id
+sources: bronze.claims_bronze.patient_id
+transformation: Directly from claims_bronze.patient_id
+
+Historical Notes from 2019 Claims Migration Project:
+-----------------------------------------------
+Raw notes from previous implementation:
+
+member_nbr -> came from claims.raw_claims.mbr_id
+claim_number -> claims.source_claims.clm_id + claims.source_claims.clm_seq_no concatenated
+service_dt -> claims.raw_claims.date_of_svc, needed cleanup for Y2K dates
+diagnosis -> claims.raw_claims.diag1, had to handle both ICD-9 and ICD-10
+npi -> provider.master.npi_id joined to claims.raw_claims.prov_id
+cpt -> claims.raw_claims.proc_cd, some legacy CPT-4 codes needed updates
+charged -> claims.raw_claims.chrg_amt, divided by 100 (was stored as pennies)
+allowed -> claims.raw_claims.alw_amt / 100
+paid -> claims.raw_claims.pd_amt / 100
+pos -> claims.raw_claims.svc_loc mapped through reference table
+claim_category -> derived from first digit of claim type
+admit_date -> facility_claims.admit_dt
+discharge_date -> facility_claims.disch_dt
+drg_code -> facility_claims.drg where claim_type = 'I'
+revenue_code -> facility_claims.rev_cd
+specialty -> provider.master.spec_cd mapped through CMS specialty table
+network_ind -> derived from claims.raw_claims.par_stat
+modifiers -> concatenated mod1, mod2, mod3, mod4 from claims.raw_claims
+auth_number -> claims.raw_claims.auth_id when required = 'Y'
+copay -> claims.raw_claims.copay_amt / 100
+deductible -> claims.raw_claims.ded_amt / 100
+
+Note: Field names have changed significantly since this implementation. Many source systems have been upgraded. Use as reference only.
+
+WARNING: Some transformations were specific to legacy systems and may not apply to current state.
+
+TODO: Need to verify current source system field names and data types before using these mappings.
 

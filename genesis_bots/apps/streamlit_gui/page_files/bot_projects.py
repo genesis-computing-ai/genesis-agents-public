@@ -1,6 +1,8 @@
 import streamlit as st
+import uuid
 from utils import get_bot_details, get_metadata, set_metadata
 from urllib.parse import quote
+from page_files.chat_page import ChatMessage, set_initial_chat_sesssion_data
 
 def bot_projects():
     # Custom CSS for back button
@@ -56,7 +58,15 @@ def bot_projects():
         if bot_names:
             col1, col2 = st.columns(2)
             with col1:
-                selected_bot = st.selectbox("Select a bot:", bot_names, key="bot_selector")
+                # Get currently selected bot from session state, or default to first bot
+                default_index = 0
+                if "current_bot" in st.session_state:
+                    try:
+                        default_index = bot_names.index(st.session_state.current_bot)
+                    except ValueError:
+                        default_index = 0
+                
+                selected_bot = st.selectbox("Select a bot:", bot_names, index=default_index, key="bot_selector")
                 if "previous_bot" not in st.session_state:
                     st.session_state.previous_bot = selected_bot
                 if st.session_state.previous_bot != selected_bot:
@@ -148,13 +158,81 @@ def bot_projects():
                             if i + j < len(todos_list):
                                 todo = todos_list[i + j]
                                 with cols[j]:
-                                    status_emoji = "✅" if todo.get('current_status') == 'COMPLETED' else "⏳"
+                                    status_emoji = "✅" if todo.get('current_status') == 'COMPLETED' else ("🏃" if todo.get('current_status') == 'IN_PROGRESS' else ("🛑" if todo.get('current_status') == 'ERROR' else "⏳"))
                                     st.markdown(f"""
                                     <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
                                         <h4>{status_emoji} {todo.get('todo_name', 'No name')}</h4>
                                         <p><i>Status: {todo.get('current_status', 'N/A')} | Created: {todo.get('created_at', 'N/A')} | Assigned: {todo.get('assigned_to_bot_id', 'N/A')}</i></p>
                                     </div>
                                     """, unsafe_allow_html=True)
+
+                                    # Create three columns for the buttons
+                                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                                    
+                                    # Work on this now button
+                                    with btn_col1:
+                                        if st.button("🔨 Work!", key=f"work_button_{todo.get('todo_id')}", use_container_width=True):
+                                            try:
+                                                new_thread_id = str(uuid.uuid4())
+                                                st.session_state.current_bot = selected_bot
+                                                st.session_state.current_thread_id = new_thread_id
+                                                new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
+                                                st.session_state.current_session = new_session
+                                                
+                                                if "active_sessions" not in st.session_state:
+                                                    st.session_state.active_sessions = []
+                                                if new_session not in st.session_state.active_sessions:
+                                                    st.session_state.active_sessions.append(new_session)
+                                                
+                                                st.session_state[f"messages_{new_thread_id}"] = []
+                                                
+                                                from page_files.chat_page import set_initial_chat_sesssion_data
+                                                initial_message = f"Perform work on the following todo:\ntodo id: {todo.get('todo_id')}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record work."
+                                                set_initial_chat_sesssion_data(
+                                                    bot_name=selected_bot,
+                                                    initial_prompt=initial_message,
+                                                    initial_message=None
+                                                )
+                                                
+                                                st.session_state.active_chat_started = True
+                                                st.session_state["radio"] = "Chat with Bots"
+                                                
+                                                st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Failed to create chat session: {str(e)}")
+                                    
+                                    # Add Hint button
+                                    with btn_col2:
+                                        if st.button("💡 Hint", key=f"hint_button_{todo.get('todo_id')}", use_container_width=True):
+                                            try:
+                                                project_id = selected_project_data['project_id']
+                                                todo_id = todo.get('todo_id')
+                                                with st.form(key=f"hint_form_{todo_id}"):
+                                                    hint = st.text_area("Enter hint:", key=f"hint_text_{todo_id}")
+                                                    if st.form_submit_button("Submit Hint"):
+                                                        result = set_metadata(f"add_todo_hint {project_id} {todo_id} {hint}")
+                                                        if result.get("success", False):
+                                                            st.success("Hint added successfully!")
+                                                            st.rerun()
+                                                        else:
+                                                            st.error(f"Failed to add hint: {result.get('Message', 'Unknown error')}")
+                                            except Exception as e:
+                                                st.error(f"Error adding hint: {e}")
+                                    
+                                    # Delete button
+                                    with btn_col3:
+                                        if st.button("❌ Delete", key=f"delete_button_{todo.get('todo_id')}", use_container_width=True):
+                                            try:
+                                                todo_id = todo.get('todo_id')
+                                                selected_bot_id = next((bot["bot_id"] for bot in bot_details if bot["bot_name"] == selected_bot), None)
+                                                result = get_metadata(f"delete_todo {selected_bot_id} {todo_id}")
+                                                if result.get("Success", False) or result.get("success", False) == True:
+                                                    st.success("Todo deleted successfully!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error(f"Failed to delete todo: {result.get('Message', 'Unknown error')}")
+                                            except Exception as e:
+                                                st.error(f"Error deleting todo: {e}")
 
                                     # Details with expansion option
                                     details = todo.get('what_to_do', 'No details')

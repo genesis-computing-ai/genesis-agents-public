@@ -320,13 +320,30 @@ def get_metadata():
                 result = {"Success": True, "Metadata": m}
             except Exception as e:
                 result = {"Success": False, "Error": e}
+        elif metadata_type.startswith('delete_todo '):
+            # Split on first 2 spaces to get PROJECT_ID and TODO_ID
+            parts = metadata_type.split(' ', 2)
+            if len(parts) < 3:
+                raise ValueError("delete_todo requires BOT_ID TODO_ID")
+            
+            _, bot_id, todo_id = parts
+            
+            # Call project manager to delete todo
+            result = project_manager.manage_todos(
+                action="DELETE",
+                bot_id=bot_id,
+                todo_id=todo_id
+            )
         else:
             raise ValueError(
                 "Invalid metadata_type provided."
             )
 
-        if result["Success"]:
-            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+        if result.get("Success", False) == True or result.get("success", False) == True:
+            if "Data" in result:
+                output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+            else:
+                output_rows = [[input_rows[0][0], result]]
         else:
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 

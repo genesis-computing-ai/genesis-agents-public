@@ -30,6 +30,104 @@ delegate_work = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
+
+@gc_tool(
+    program_id="ID of the program to run (e.g. 'mapping_research_and_proposal')", 
+    todo_id="ID of the todo to process",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[delegate_work],
+)
+def run_program(
+    program_id: str,
+    todo_id: str,
+    bot_id: str,
+    thread_id: str = None,
+    run_id: str = None,
+    session_id: str = None,
+    status_update_callback: str = None,
+    input_metadata: str = None,
+):
+    """
+    Run an external program to process a specific todo item.
+    Currently supported programs:
+    - mapping_research_and_proposal: Runs the data engineering mapping research and proposal workflow
+    """
+    import subprocess, sys
+    from genesis_bots.llm.llm_openai.bot_os_openai import StreamingEventHandler
+
+    def _update_streaming_status(msg, run_id, session_id, thread_id, status_update_callback, input_metadata):
+        message_obj = {
+            "type": "tool_call",
+            "text": msg
+        }
+        if run_id is not None:
+            if run_id not in StreamingEventHandler.run_id_to_messages:
+                StreamingEventHandler.run_id_to_messages[run_id] = []
+            StreamingEventHandler.run_id_to_messages[run_id].append(message_obj)
+
+            if StreamingEventHandler.run_id_to_output_stream.get(run_id) is not None:
+                if StreamingEventHandler.run_id_to_output_stream.get(run_id,"").endswith('\n'):
+                    StreamingEventHandler.run_id_to_output_stream[run_id] += "\n"
+                else:
+                    StreamingEventHandler.run_id_to_output_stream[run_id] += "\n\n"
+                StreamingEventHandler.run_id_to_output_stream[run_id] += msg
+                msg = StreamingEventHandler.run_id_to_output_stream[run_id]
+            else:
+                StreamingEventHandler.run_id_to_output_stream[run_id] = msg
+
+            status_update_callback(session_id, BotOsOutputMessage(thread_id=thread_id, status="in_progress", output=msg+" 💬", messages=None, input_metadata=input_metadata))
+
+    if program_id == "mapping_research_and_proposal":
+        # Get genesis_db from environment variable
+        genesis_db = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "genesis_test").split(".")[0]
+        
+        # Set up command for subprocess
+        cmd = [
+            "python",
+            "-m",
+            "api_examples.data_engineering.mapping_research_and_proposal",
+            "--genesis_db", genesis_db,
+            "--todo-id", todo_id
+        ]
+        
+        # Define the output file in /tmp/
+        tmp_output_file = f"tmp/{program_id}_{int(time.time())}.txt"
+        
+        # Update status with output file location
+        if status_update_callback:
+            status_msg = f"🔄 Running program: {program_id}\nOutput file: {tmp_output_file}"
+            _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+
+        try:
+            # Open the file for writing the output
+            with open(tmp_output_file, "w") as outfile:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=outfile,          # Redirect stdout to the file
+                    stderr=subprocess.STDOUT,  # Redirect stderr as well
+                    universal_newlines=True,
+                    bufsize=1,
+                    env=dict(os.environ, PYTHONUNBUFFERED="1")
+                )
+                return_code = process.wait()
+            
+            result = {"success": True, "return_code": return_code, "output_file": tmp_output_file}
+            if status_update_callback:
+                status_msg = f"✅ Program completed: {program_id}\nOutput file: {tmp_output_file}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+        
+        except Exception as e:
+            result = {"error": str(e)}
+            if status_update_callback:
+                status_msg = f"❌ Error running program {program_id}: {str(e)}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+    
+    return {
+        "result": result
+    }
+
+
+
 @gc_tool(
     prompt="The prompt to delegate to the target bot",
     target_bot="The bot ID or name to delegate the work to",

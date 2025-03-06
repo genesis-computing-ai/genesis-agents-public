@@ -117,7 +117,7 @@ class ProjectManager:
         Manages todo items with various actions.
         
         Args:
-            action (str): The action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST, DELETE)
+            action (str): The action to perform (CREATE, UPDATE, GET_TODO_DETAILS, CHANGE_STATUS, LIST, DELETE)
             bot_id (str): The ID of the bot performing the action
             todo_id (str, optional): The ID of the todo item
             todo_details (dict, optional): Details for creating/updating a todo item
@@ -175,6 +175,64 @@ class ProjectManager:
                     "success": True,
                     "todos": result_todos
                 }
+
+            elif action == "GET_TODO_DETAILS":
+                if not todo_id:
+                    return {
+                        "success": False,
+                        "error": "todo_id is required for GET_DETAILS action"
+                    }
+
+                # Get todo details
+                todo_query = f"""
+                SELECT todo_id, project_id, todo_name, current_status, assigned_to_bot_id,
+                       requested_by_user, what_to_do, created_at, updated_at
+                FROM {self.db_adapter.schema}.TODO_ITEMS
+                WHERE todo_id = %s
+                """
+                cursor.execute(todo_query, (todo_id,))
+                todo = cursor.fetchone()
+
+                if not todo:
+                    return {
+                        "success": False,
+                        "error": f"Todo with ID {todo_id} not found"
+                    }
+
+                # Get todo history
+                history_query = f"""
+                SELECT action_taken, action_by_bot_id, action_details, action_timestamp
+                FROM {self.db_adapter.schema}.TODO_HISTORY
+                WHERE todo_id = %s
+                ORDER BY action_timestamp DESC
+                """
+                cursor.execute(history_query, (todo_id,))
+                history = cursor.fetchall()
+
+                return {
+                    "success": True,
+                    "todo": {
+                        "todo_id": todo[0],
+                        "project_id": todo[1], 
+                        "todo_name": todo[2],
+                        "current_status": todo[3],
+                        "assigned_to_bot_id": todo[4],
+                        "requested_by_user": todo[5],
+                        "what_to_do": todo[6],
+                        "created_at": todo[7],
+                        "updated_at": todo[8],
+                        "dependencies": self._get_todo_dependencies(cursor, todo_id),
+                        "history": [
+                            {
+                                "action_taken": h[0],
+                                "action_by_bot_id": h[1],
+                                "action_details": h[2],
+                                "action_timestamp": h[3]
+                            } for h in history
+                        ]
+                    }
+                }
+
 
             elif action == "CREATE":
                 if not todo_details or "project_id" not in todo_details:

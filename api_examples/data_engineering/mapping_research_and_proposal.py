@@ -131,7 +131,8 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
     '''
 
-    response = call_genesis_bot(client, bot_id, pm_prompt)
+    thread = uuid.uuid4()
+    response = call_genesis_bot(client, bot_id, pm_prompt, thread=thread)
 
     # Extract JSON between tags
     if "!!JSON_START!!" not in response or "!!JSON_END!!" not in response:
@@ -154,7 +155,11 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     print("\033[96m" + "-"*80 + "\033[0m")  # Cyan separator
     print(json.dumps(summary, indent=4, sort_keys=True, ensure_ascii=False))
     print("\033[96m" + "-"*80 + "\033[0m")  # Cyan separator
-    return summary
+    return {
+        'success': True,
+        'summary': summary,
+        'thread': thread
+    }
 
 
 def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_name):
@@ -247,10 +252,10 @@ def update_single_gsheet_cell(client, g_file_id, cell_location, value, pm_bot_id
             bot_id=pm_bot_id
         )
 
-     #   if result.get("Success"):
-     #       print(f"\033[92mSuccessfully updated cell {cell_location} with value: {value}\033[0m")
-     #   else:
-     #       print(f"\033[91mFailed to update cell: {result.get('error')}\033[0m")
+        if result.get("Success"):
+            print(f"\033[92mSuccessfully updated cell {cell_location} with value: {value}\033[0m")
+        else:
+            print(f"\033[91mFailed to update cell: {result.get('error')}\033[0m")
             
         return result
         
@@ -424,7 +429,8 @@ def evaluate_results(client, filtered_requirement=None, pm_bot_id=None, mapping_
 
         # Send to PM bot for evaluation
         message_str = json.dumps(message)
-        evaluation = call_genesis_bot(client, pm_bot_id, message_str)
+        thread = str(uuid.uuid4())
+        evaluation = call_genesis_bot(client, pm_bot_id, message_str, thread=thread)
 
         json_str = evaluation.split("```json\n")[-1].split("\n```")[0].strip()
         response = json_str
@@ -448,7 +454,7 @@ def evaluate_results(client, filtered_requirement=None, pm_bot_id=None, mapping_
             print("\033[91m" + "🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑" + "\033[0m")
 
 
-        return evaluation, summary
+        return evaluation, summary, thread
 
     except Exception as e:
         print(f"\033[31mError in evaluation: {str(e)}\033[0m")
@@ -997,6 +1003,8 @@ def add_todos(client, requirements, bot_id, project_id="de_requirements_mapping"
         todo = {
             "todo_name": f"Map field: {req['PHYSICAL_COLUMN_NAME']}",
             "what_to_do": f"""
+Use _run_program tool to run the mapping_research_and_proposal program referencing this Todo's id.
+            
 Field Details:
 - Physical Name: {req['PHYSICAL_COLUMN_NAME']}
 - Logical Name: {req['LOGICAL_COLUMN_NAME']}
@@ -1388,8 +1396,9 @@ def main():
                 confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
                 record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report)     
 
-            summary = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=summary)     
+            summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
+            summary = summary_results['summary']
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {summary_results['thread']}", bot_id=pm_bot_id, results=summary_results)     
         
             # Get the full content of each file from git
             source_research_content = source_research
@@ -1398,7 +1407,8 @@ def main():
             confidence_output_content = 'bypassed currently while we improve this bot'
             # Evaluate results
             if requirement['CORRECT_ANSWER_FOR_EVAL']:
-                evaluation, eval_json = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
+                evaluation, eval_json, thread = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation)     
             else:
                 evaluation = None
                 eval_json = None
@@ -1452,7 +1462,7 @@ def main():
                     record_work(
                         client=client,
                         todo_id=todo['todo_id'],
-                        description=f"Updated Google Sheet for column: {requirement['PHYSICAL_COLUMN_NAME']}",
+                        description=f"Updated [Google Sheet]({gsheet_location}) for column: {requirement['PHYSICAL_COLUMN_NAME']}. ",
                         bot_id=pm_bot_id,
                         results=None
                     )

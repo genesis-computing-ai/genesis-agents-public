@@ -26,10 +26,10 @@ project_manager_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+        description="Action to perform (CREATE, UPDATE, GET_TODO_DETAILS, CHANGE_STATUS, LIST)",
         required=True,
         llm_type_desc=dict(
-            type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+            type="string", enum=["CREATE", "UPDATE", "GET_TODO_DETAILS", "CHANGE_STATUS", "LIST"]
         ),
     ),
     todo_id=ToolFuncParamDescriptor(

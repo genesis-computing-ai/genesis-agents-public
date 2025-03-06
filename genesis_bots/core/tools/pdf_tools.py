@@ -32,7 +32,10 @@ pdf_tools = ToolFuncGroup(
 )
 def pdf_parser(filepath: str) -> dict:
     """
-    Parse a PDF file and return the text content.
+    load and parse PDF files to simple text content for summarization and text processing.
+
+    Args:
+        filepath (str): Path to the PDF file to parse (local file or URL)
     """
 
     # check if the path is a local file or a URL
@@ -47,7 +50,7 @@ def pdf_parser(filepath: str) -> dict:
             filepath = temp_file_path
         else:
             logger.error(f"Failed to download file from URL: {filepath}")
-            return {"Success": "False", "Error": f"Failed to download file from URL: {filepath}"}
+            return {"Success": False, "Error": f"Failed to download file from URL: {filepath}"}
 
     try:
         # open the PDF file
@@ -60,12 +63,12 @@ def pdf_parser(filepath: str) -> dict:
             text_data.append(text)
         doc.close()
         if len(text_data) == 0:
-            return {"Success": "False", "Error": "No text found in the PDF file."}
+            return {"Success": False, "Error": "No text found in the PDF file."}
         text = "\n".join(text_data)
-        return {"Success": "True", "Content": text}
+        return {"Success": True, "Content": text}
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
-        return {"Success": "False", "Error": f"An error occurred during parsing the pdf: {str(e)}"}
+        return {"Success": False, "Error": f"An error occurred during parsing the pdf: {str(e)}"}
 
 pdf_functions = [pdf_parser]
 

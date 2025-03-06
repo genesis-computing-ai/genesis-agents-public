@@ -1294,6 +1294,7 @@ def main():
     source_research_bot_id = 'DEng-sourceResearchBot'
     mapping_proposer_bot_id = 'DEng-mappingProposerBot'
     confidence_analyst_bot_id = 'DEng-confidenceAnalystBot'
+    etl_engineer_bot_id = 'DEng-ETLEngineerBot'
     project_id = 'de_requirements_mapping'
 
     skip_confidence = True
@@ -1308,7 +1309,7 @@ def main():
     if not args.todo_id:
         # If a specific todo_id is provided, filter the todos to only include this one
     
-        load_bots = True
+        load_bots = False
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server

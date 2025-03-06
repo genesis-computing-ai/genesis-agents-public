@@ -144,7 +144,7 @@ def read_g_doc(doc_id, creds=None):
         print(f"An error occurred: {error}")
         return None
 
-def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
+def create_g_doc(data, g_doc_title='Untitled Document', folder_id=None, creds=None):
     logger.info('Entering create_g_doc')
     creds = load_creds()
 
@@ -161,6 +161,10 @@ def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
         logger.info('Inserting text...')
         requests = [{"insertText": {"location": {"index": 1}, "text": data}}]
         docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests}).execute()
+
+        if folder_id:
+            logger.info(f'Moving document to folder {folder_id}')
+            drive_service.files().update(fileId=doc_id, addParents=folder_id).execute()
 
         return {"Success": True, "Document ID": doc_id}
 
@@ -1065,7 +1069,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         logger.info(f"An error occurred: {error}")
         return error
 
-def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None) -> dict:
+def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", g_folder_id=None, creds=None) -> dict:
     """
     Create a Google Sheet with the given values.
     Load pre-authorized user credentials from the environment.
@@ -1106,6 +1110,10 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None)
         )
 
         logger.info(f"{result.get('updatedCells')} cells created.")
+
+        if folder_id:
+            logger.info(f'Moving document to folder {folder_id}')
+            service.files().update(fileId=ss_id, addParents=folder_id).execute()
 
         return {
             "Success": True,
@@ -1263,20 +1271,20 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
                 start_col, end_col = col_range_match.groups()
                 start_col_num = column_to_number(start_col) - 1
                 end_col_num = column_to_number(end_col) - 1
-                
+
                 # Get all rows but only the specified columns
                 rows = [row[start_col_num:end_col_num + 1] for row in rows]
-                
+
             else:
                 # Handle normal ranges like A1:B2
                 match = re.match(r"([A-Za-z]{1,2})(\d+):([A-Za-z]{1,2})(\d+)", cell_range)
                 if match:
                     start_col, start_row, end_col, end_row = match.groups()
-                    
+
                     # Convert column letters to numbers (A=1, B=2, AA=27, etc)
                     start_col_num = column_to_number(start_col) - 1  # Convert to 0-based index
                     end_col_num = column_to_number(end_col) - 1
-                    
+
                     # Convert row numbers to 0-based indices
                     start_row_num = int(start_row) - 1
                     end_row_num = int(end_row) - 1
@@ -1289,17 +1297,17 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
 
                     # Filter rows based on range
                     rows = rows[start_row_num:end_row_num + 1]
-                    
+
                     # Filter columns for each row
                     rows = [row[start_col_num:end_col_num + 1] for row in rows]
                 else:
-                    # Handle single cell case (e.g. "A1" or "AA1") 
+                    # Handle single cell case (e.g. "A1" or "AA1")
                     match = re.match(r"([A-Za-z]{1,2})(\d+)", cell_range)
                     if match:
                         col, row = match.groups()
                         col_num = column_to_number(col) - 1
                         row_num = int(row) - 1
-                        
+
                         # Ensure valid indices
                         if 0 <= row_num < len(rows) and 0 <= col_num < len(rows[0]):
                             rows = [[rows[row_num][col_num]]]

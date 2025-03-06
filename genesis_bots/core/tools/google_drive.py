@@ -177,7 +177,7 @@ def google_drive(
 
     elif action == "GET_ROOT_FOLDER" or action == 'GET_SHARED_FOLDER_ID':
         try:
-            root_folder = get_root_folder_id(db_adapter)
+            root_folder = get_root_folder_id()
             return {"Success": True, "Root Folder": root_folder}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -269,7 +269,7 @@ def google_drive(
         return response
 
     elif action == "CREATE_SHEET":
-        response = create_g_sheet_v4(g_sheet_values, g_file_name)
+        response = create_g_sheet_v4(g_sheet_values, g_file_name, g_folder_id)
         return response
 
     elif action == "READ_DOC":
@@ -277,7 +277,7 @@ def google_drive(
         return response
 
     elif action == "CREATE_DOC":
-        response = create_g_doc(g_doc_content, g_doc_title)
+        response = create_g_doc(g_doc_content, g_doc_title, g_folder_id)
         return response
 
     elif action == "APPEND_DOC":

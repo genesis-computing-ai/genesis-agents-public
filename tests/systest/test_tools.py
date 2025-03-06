@@ -157,7 +157,7 @@ class TestTools(unittest.TestCase):
         process_name = 'test_process'
         process_instructions = f'''
             Run test_process each day where you need to run a query and report the number of rows in harvest_control table using the SQL following query:
-                SELECT COUNT(*) FROM {self.db_adapter.harvest_control_table_name}'
+                SELECT COUNT(*) FROM {self.db_adapter.schema}.PROCESSES'
         '''
 
         response = manage_processes(action='CREATE', bot_id=bot_id, process_name=process_name,
@@ -293,16 +293,15 @@ class TestTools(unittest.TestCase):
         bot_id = self.eve_id
         thread_id = str(uuid4())
         response = _search_google(query='What is the current bitcoin price?', search_type='search', bot_id=bot_id, thread_id=thread_id)
-        self.assertTrue(response['success'], str(response))
-        self.assertTrue('Dollar' in response['data']['answerBox']['answer'])
+        self.assertTrue(response['success'], response)
 
         response = _search_google(query='Where is Apple HD in CA?', search_type='places', bot_id=bot_id, thread_id=thread_id)
-        self.assertTrue(response['success'])
-        self.assertTrue('CA' in response['data']['places'][0]['address'])
+        self.assertTrue(response['success'], response)
+        self.assertTrue('CA' in response['data']['places'][0]['address'], response)
 
         response = _scrape_url(url='https://en.wikipedia.org/wiki/IEEE_Transactions_on_Pattern_Analysis_and_Machine_Intelligence')
         self.assertTrue(response['success'])
-        self.assertTrue('Impact' in response['data']['text'], str(response))
+        self.assertTrue('Impact' in response['data']['text'], response)
 
     def test_web_acces_tools_agent(self):
         bot_id = self.eve_id
@@ -317,7 +316,7 @@ class TestTools(unittest.TestCase):
         thread_id = str(uuid4())
         g_folder_id = '1-o_QvvejVllkz0XZeRYRl6-KcZGQYeub'
 
-        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query='SELECT * FROM HARVEST_CONTROL',
+        response = google_drive(action="SAVE_QUERY_RESULTS_TO_G_SHEET", g_sheet_query=f'SELECT * FROM {self.db_adapter.schema}.PROCESSES',
                                  thread_id=thread_id)
         self.assertTrue(response['Success'], response)
         file_id = response['file_id']

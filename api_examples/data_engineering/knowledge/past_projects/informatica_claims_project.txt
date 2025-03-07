@@ -6,19 +6,10 @@ target field: <field name>
 sources: fully qualified source tables in database.schema.table notation and columns from each table if multiple columns are used
 transformation: show the exact transformations applied to source columns to generate the target field
 
-target field: patient_id
-sources: bronze.claims_bronze.patient_id
-transformation: Directly from claims_bronze.patient_id
-
-Below is the lineage for each field produced by a previous project:
-For each field, we list:
-target field: <field name>
-sources: fully qualified source tables in database.schema.table notation and columns from each table if multiple columns are used
-transformation: show the exact transformations applied to source columns to generate the target field
-
-target field: patient_id
-sources: bronze.claims_bronze.patient_id
-transformation: Directly from claims_bronze.patient_id
+target field: PATIENT_ID
+source table: HCLS.BRONZE.CLAIMS_BRONZE
+source field: PATIENT_ID
+tranformation: Directly mapped from HCLS.BRONZE.CLAIMS_BRONZE.PATIENT_ID
 
 Historical Notes from 2019 Claims Migration Project:
 -----------------------------------------------

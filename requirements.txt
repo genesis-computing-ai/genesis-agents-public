@@ -13,7 +13,7 @@ flask==3.0.3
 google-cloud-bigquery
 mistralai
 openai
-pandas==2.2.2
+pandas==2.1.4 # needed < 2.2.2 for databricks connector to work
 pyarrow==17.0.0
 pytest
 pyyaml==6.0.1
@@ -50,3 +50,5 @@ openpyxl
 sqlalchemy-redshift
 sqlalchemy-bigquery
 PyGithub
+sqlalchemy-databricks
+

@@ -253,7 +253,8 @@ def update_single_gsheet_cell(client, g_file_id, cell_location, value, pm_bot_id
         )
 
         if result.get("Success"):
-            print(f"\033[92mSuccessfully updated cell {cell_location} with value: {value}\033[0m")
+            display_value = str(value)[:200] + "..." if len(str(value)) > 200 else value
+            print(f"\033[92mSuccessfully updated cell {cell_location} with value: {display_value}\033[0m")
         else:
             print(f"\033[91mFailed to update cell: {result.get('error')}\033[0m")
             
@@ -613,39 +614,19 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
         First explore the available data for fields that may be useful using data_explorer function.
         You may want to try a couple different search terms to make sure your search is comprehensive.
 '''
-    #    HINT: We are only interested in data sourced from these tables (this is my Focus Tables List):
-
-    #    bronze.lending_loan_core.asset_account
-    #    bronze.core_accounts_service.customer_account
-    #    bronze.lending_loan_core.card_summary
-    #    bronze.lending_loan_core.billing_cycle_detail
-    #    bronze.lending_loan_core.billing_cycle_payment_info
-    #    bronze.cards_digicard_core.card
-    #    bronze.lending_loan_app.application
-    #    bronze.lending_loan_app.applicant_scoring_model_details
-        #    bronze.lending_cr_decision_eng.application_credit_decision
-        #    bronze.lending_loan_core.asset_account_parameter
-        #    bronze.lending_loan_core.asset_account_restriction
 
         past_projects_str = ""
         if past_projects_list:
             for project in past_projects_list:
                 past_projects_str += f"git_action(action='read_file',file_path='{project}')\n"
-        else:
-            past_projects_str = (
-                "git_action(action='read_file',file_path='knowledge/past_projects/loan_data_project_clean2.txt')\n"
-                "git_action(action='read_file',file_path='knowledge/past_projects/loan_lending_project_clean2.txt')\n"
-            )
+
         research_prompt += f'''
-        Then, consider these TWO past projects in your past project consideration step, stored in git. Get it by calling:
+        Then, consider these past projects in your past project consideration step, stored in git. Get it by calling:
         {past_projects_str}
 
         Be sure to use the git_action function, do NOT just hallucinate the contents of these files.
         Make SURE that you have read BOTH of these past project files, not just one of them.
-        HINT: This past project is useful mostly to see the logic and transforms used for similar fields, but is a different kind of loan (installment vs card) so a lot of
-        the source tables we need to use for our project will not be the same, and the logic may vary for our project as it's for credit cards not installment loans.
-        Use your intelligence to determine when a past mapping may apply vs not apply due to the differences between installment loans and credit cards and highlight any such thoughts.
-
+     
         It is important to analyze BOTH the data explorer results, and ALSO the past project, and to discuss both in your report.
         When discussing past project in your report, describe their sources and transforms independently, don't say things like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
@@ -725,13 +706,6 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id, pm_bot_id=N
 
     Now, make a mapping proposal for this field.
     If there are two options that both look good, label the best as Primary and the other as Secondary (in a separate section, but also with full details.)
-
-    HINT: Do NOT suggest mappings based on any of these tables, as they are related to installment loans not Cards:
-        LOAN_DATA, LOAN_SUMMARY, LOAN_REPAYMENT_SCHEDULE, LOAN_REPAYMENT_DETAIL, LOAN_RECOVERY_DETAIL, LOAN_DISBURSEMENT_DETAIL, LOAN_TRANSACTION_REPAYMENT_SCHEDULE_MAPPING
-        **DO NOT USE LOAN_DATA AS A SOURCE FOR YOUR MAPPINGS, IT IS NOT A VALID SOURCE FOR THIS PROJECT**    HINT: Use COALESCE() in your mappings to handle potential null values on numerical (but not date) fields, often for numbers for example a NULL would imply a 0.
-
-    HINT: If you need details about how acct_block_code is generated, you can read a special report about that field by calling:
-    git_action(action='read_file',file_path='knowledge/past_projects/acct_block_code.txt')
 
     Then save your full results at this git location using git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
     Don't forget use use git_action to save your full and complete mapping results.  Don't just put "see above" or similar as this file will be read by another bot who will not see your full completion output.
@@ -1060,7 +1034,7 @@ def record_work(client, todo_id, description, bot_id, results=None):
         raise e
 
 
-def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_BOTS', reset_all=False, folder_id=None, req_max=-1, project_id="de_requirements_mapping", past_projects_dir=None, past_projects_git_path=None, eval_answers_dir=None, eval_answers_git_path=None):
+def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_BOTS', reset_all=False, folder_id=None, req_max=-1, project_id="de_requirements_mapping", past_projects_dir=None, past_projects_git_path=None, eval_answers_dir=None, eval_answers_git_path=None, eve_bot_id=None):
     """
     Initialize the requirements table in Snowflake if it doesn't exist.
     Loads data from test_requirements.json if table needs to be created.
@@ -1070,6 +1044,62 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
         bot_id: Bot ID to use for database operations (defaults to eve_bot_id)
     """
     # Try to query table to check if exists
+    
+    # Check if source data table exists
+    check_source_query = "SELECT COUNT(*) FROM HCLS.BRONZE.RAW_CLAIM_HEADERS"
+    try:
+        res = run_snowflake_query(client, check_source_query, bot_id)
+    except Exception as e:
+        print("\033[31mSource data table HCLS.BRONZE.RAW_CLAIM_HEADERS not found. Please run the data creation script first.\033[0m")
+        raise Exception("Source data table not found - run data creation script first") from e
+    if 'Success' in res and res['Success'] == False:
+        raise Exception("Source data table not found - run data creation script first")
+    
+    # Get harvest control data to check what sources are being harvested
+    try:
+        harvest_control = client.run_genesis_tool(
+            tool_name="get_harvest_control_data",
+            params={},
+            bot_id=eve_bot_id
+        )
+        print("Retrieved current harvest control data")
+    except Exception as e:
+        print(f"\033[31mError getting harvest control data: {e}\033[0m")
+        raise e
+    # Parse harvest control data and check for HCLS database
+    if not isinstance(harvest_control, dict) or 'Data' not in harvest_control:
+        raise Exception("Invalid harvest control data format")
+        
+    try:
+        harvest_data = json.loads(harvest_control['Data'])
+        harvested_databases = [entry['DATABASE_NAME'] for entry in harvest_data ]
+        
+        if 'HCLS' not in harvested_databases:
+            print("\033[31mHCLS database is not being harvested. Adding it to harvest control.\033[0m")
+            # Add HCLS database to harvest control
+            try:
+                client.run_genesis_tool(
+                    tool_name="_set_harvest_control_data",
+                    params={
+                        "connection_id": "Snowflake",
+                        "database_name": "HCLS",
+                        "initial_crawl_complete": False,
+                        "refresh_interval": 5,
+                        "schema_exclusions": ["INFORMATION_SCHEMA"],
+                        "schema_inclusions": []
+                    },
+                    bot_id=eve_bot_id
+                )
+                print("Successfully added HCLS database to harvest control")
+            except Exception as e:
+                print(f"\033[31mError adding HCLS to harvest control: {e}\033[0m")
+                raise e
+
+            
+    except Exception as e:
+        print(f"\033[31mError checking harvest control data: {e}\033[0m")
+        raise e
+
     
     if not reset_all:
         check_query = f"SELECT COUNT(*) FROM {genesis_db}.{pm_bot_id.upper().replace("-", "_")}_WORKSPACE.{project_id}_REQUIREMENTS"
@@ -1318,13 +1348,13 @@ def main():
 
         # Initialize requirements table if not exists 
 
-        reset_all = True
+        reset_all = False
         req_max = -1
     else:
         reset_all = False
         req_max = -1
     
-    gsheet_location = initialize_system(client, pm_bot_id, genesis_db = args.genesis_db, pm_bot_id = pm_bot_id, reset_all = reset_all, req_max = req_max, past_projects_dir = past_projects_dir, past_projects_git_path = past_projects_git_path, project_id = project_id, eval_answers_dir = eval_answers_dir, eval_answers_git_path = eval_answers_git_path)
+    gsheet_location = initialize_system(client, pm_bot_id, genesis_db = args.genesis_db, pm_bot_id = pm_bot_id, reset_all = reset_all, req_max = req_max, past_projects_dir = past_projects_dir, past_projects_git_path = past_projects_git_path, project_id = project_id, eval_answers_dir = eval_answers_dir, eval_answers_git_path = eval_answers_git_path, eve_bot_id = eve_bot_id)
     
     todos = get_todos(client, "de_requirements_mapping", pm_bot_id, todo_id=args.todo_id) 
 
@@ -1512,10 +1542,10 @@ def main():
             # Update todo status to complete
             update_todo_status(client=client, todo_id=todo['todo_id'], new_status='ON_HOLD', bot_id=pm_bot_id)
 
-        # Return success status
-        return {
-            "success": True
-        }
+    # Return success status
+    return {
+        "success": True
+    }
 
                     # update the row in the g-sheet with the mapping and results
 

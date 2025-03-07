@@ -867,7 +867,7 @@ class SchemaExplorer:
                         col_num = 0
                         if 'columns' in result_tables and result_tables['columns']:
                             for i, col in enumerate(result_tables['columns']):
-                                if col.lower() == 'name':
+                                if col.lower() == 'name' or col.lower() == 'tablename':
                                     col_num = i
                                     break
                         if isinstance(result_tables, dict) and result_tables.get('success'):
@@ -894,7 +894,7 @@ class SchemaExplorer:
                         col_num = 0
                         if 'columns' in result_views and result_views['columns']:
                             for i, col in enumerate(result_views['columns']):
-                                if col.lower() == 'name':
+                                if col.lower() == 'name' or col.lower() == 'tablename' or col.lower() == 'viewname':
                                     col_num = i
                                     break
                         if isinstance(result_views, dict) and result_views.get('success'):

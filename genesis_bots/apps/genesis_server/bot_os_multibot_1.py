@@ -1,4 +1,4 @@
-from   flask                    import Flask
+from   flask                    import Flask, send_from_directory
 import os
 from   pathlib                  import Path
 import subprocess
@@ -24,7 +24,7 @@ def main():
     global_flags.runner_id = runner_id
     global_flags.multibot_mode = True
 
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="../../../genesis-dashboard/build", static_url_path="/")
     app_https = Flask(__name__)
 
     app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-development-secret-key')

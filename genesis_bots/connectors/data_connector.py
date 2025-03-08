@@ -132,6 +132,10 @@ class DatabaseConnector:
                     'error': "The connection_id 'Snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
                 }
 
+            # Handle Databricks connector string
+            if 'databricks+connector://' in connection_string:
+                connection_string = connection_string.replace('databricks+connector://', 'databricks://')
+
             # Extract db_type from connection string
             db_type = connection_string.split('://')[0]
             if '+' in db_type:

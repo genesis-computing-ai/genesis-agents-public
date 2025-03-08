@@ -1102,7 +1102,7 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
 
     
     if not reset_all:
-        check_query = f"SELECT COUNT(*) FROM {genesis_db}.{pm_bot_id.upper().replace("-", "_")}_WORKSPACE.{project_id}_REQUIREMENTS"
+        check_query = f"SELECT COUNT(*) FROM {genesis_db}.{pm_bot_id.upper().replace('-','_')}_WORKSPACE.{project_id.upper().replace('-','_')}_REQUIREMENTS"
         res = run_snowflake_query(client, check_query, bot_id)
         if isinstance(res, list) and len(res) > 0:
             print("Table already exists, checking gsheet location...")

@@ -485,7 +485,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                             f"No harvested objects were found matching the specified {criteria_msg}. "
                             "This may be because Genesis is not yet set up to harvest schema meatdata from this location. "
                             "You may want to add this connection to the harvest using the harvester tools."
-                            "You can try using regular SQL commands to list available tables in this location directly."
+                            "This does not mean there is no data in the database, just that it is not harvested by Genesis yet."
+                            "You can try still use regular SQL commands to list available databases, schemas, and tables in this location using the query_database function."
                         ]
 
             try:

@@ -1,14 +1,14 @@
 import React from 'react';
-import logo from './logo.svg';
 import './App.css';
-import Projects from './components/Projects';
+// import Projects from './components/Projects';
+import Settings from './components/Settings/Settings';
 
 function App() {
   return (
     <div className="App">
       <header className="App-header">
             <div className="App">
-              <Projects />
+              <Settings />
             </div>
       </header>
     </div>

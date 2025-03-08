@@ -73,13 +73,13 @@ const Settings: React.FC = () => {
 
   // Menu items
   const menu = [
-    { title: "General", url: "/settings/general" },
-    { title: "Profile", url: "/settings/profile" },
-    { title: "Notifications", url: "/settings/notifications" },
-    { title: "Language", url: "/settings/language" },
-    { title: "Appearance", url: "/settings/appearance" },
-    { title: "Plugins", url: "/settings/plugins" },
-    { title: "About", url: "/settings/about" },
+    { title: "LLM Model & Key", url: "/settings/llm_config" },
+    { title: "Setup Slack Connection", url: "/settings/slack_config" },
+    { title: "Bot Configuration", url: "/settings/bot_config" },
+    { title: "Harvester Status", url: "/settings/harvester_config" },
+    { title: "Setup Jira API Params", url: "/settings/jira_config" },
+    { title: "Setup WebAccess API Params", url: "/settings/web_access_api_config" },
+    { title: "Setup Google Workspace API", url: "/settings/google_api_config" },
   ];
 
   // Hide settings modal
@@ -101,9 +101,7 @@ const Settings: React.FC = () => {
   return (
     <div>
       <div className="page-header">
-        <h1>
-          react-settings-pane <small>Example</small>
-        </h1>
+        <h1>Genesis Settings</h1>
       </div>
       <div style={{ margin: "30px 0 90px 0" }}>
         <button onClick={showPrefs} className="btn btn-default">
@@ -119,20 +117,20 @@ const Settings: React.FC = () => {
       <div ref={prefsRef} className="md-modal">
         <SettingsPane
           items={menu}
-          index="/settings/general"
+          index="/settings/llm_config"
           settings={settings}
           onChange={handleSettingsChange}
           onPaneLeave={handleLeavePane}
         >
           <SettingsMenu
-            headline="General Settings"
+            headline="LLM Model & Key"
             items={menu}
             currentPage={currentPage}
             switchContent={switchContent}
             onMenuItemClick={handleMenuItemClick}
           />
           <SettingsContent header>
-            <SettingsPage handler="/settings/general">
+            <SettingsPage handler="/settings/llm_config">
               <fieldset className="form-group">
                 <label htmlFor="generalName">Name: </label>
                 <input
@@ -199,7 +197,7 @@ const Settings: React.FC = () => {
                 </select>
               </fieldset>
             </SettingsPage>
-            <SettingsPage handler="/settings/profile">
+            <SettingsPage handler="/settings/slack_config">
               <fieldset className="form-group">
                 <label htmlFor="profileFirstname">Firstname: </label>
                 <input
@@ -244,5 +242,3 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
-
-// ReactDOM.render(<App />, document.getElementById("app"));

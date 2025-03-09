@@ -14,6 +14,11 @@ interface Todo {
   what_to_do: string;
 }
 
+interface Bot {
+  bot_id: string;
+  bot_name: string;
+}
+
 interface ApiResponse<T> {
   data: [[number, { [key: string]: T[] }]];
 }
@@ -21,6 +26,7 @@ interface ApiResponse<T> {
 const Projects: React.FC = () => {
   const [selectedBot, setSelectedBot] = useState<string>("");
   const [selectedProject, setSelectedProject] = useState<string>("");
+  const [bots, setBots] = useState<Bot[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -88,6 +94,29 @@ const Projects: React.FC = () => {
     }
   };
 
+  const populateBots = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        "http://localhost:8080/udf_proxy/list_available_bots",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: [[0]],
+          }),
+        }
+      );
+
+      const data: ApiResponse<Bot> = await response.json();
+      setBots(data.data[0][1].bots);
+      setError("");
+      setLoading(false);
+    } catch (err) {
+      handleError(err as Error, "fetch bots");
+    }
+  };
+
   const handleDeleteTodo = (todoId: string) => {
     // TODO: Implement delete functionality
     alert(`Delete todo with id: ${todoId}`);
@@ -145,7 +174,7 @@ const Projects: React.FC = () => {
         <div>
             <div id='spinner' className='spinner'></div>
             <div id='todo-table-wrapper'>
-                <h2>Todo List:</h2>
+                <h2 className='table-title'>Todo List:</h2>
                 <table className="todo-table">
                     <thead>
                         <tr>

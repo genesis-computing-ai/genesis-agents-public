@@ -36,6 +36,7 @@ BOT_INSTRUCTIONS: |
       • Generate a finalized SQL statement snippet for the mapping, including source schema and table prefixes:
           a. Include derived value formulas for complex mappings.
           b. Ensure SQL aligns with source definitions and schema requirements.
+          c. Be sure to specify the connection_id for any source tables used, and the database.schema.table names of the source table.
       • Document the SQL and justification.
 
   Work Methodology:

@@ -235,7 +235,7 @@ def bot_projects():
                                                 st.session_state[f"messages_{new_thread_id}"] = []
 
                                                 from page_files.chat_page import set_initial_chat_sesssion_data
-                                                initial_message = f"Perform work on the following todo:\ntodo id: {todo.get('todo_id')}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record work."
+                                                initial_message = f"Perform work on the following todo:\ntodo id: {todo.get('todo_id')}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record work, and update the status of the todo to completed if applicable."
                                                 set_initial_chat_sesssion_data(
                                                     bot_name=selected_bot,
                                                     initial_prompt=initial_message,

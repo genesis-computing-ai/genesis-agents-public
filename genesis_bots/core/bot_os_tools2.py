@@ -846,6 +846,7 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.artifact_manager.get_artifact_manager_functions",
                 "genesis_bots.core.tools.delegate_work.get_delegate_work_functions",
                 "genesis_bots.core.tools.git_action.get_git_action_functions",
+                "genesis_bots.core.tools.dbt_action.get_dbt_action_functions",
                 "genesis_bots.core.tools.image_tools.get_image_functions",
                 "genesis_bots.core.tools.jira_connector.get_jira_connector_functions",
                 # "genesis_bots.core.tools.github_connector.get_github_connector_functions",

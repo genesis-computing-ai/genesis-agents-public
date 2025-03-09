@@ -28,7 +28,7 @@
         "UPSTREAM_COLUMN": null,
         "UPSTREAM_TABLE": null,
         "WHICH_MAPPING_CORRECT": null,
-        "CORRECT_ANSWER_FOR_EVAL": "Directly mapped from HCLS.BRONZE.CLAIMS_BRONZE.PATIENT_ID"
+        "CORRECT_ANSWER_FOR_EVAL": "Directly mapped from (my_databricks)BRONZE.HEALTHCARE_CLAIMS.CLAIMS.PATIENT_ID"
     },
     {
         "COLUMN_DESCRIPTION": "Unique identifier for each claim.",

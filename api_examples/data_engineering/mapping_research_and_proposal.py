@@ -112,14 +112,20 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
-    pm_prompt = f'''{message_prefix}Here are requirements for a target field I want you to work on: {requirement}\n
+    pm_prompt = f'''{message_prefix} Here are requirements for a target field I want you to work on: {requirement}\n
     The mapping proposer bot has saved its results in git at: {paths["base_git_path"]}{paths["mapping_proposal_file"]}\n'''
 
     if not skip_confidence:
         pm_prompt += f'''The confidence analyst bot has saved its results in git at: {paths["base_git_path"]}{paths["confidence_report_file"]}\n'''
 
     pm_prompt += f'''
-    Please review above documents and provide a JSON response with the following fields:
+    Use _git_action to retrieve and review the files mentioned above in git, for example:
+        git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["mapping_proposal_file"]}')
+
+    Then:
+
+    Based on your review above documents,  provide a JSON response with the following fields:
+    - UPSTREAM_DB_CONNECTION: The database connection ID where the source data resides (e.g. 'Snowflake', 'my_databricks', etc.)
     - UPSTREAM_TABLE: List of source table(s) needed for the data, with schema prefixes
     - UPSTREAM_COLUMN: List of source column(s) for the mapping
     - TRANSFORMATION_LOGIC: SQL snippet or natural language description of any needed transformations
@@ -143,7 +149,7 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     # Basic validation that we got JSON back
     try:
         summary = json.loads(response)
-        required_fields = ["UPSTREAM_TABLE", "UPSTREAM_COLUMN", "TRANSFORMATION_LOGIC",
+        required_fields = ["UPSTREAM_DB_CONNECTION", "UPSTREAM_TABLE", "UPSTREAM_COLUMN", "TRANSFORMATION_LOGIC",
                          "CONFIDENCE_SCORE", "CONFIDENCE_SUMMARY", "PM_BOT_COMMENTS"]
         for field in required_fields:
             if field not in summary:
@@ -186,6 +192,7 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
         update_query = f"""
             UPDATE {table_name}
             SET
+                upstream_db_connection = %(upstream_db_connection)s,
                 upstream_table = %(upstream_table)s,
                 upstream_column = %(upstream_column)s,
                 source_research = %(source_research)s,
@@ -198,7 +205,7 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 status = %(status)s,
                 which_mapping_correct = %(which_mapping_correct)s,
                 primary_issues = %(primary_issues)s,
-                secondary_issues = %(secondary_issues)s,
+                secondary_issues = %(secondary_issues)s
             WHERE physical_column_name = %(physical_column_name)s
         """
 
@@ -214,8 +221,8 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 query_with_params = query_with_params.replace(f'%({key})s', 'NULL')
             else:
                 # Escape single quotes in values
-                escaped_value = str(value).replace("'", "''")
-                query_with_params = query_with_params.replace(f'%({key})s', f"'{escaped_value}'")
+               # escaped_value = str(value).replace("'", "''")
+                query_with_params = query_with_params.replace(f'%({key})s', f"$${str(value)}$$")
 
         run_snowflake_query(genesis_api_client, query_with_params, eve_bot_id)
     
@@ -340,6 +347,7 @@ def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_loc
         print(f"Row number: {row_number}")
 
         fields_to_update = [
+            {'column': 'UPSTREAM_DB_CONNECTION', 'value': summary['UPSTREAM_DB_CONNECTION']},
             {'column': 'UPSTREAM_TABLE', 'value': summary['UPSTREAM_TABLE']},
             {'column': 'UPSTREAM_COLUMN', 'value': summary['UPSTREAM_COLUMN']},
             {'column': 'TRANSFORMATION_LOGIC', 'value': summary['TRANSFORMATION_LOGIC']},
@@ -613,6 +621,9 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
 
         First explore the available data for fields that may be useful using data_explorer function.
         You may want to try a couple different search terms to make sure your search is comprehensive.
+        Be sure to explore various database connections, as the source data may be in a different database connection.  If you are unsure, omit the db_connection parameter when using data_explorer.
+
+        In this project, we will generally be looking for source data from the my_databricks connection.
 '''
 
         past_projects_str = ""
@@ -625,16 +636,16 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
         {past_projects_str}
 
         Be sure to use the git_action function, do NOT just hallucinate the contents of these files.
-        Make SURE that you have read BOTH of these past project files, not just one of them.
+        Make SURE that you have read ALL of these past project files (if more than one provided), not just one of them.
      
         It is important to analyze BOTH the data explorer results, and ALSO the past project, and to discuss both in your report.
         When discussing past project in your report, describe their sources and transforms independently, don't say things like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
         When you're done, be sure to save your detailed results in git using the git_action function at {paths["base_git_path"]}{paths["source_research_file"]}
         Be sure to put a full copy of the contents of your research into that git location, not just a reference to "what you did above."
-        Make sure your report contains the results of both your data exploration, and your analysis of **both** past projects.
+        Make sure your report contains the results of both your data exploration, and your analysis of **all** past projects.
 
-        *** MAKE YOUR REPORT EXTREMELY DETAILED, WITH FULL DDL OF POTENTIAL SOURCE TABLES, AND FULL PAST PROJECT EXAMPLES OF SIMILAR FIELDS (SOURCING AND TRANSFORMS) ***
+        *** MAKE YOUR REPORT EXTREMELY DETAILED, WITH FULL DDL OF POTENTIAL SOURCE TABLES (NOTING WHAT CONNECTION_ID EACH RESIDES IN), AND FULL PAST PROJECT EXAMPLES OF SIMILAR FIELDS (SOURCING AND TRANSFORMS) ***
         *** THE READER OF THIS REPORT WILL NOT HAVE ACCESS TO ANY OTHER RESOURCES AND IT WILL NEED TO PROPOSE MAPPINGS BASED SOLELY ON YOUR REPORT ***
 
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.
@@ -656,7 +667,7 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
             contents = None
 
         if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
-            retry_prompt = f'''I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git.  Please complete your analysis, and then save your work again using the git_action function.'''
+            retry_prompt = f'''{message_prefix} I don't see the full results of your research saved at {paths["base_git_path"]}{paths["source_research_file"]} in git.  Please complete your analysis, and then save your work again using the git_action function.'''
             response = call_genesis_bot(client, bot_id, retry_prompt, thread = thread)
             file_name = paths["source_research_file"]
             try:
@@ -699,12 +710,15 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id, pm_bot_id=N
     f"""{message_prefix}Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
 
-    mapping_prompt = f'''Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
+    mapping_prompt = f'''{message_prefix} Here are requirements for a target field I want you to work on a mapping proposal for: {requirement}
 
     The source research bot has already run and saved its results at this git. First, read its report by calling:
     git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
 
-    Now, make a mapping proposal for this field.
+    Now, make a mapping proposal for this field based on the source research and the requirments of the field.
+    Only reference tables and objects and logic that are supported by the source research, be careful not to halicinate any other data sources, tables, or fields..
+    Be sure to note both the connection_id and fully qualified table name of any source tables you propose to use.
+    Explain your reasoning for each proposed mapping, and note any assumptions you are making, and quote the source research to support your case.
     If there are two options that both look good, label the best as Primary and the other as Secondary (in a separate section, but also with full details.)
 
     Then save your full results at this git location using git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
@@ -721,7 +735,7 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id, pm_bot_id=N
         contents = None
 
     if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
-        retry_prompt = f'''I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please complete your work, and then try the save using the git_action function.'''
+        retry_prompt = f'''{message_prefix} I don't see the full results of your mapping proposal saved at {paths["base_git_path"]}{paths["mapping_proposal_file"]} in git, please complete your work, and then try the save using the git_action function.'''
         try:
             response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
             contents = check_git_file(client, paths=paths, file_name=paths["mapping_proposal_file"], bot_id=eve_bot_id)
@@ -760,7 +774,7 @@ def perform_confidence_analysis_new(client, requirement, paths, bot_id):
     """Execute confidence analysis step and validate results."""
     print("\033[34mExecuting confidence analysis...\033[0m")
 
-    confidence_prompt = f'''Here are requirements for a target field I want you to analyze confidence for: {requirement}
+    confidence_prompt = f'''{message_prefix} Here are requirements for a target field I want you to analyze confidence for: {requirement}
 
     First read the source research report by calling:
     git_action(action='read_file',file_path='{paths["base_git_path"]}{paths["source_research_file"]}')
@@ -914,7 +928,7 @@ def get_past_project_git_locations(client, past_projects_dir, past_projects_git_
     return git_locations
 
 
-def initialize_project(client, bot_id, project_id="de_requirements_mapping"):
+def initialize_project(client, bot_id, project_id="deng_requirements_mapping", project_name="Data Engineering Requirements Mapping", project_description="Project for mapping source system fields to target system requirements for Data Engineering"):
     """Initialize project by deleting if exists and creating new."""
     print(f"\nInitializing project '{project_id}'...")
 
@@ -941,8 +955,8 @@ def initialize_project(client, bot_id, project_id="de_requirements_mapping"):
                 "action": "CREATE",
                 "project_id": project_id,
                 "project_details": {
-                    "project_name": "Data Engineering Requirements Mapping",
-                    "description": "Project for mapping source system fields to target system requirements for Data Engineering"
+                    "project_name": project_name,
+                    "description": project_description
                 },
                 "bot_id": bot_id,
                 "static_project_id": True
@@ -955,7 +969,7 @@ def initialize_project(client, bot_id, project_id="de_requirements_mapping"):
         raise e
 
 
-def add_todos(client, requirements, bot_id, project_id="de_requirements_mapping", max_todos=-1):
+def add_requirements_todos(client, requirements, bot_id, project_id="deng_requirements_mapping", max_todos=-1):
     """
     Add todos for each requirement to the project.
     
@@ -1006,6 +1020,53 @@ Field Details:
         print(f"Error adding todos: {e}")
         raise e
 
+
+def add_data_connector_todos(client, bot_id, project_id="deng_data_connector"):
+    """
+    Add todos for each requirement to the project.
+    
+    Args:
+        client: Genesis API client instance
+        bot_id: Bot ID to use for creating todos
+        project_id: Project ID to add todos to
+    """
+    print("\nAdding todos for data connector...")
+
+    todos = []
+    
+    todo = {
+        "todo_name": "Create Iceberg Tables for Databricks Sources",
+        "what_to_do": """
+Use _run_program tool to run the mapping_research_and_proposal program referencing this Todo's id.
+
+1. Query GENESIS_TEST_JL.DENG_REQUIREMENTSPM_WORKSPACE.DENG_REQUIREMENTS_MAPPING_REQUIREMENTS and get a unique list of any source tables that the mappings use that come from the Databricks connection, based on the UPSTREAM_DB_CONNECTION, UPSTREAM_TABLE, and MAPPING_PROPOSAL fields. Use query_database for these queries as this table may not be indexed in the metadata.
+
+2. Create iceberg tables in Snowflake for each unique source tables on that list. Put them in the BRONZE_STAGE.HEALTHCARE_CLAIMS schema, and use the same table name as their source table name.
+
+3. Verify that you have created all needed Iceberg tables and that they are in the correct location.
+
+4. Query count(*) on the new Snowflake Iceberg tables, and see if they match the row counts you get when querying the source table directly in Databricks.""".strip()
+    }
+    todos.append(todo)
+
+    try:
+        result = client.run_genesis_tool(
+            tool_name="create_todos_bulk",
+            params={
+                "todos": todos,
+                "project_id": project_id,
+                "bot_id": bot_id
+            },
+            bot_id=bot_id
+        )
+        print(f"Successfully added {len(todos)} todos")
+        return result
+    except Exception as e:
+        print(f"Error adding todos: {e}")
+        raise e
+
+
+
 def record_work(client, todo_id, description, bot_id, results=None):
     """
     Record work progress on a todo item.
@@ -1034,7 +1095,7 @@ def record_work(client, todo_id, description, bot_id, results=None):
         raise e
 
 
-def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_BOTS', reset_all=False, folder_id=None, req_max=-1, project_id="de_requirements_mapping", past_projects_dir=None, past_projects_git_path=None, eval_answers_dir=None, eval_answers_git_path=None, eve_bot_id=None):
+def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_BOTS', reset_all=False, folder_id=None, req_max=-1, project_id="deng_requirements_mapping", past_projects_dir=None, past_projects_git_path=None, eval_answers_dir=None, eval_answers_git_path=None, eve_bot_id=None, data_connector_bot_id=None, data_connector_project_id="deng_data_connector"):
     """
     Initialize the requirements table in Snowflake if it doesn't exist.
     Loads data from test_requirements.json if table needs to be created.
@@ -1072,10 +1133,10 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
         
     try:
         harvest_data = json.loads(harvest_control['Data'])
-        harvested_databases = [entry['DATABASE_NAME'] for entry in harvest_data ]
+        harvested_databases = [entry['DATABASE_NAME'].upper() for entry in harvest_data ]
         
-        if 'HCLS' not in harvested_databases:
-            print("\033[31mHCLS database is not being harvested. Adding it to harvest control.\033[0m")
+        if 'BRONZE' not in harvested_databases and 'HCLS' not in harvested_databases:
+            print("\033[31mHCLS or BRONZE database is not being harvested. Adding it to harvest control.\033[0m")
             # Add HCLS database to harvest control
             try:
                 client.run_genesis_tool(
@@ -1118,6 +1179,7 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
     
     # initialize project
     initialize_project(client, pm_bot_id, project_id)
+    initialize_project(client, data_connector_bot_id, data_connector_project_id, project_name="Establish Iceberg Data Connections", project_description="Project for connecting source system tables to Snowflake tables via Iceberg")
 
     push_knowledge_files_to_git(client, eve_bot_id, past_projects_dir, past_projects_git_path)
 
@@ -1151,6 +1213,7 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
         LENGTH VARCHAR(16777216),
         DECIMAL VARCHAR(16777216),
         LIST_OF_VALUES VARCHAR(16777216),
+        UPSTREAM_DB_CONNECTION VARCHAR(16777216),
         UPSTREAM_TABLE VARCHAR(16777216),
         UPSTREAM_COLUMN VARCHAR(16777216),
         SOURCE_RESEARCH VARCHAR(16777216),
@@ -1205,7 +1268,8 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
         f.write(str(gsheet_location['file_url']))
 
     print("Adding todos...")
-    add_todos(client, requirements, pm_bot_id, max_todos=req_max)
+    add_requirements_todos(client, requirements, pm_bot_id, max_todos=req_max)
+    add_data_connector_todos(client, data_connector_bot_id, data_connector_project_id)
 
     return gsheet_location['file_url']
 
@@ -1324,9 +1388,10 @@ def main():
     source_research_bot_id = 'DEng-sourceResearchBot'
     mapping_proposer_bot_id = 'DEng-mappingProposerBot'
     confidence_analyst_bot_id = 'DEng-confidenceAnalystBot'
-    etl_engineer_bot_id = 'DEng-ETLEngineerBot'
-    project_id = 'de_requirements_mapping'
-
+    dbt_engineer_bot_id = 'DEng-DBT-EngineerBot'
+    data_connector_bot_id = 'DEng-dataConnectorBot'
+    project_id = 'deng_requirements_mapping'
+    data_connector_project_id = 'deng_data_connector'
     skip_confidence = True
 
     bot_team_path = os.path.join(os.path.dirname(__file__), 'bot_team')
@@ -1339,7 +1404,7 @@ def main():
     if not args.todo_id:
         # If a specific todo_id is provided, filter the todos to only include this one
     
-        load_bots = False
+        load_bots = True
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
@@ -1348,15 +1413,15 @@ def main():
 
         # Initialize requirements table if not exists 
 
-        reset_all = False
+        reset_all = True
         req_max = -1
     else:
         reset_all = False
         req_max = -1
     
-    gsheet_location = initialize_system(client, pm_bot_id, genesis_db = args.genesis_db, pm_bot_id = pm_bot_id, reset_all = reset_all, req_max = req_max, past_projects_dir = past_projects_dir, past_projects_git_path = past_projects_git_path, project_id = project_id, eval_answers_dir = eval_answers_dir, eval_answers_git_path = eval_answers_git_path, eve_bot_id = eve_bot_id)
+    gsheet_location = initialize_system(client, pm_bot_id, genesis_db = args.genesis_db, pm_bot_id = pm_bot_id, reset_all = reset_all, req_max = req_max, past_projects_dir = past_projects_dir, past_projects_git_path = past_projects_git_path, project_id = project_id, eval_answers_dir = eval_answers_dir, eval_answers_git_path = eval_answers_git_path, eve_bot_id = eve_bot_id, data_connector_bot_id = data_connector_bot_id, data_connector_project_id = data_connector_project_id)
     
-    todos = get_todos(client, "de_requirements_mapping", pm_bot_id, todo_id=args.todo_id) 
+    todos = get_todos(client, "deng_requirements_mapping", pm_bot_id, todo_id=args.todo_id) 
 
     past_projects_list = get_past_project_git_locations(client, past_projects_dir, past_projects_git_path, pm_bot_id)
 
@@ -1448,6 +1513,7 @@ def main():
             db_fields = {
                 'upstream_table': summary['UPSTREAM_TABLE'],
                 'upstream_column': summary['UPSTREAM_COLUMN'],
+                'upstream_db_connection': summary['UPSTREAM_DB_CONNECTION'],
                 'source_research': source_research_content,
                 'mapping_proposal': mapping_proposal_content,
                 'confidence_output': confidence_output_content,
@@ -1517,6 +1583,7 @@ def main():
             error_fields = {
                 'upstream_table': None,
                 'upstream_column': None,
+                'upstream_db_connection': None,
                 'source_research': str(e),
                 'mapping_proposal': None,
                 'confidence_output': None,

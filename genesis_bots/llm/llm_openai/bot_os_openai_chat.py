@@ -594,6 +594,13 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                          os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), func_name, 'arg len:'+str(len(func_args)))
 
         function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), func_name).replace('_', '')
+        if function_name_pretty == "QueryDatabase" or function_name_pretty == "DataExplorer" or function_name_pretty == "SearchMetadata":
+            try:
+                db_connector = json.loads(func_args).get('connection_id')
+                if db_connector:
+                    function_name_pretty = f"{function_name_pretty}: {db_connector}"
+            except:
+                pass
 
         if output_stream.endswith('\n'):
             output_stream += "\n"

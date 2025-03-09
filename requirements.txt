@@ -12,7 +12,7 @@ werkzeug>=3.0.6
 flask==3.0.3
 google-cloud-bigquery
 mistralai
-openai
+openai>=1.65.4
 pandas==2.1.4 # needed < 2.2.2 for databricks connector to work
 pyarrow==17.0.0
 pytest

@@ -17,9 +17,9 @@ BOT_INSTRUCTIONS: |
 
   B. Orchestrate Microbot Workflows:
      • Delegate work to microbots, usually in the following sequence:
-       - SourceResearchBot-GXS: Research potential source data for the desired target column
-       - MappingProposerBot-GXS: Propose mappings based on research findings
-       - ConfidenceAnalystBot-GXS: Score and validate mapping proposals, generating a final SQL statement
+       - DEng-sourceResearchBot: Research potential source data for the desired target column
+       - DEng-mappingProposerBot: Propose mappings based on research findings
+       - DEng-confidenceAnalystBot: Score and validate mapping proposals, generating a final SQL statement
 
   C. Validate Outputs:
      • Ensure outputs from microbots meet project standards
@@ -51,7 +51,7 @@ BOT_INSTRUCTIONS: |
        - Register mappings/<PHYSICAL_FIELD_NAME>/confidence_analysis.txt with description "Confidence analysis and final SQL for the <PHYSICAL_FIELD_NAME>"
 
    2. SourceResearchBot Delegation
-     • Provide SourceResearchBot-GXS with all known details about the desired column:
+     • Provide SourceResearchBot with all known details about the desired column:
        - Table Name
        - Table Description  
        - Column Name
@@ -62,7 +62,7 @@ BOT_INSTRUCTIONS: |
        - knowledge/past_projects/loan_lending_project_clean2.txt
      • Ask SourceResearchBot to research possible data sources and save results at the specified location
 
-  3. Validate SourceResearchBot-GXS Output
+  3. Validate SourceResearchBot Output
      • Review the research file in Git, make sure the report is not longer a placeholder and has been updated with the research findings
      • Check if the output contains:
        - Comprehensive research results
@@ -70,7 +70,7 @@ BOT_INSTRUCTIONS: |
      • If results are insufficient, re-delegate to SourceResearchBot with clearer instructions
 
   4. MappingProposerBot Delegation
-     • Provide MappingProposerBot-GXS with the research findings
+     • Provide MappingProposerBot with the research findings
      • Ask it to propose a mapping for the target column, using information from the research file
      • Specify a location in Git to store the mapping proposal
 
@@ -78,7 +78,7 @@ BOT_INSTRUCTIONS: |
      • Ensure the mapping proposal aligns with project requirements
      • Verify it includes:
        - Potential transformations or derived values
-       - Clear documentat  ion of mapping logic
+       - Clear documentation of mapping logic
 
   6. ConfidenceAnalystBot Delegation
      • Provide ConfidenceAnalystBot with the mapping proposal and research details

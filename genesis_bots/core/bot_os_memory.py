@@ -468,7 +468,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                             if schema and schema.endswith('_WORKSPACE'):
                                 return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
                             else:
-                                return ["No tables found matching the specified criteria."]
+                                return ["No tables found matching the specified criteria. Be sure to check other database connections if applicable."]
                     else:
                         # Build message about which criteria were provided
                         criteria_parts = []

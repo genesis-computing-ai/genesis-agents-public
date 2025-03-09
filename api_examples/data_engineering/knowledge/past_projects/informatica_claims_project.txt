@@ -7,9 +7,9 @@ sources: fully qualified source tables in database.schema.table notation and col
 transformation: show the exact transformations applied to source columns to generate the target field
 
 target field: PATIENT_ID
-source table: HCLS.BRONZE.CLAIMS_BRONZE
+source table including connection_id: (my_databricks)BRONZE.healthcare_claims.CLAIMS_BRONZE
 source field: PATIENT_ID
-tranformation: Directly mapped from HCLS.BRONZE.CLAIMS_BRONZE.PATIENT_ID
+tranformation: Directly mapped from (my_databricks)BRONZE.healthcare_claims.CLAIMS_BRONZE.PATIENT_ID
 
 Historical Notes from 2019 Claims Migration Project:
 -----------------------------------------------

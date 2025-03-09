@@ -1537,7 +1537,7 @@ def _search_metadata(
     table="Table name",
     top_n="Number of rows to return",
     #knowledge_base_path="Path to the knowledge vector base",
-    connection_id="ID of the database connection to query",
+    connection_id="ID of the database connection to query (optional, if not specified, all connections will be searched)",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools],

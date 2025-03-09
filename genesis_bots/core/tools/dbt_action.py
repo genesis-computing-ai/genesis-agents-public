@@ -718,7 +718,6 @@ class DBTTools:
 {{% macro test_{test_name}(model, column_name) %}}
 
 {sql_content}
-
 {{% endmacro %}}
 """.strip()
         else:
@@ -852,7 +851,7 @@ class DBTTools:
         os.chdir(self.current_project)
         
         try:
-            command = ["run", "--debug"]
+            command = ["run", "--debug"]  # Added --debug flag
             
             if models:
                 command.extend(["--select", " ".join(models)])
@@ -867,14 +866,44 @@ class DBTTools:
                 vars_str = " ".join([f"{k}={v}" for k, v in vars.items()])
                 command.extend(["--vars", vars_str])
             
-            # Run command with stdout capture
-            with self._capture_stdout() as stdout:
-                result = self.runner.invoke(command, log_printer=lambda x: print(x))
-                logs = stdout.getvalue()
+            # Set up detailed logging capture
+            log_buffer = StringIO()
+            log_handler = logging.StreamHandler(log_buffer)
+            log_handler.setLevel(logging.DEBUG)  # Capture all log levels
+            formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+            log_handler.setFormatter(formatter)
+            
+            # Add handler to both dbt logger and root logger
+            dbt_logger = logging.getLogger('dbt')
+            root_logger = logging.getLogger()
+            
+            dbt_logger.addHandler(log_handler)
+            root_logger.addHandler(log_handler)
+            
+            # Store original log levels
+            original_dbt_level = dbt_logger.level
+            original_root_level = root_logger.level
+            
+            # Set to DEBUG for maximum detail
+            dbt_logger.setLevel(logging.DEBUG)
+            root_logger.setLevel(logging.DEBUG)
+            
+            try:
+                # Run command with stdout capture
+                with self._capture_stdout() as stdout:
+                    result = self.runner.invoke(command)
+                    logs = stdout.getvalue()
+            finally:
+                # Clean up logging
+                dbt_logger.removeHandler(log_handler)
+                root_logger.removeHandler(log_handler)
+                dbt_logger.setLevel(original_dbt_level)
+                root_logger.setLevel(original_root_level)
+                log_buffer.close()
             
             return {
                 **self._serialize_result(result),
-                "logs": str(logs).strip() if logs else "",
+                "logs": logs,
                 "command": " ".join(command)
             }
         except Exception as e:

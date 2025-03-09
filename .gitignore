@@ -41,3 +41,4 @@ genesis_api_whl.egg-info/
 genesis_bots.egg-info/
 customer_demos/*
 hcls/*
+hcls_gold/*

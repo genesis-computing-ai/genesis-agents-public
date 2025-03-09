@@ -4,6 +4,8 @@ GENESIS BOT TODOS
 
 DBT-make project_name requried on all calls to make it thread safe for multiple bots at the same time to use it, or make it per thread
 DBT- see if stdout can be captured and returned instead of the debug logs ?
+Databricks connector times out, needs reconnect logic
+profile name is mixe up with project naem and they need to be the same nwo
 
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them

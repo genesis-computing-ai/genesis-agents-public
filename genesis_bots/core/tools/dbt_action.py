@@ -79,6 +79,7 @@ class DBTTools:
             # Configuration
             "setup_profile": self.setup_profile,
             "get_profile_info": self.get_profile_info,
+            "delete_profile": self.delete_profile,
             "update_project_config": self.update_project_config,
             
             # Models and resources
@@ -230,25 +231,34 @@ class DBTTools:
         Returns:
             Dict with deletion result
         """
+        if not project_name:
+            return {"success": False, "error": "project_name is required"}
+        
         if not confirm:
             return {"success": False, "error": "Set confirm=True to confirm project deletion"}
         
-        project_dir = self.workspace_dir / project_name
-        
-        if not project_dir.exists():
-            return {"success": False, "error": f"Project '{project_name}' does not exist at {project_dir}"}
-        
-        # Reset current project if it's the one being deleted
-        if self.current_project == project_dir:
-            self.current_project = None
-        
-        # Delete the project directory
-        shutil.rmtree(project_dir)
-        
-        return {
-            "success": True,
-            "message": f"Project '{project_name}' deleted successfully"
-        }
+        try:
+            project_dir = self.workspace_dir / project_name
+            
+            if not project_dir.exists():
+                return {"success": False, "error": f"Project '{project_name}' does not exist at {project_dir}"}
+            
+            # Reset current project if it's the one being deleted
+            if self.current_project == project_dir:
+                self.current_project = None
+            
+            # Delete the project directory
+            shutil.rmtree(project_dir)
+            
+            return {
+                "success": True,
+                "message": f"Project '{project_name}' deleted successfully"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to delete project: {str(e)}"
+            }
     
     def list_projects(self) -> Dict[str, Any]:
         """
@@ -393,46 +403,87 @@ class DBTTools:
         Returns:
             Dict with profile information
         """
-        profiles_path = Path.home() / ".dbt" / "profiles.yml"
-        
-        if not profiles_path.exists():
-            return {"success": False, "error": "profiles.yml not found"}
-        
-        with open(profiles_path, "r") as f:
-            profiles = yaml.safe_load(f) or {}
-        
-        if profile_name:
-            if profile_name not in profiles:
-                return {"success": False, "error": f"Profile '{profile_name}' not found"}
+        try:
+            profiles_path = Path.home() / ".dbt" / "profiles.yml"
             
-            # Copy profile but remove sensitive information
-            profile_info = json.loads(json.dumps(profiles[profile_name]))
-            
-            for target, config in profile_info.get("outputs", {}).items():
-                if "password" in config:
-                    config["password"] = "********"
-                if "keyfile" in config:
-                    config["keyfile"] = "********"
-            
-            return {
-                "success": True,
-                "profile_name": profile_name,
-                "profile_info": profile_info
-            }
-        else:
-            # Get all profile names and their targets
-            profile_info = {}
-            for name, config in profiles.items():
-                targets = list(config.get("outputs", {}).keys())
-                default_target = config.get("target")
-                profile_info[name] = {
-                    "targets": targets,
-                    "default_target": default_target
+            if not profiles_path.exists():
+                return {
+                    "success": False, 
+                    "error": "profiles.yml not found",
+                    "profiles_path": str(profiles_path)
                 }
             
+            with open(profiles_path, "r") as f:
+                profiles = yaml.safe_load(f) or {}
+            
+            # Define sensitive keys to mask
+            sensitive_keys = ["password", "keyfile", "private_key", "token", "secret", "account", "key"]
+            
+            if profile_name:
+                # Get specific profile
+                if profile_name not in profiles:
+                    return {
+                        "success": False, 
+                        "error": f"Profile '{profile_name}' not found",
+                        "available_profiles": list(profiles.keys())
+                    }
+                
+                # Copy profile but remove sensitive information
+                profile_info = json.loads(json.dumps(profiles[profile_name]))
+                
+                # Track which sensitive keys were redacted
+                redacted_keys = set()
+                
+                # Mask sensitive information
+                for target, config in profile_info.get("outputs", {}).items():
+                    for sensitive_key in sensitive_keys:
+                        if sensitive_key in config:
+                            config[sensitive_key] = "********"
+                            redacted_keys.add(sensitive_key)
+                
+                return {
+                    "success": True,
+                    "profile_name": profile_name,
+                    "profile_info": profile_info,
+                    "profiles_path": str(profiles_path),
+                    "note": f"The following sensitive keys have been redacted for security: {sorted(list(redacted_keys))}" if redacted_keys else "No sensitive keys found in profile"
+                }
+            else:
+                # Get all profile names and their targets
+                profile_info = {}
+                all_redacted_keys = set()
+                
+                for name, config in profiles.items():
+                    targets = list(config.get("outputs", {}).keys())
+                    default_target = config.get("target")
+                    
+                    # Check for sensitive keys in this profile
+                    profile_redacted_keys = set()
+                    for target_config in config.get("outputs", {}).values():
+                        for sensitive_key in sensitive_keys:
+                            if sensitive_key in target_config:
+                                profile_redacted_keys.add(sensitive_key)
+                                all_redacted_keys.add(sensitive_key)
+                    
+                    profile_info[name] = {
+                        "targets": targets,
+                        "default_target": default_target,
+                        "type": next(iter(config.get("outputs", {}).values()), {}).get("type", "unknown"),
+                        "redacted_keys": sorted(list(profile_redacted_keys))
+                    }
+                
+                return {
+                    "success": True,
+                    "profiles": profile_info,
+                    "profiles_path": str(profiles_path),
+                    "total_profiles": len(profile_info),
+                    "note": f"The following sensitive keys have been redacted for security across all profiles: {sorted(list(all_redacted_keys))}" if all_redacted_keys else "No sensitive keys found in any profiles"
+                }
+        except Exception as e:
             return {
-                "success": True,
-                "profiles": profile_info
+                "success": False,
+                "error": f"Error reading profiles: {str(e)}",
+                "profiles_path": str(profiles_path)
             }
     
     def update_project_config(self, config_updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -1358,6 +1409,75 @@ class DBTTools:
             "message": "Dependencies installed successfully" if result.success else "Failed to install dependencies"
         }
 
+    def delete_profile(self, profile_name: str) -> Dict[str, Any]:
+        """
+        Delete a profile from profiles.yml
+        
+        Args:
+            profile_name: Name of the profile to delete
+            
+        Returns:
+            Dict with deletion result
+        """
+        try:
+            profiles_path = Path.home() / ".dbt" / "profiles.yml"
+            
+            if not profiles_path.exists():
+                return {
+                    "success": False, 
+                    "error": "profiles.yml not found",
+                    "profiles_path": str(profiles_path)
+                }
+            
+            # Read existing profiles
+            with open(profiles_path, "r") as f:
+                profiles = yaml.safe_load(f) or {}
+            
+            if profile_name not in profiles:
+                return {
+                    "success": False,
+                    "error": f"Profile '{profile_name}' not found",
+                    "available_profiles": list(profiles.keys())
+                }
+            
+            # Store profile info for the response
+            deleted_profile = profiles[profile_name]
+            
+            # Remove the profile
+            del profiles[profile_name]
+            
+            # Write updated profiles back
+            with open(profiles_path, "w") as f:
+                yaml.dump(profiles, f, default_flow_style=False)
+            
+            # Check if any projects are using this profile
+            affected_projects = []
+            if self.workspace_dir.exists():
+                for project_dir in self.workspace_dir.iterdir():
+                    if project_dir.is_dir():
+                        project_yml = project_dir / "dbt_project.yml"
+                        if project_yml.exists():
+                            with open(project_yml, "r") as f:
+                                project_config = yaml.safe_load(f)
+                                if project_config.get("profile") == profile_name:
+                                    affected_projects.append(project_dir.name)
+            
+            return {
+                "success": True,
+                "message": f"Profile '{profile_name}' deleted successfully",
+                "deleted_profile_name": profile_name,
+                "deleted_profile_targets": list(deleted_profile.get("outputs", {}).keys()),
+                "profiles_path": str(profiles_path),
+                "remaining_profiles": list(profiles.keys()),
+                "warning": f"The following projects were using this profile: {affected_projects}" if affected_projects else None
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error deleting profile: {str(e)}",
+                "profiles_path": str(profiles_path)
+            }
+
 dbt_action_grp = ToolFuncGroup(
     name="dbt_action",
     description="DBT project management and operations",
@@ -1375,7 +1495,7 @@ dbt_action_grp = ToolFuncGroup(
                 # Project management
                 "create_project", "use_project", "delete_project", "list_projects",
                 # Configuration
-                "setup_profile", "get_profile_info", "update_project_config",
+                "setup_profile", "get_profile_info", "delete_profile", "update_project_config",
                 # Models and resources
                 "add_model", "add_source", "add_seed", "add_snapshot", "add_test",
                 "add_macro", "add_analysis",
@@ -1403,13 +1523,13 @@ dbt_action_grp = ToolFuncGroup(
     ),
     project_name=ToolFuncParamDescriptor(
         name="project_name",
-        description="Name of the DBT project",
+        description="Name of the DBT project (Required for create_project, use_project, and delete_project actions)",
         required=False,
         llm_type_desc=dict(type="string", nullable=True),
     ),
     profile_name=ToolFuncParamDescriptor(
         name="profile_name",
-        description="Name of the DBT profile",
+        description="Name of the DBT profile (Required for create_project action)",
         required=False,
         llm_type_desc=dict(type="string", nullable=True),
     ),
@@ -1455,10 +1575,12 @@ dbt_action_grp = ToolFuncGroup(
 )
 def dbt_action(
     action: str,
-    model_name: str = None,
+    # Common optional parameters
     workspace_dir: str = None,
     project_name: str = None,
     profile_name: str = None,
+    # Action-specific parameters
+    model_name: str = None,
     sql_content: str = None,
     materialized: str = None,
     adapter_type: str = None,
@@ -1476,10 +1598,33 @@ def dbt_action(
     if not '_dbt_tools' in globals():
         _dbt_tools = DBTTools(workspace_dir)
 
+    # Validate required parameters based on action
+    if action == "create_project" and not project_name:
+        return {
+            "success": False,
+            "error": "project_name is required for create_project action"
+        }
+    if action == "delete_project" and not project_name:
+        return {
+            "success": False,
+            "error": "project_name is required for delete_project action"
+        }
+
+    # For other actions, if project_name is provided, set it as active
+    if project_name and action not in ["create_project", "delete_project"]:
+        try:
+            use_result = _dbt_tools.use_project(project_name)
+            if not use_result["success"]:
+                return use_result
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to set active project '{project_name}': {str(e)}"
+            }
+
     # Combine all parameters into a single dict
     params = {
         'workspace_dir': workspace_dir,
-        'project_name': project_name,
         'profile_name': profile_name,
         'model_name': model_name,
         'sql_content': sql_content,
@@ -1489,8 +1634,14 @@ def dbt_action(
         'config_updates': config_updates,
         'bot_id': bot_id,
         'thread_id': thread_id,
+        'project_name': project_name,
         **kwargs
     }
+    
+    # Only remove project_name for actions that don't require it
+    if action not in ["create_project", "delete_project"] and 'project_name' in params:
+        del params['project_name']
+    
     # Remove None values
     params = {k: v for k, v in params.items() if v is not None}
     

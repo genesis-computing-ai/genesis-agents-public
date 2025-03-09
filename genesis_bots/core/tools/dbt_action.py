@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union, Tuple
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from genesis_bots.core.logging_config import logger
+import logging
+from io import StringIO
+import sys
+from contextlib import contextmanager
 
 from genesis_bots.core.bot_os_tools2 import (
     BOT_ID_IMPLICIT_FROM_CONTEXT,
@@ -32,8 +36,25 @@ class DBTTools:
         self.workspace_dir = Path(workspace_dir) if workspace_dir else Path.cwd()
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
         self.runner = dbtRunner()
-        self.current_project = None
+        self.current_project: Optional[Path] = None
+        
+        # Set up logging handler to capture dbt output
+        self.log_capture = []
+        self.handler = logging.StreamHandler()
+        self.handler.setLevel(logging.INFO)
+        logging.getLogger("dbt").addHandler(self.handler)
     
+    def _capture_logs(self):
+        """Start capturing logs"""
+        self.log_capture = []
+        self.handler.stream = self.log_capture
+
+    def _get_captured_logs(self) -> str:
+        """Get captured logs and reset capture"""
+        logs = "\n".join(self.log_capture)
+        self.log_capture = []
+        return logs
+
     def action(self, action: str, **kwargs) -> Dict[str, Any]:
         """
         Main entry point for AI bots to interact with dbt.
@@ -45,6 +66,9 @@ class DBTTools:
         Returns:
             Dict containing the result of the action
         """
+        # Filter out context parameters that shouldn't be passed to DBT methods
+        dbt_kwargs = {k: v for k, v in kwargs.items() if k not in ['bot_id', 'thread_id']}
+        
         actions = {
             # Project management
             "create_project": self.create_project,
@@ -92,7 +116,7 @@ class DBTTools:
             return {"success": False, "error": f"Unknown action: {action}. Available actions: {list(actions.keys())}"}
         
         try:
-            return actions[action](**kwargs)
+            return actions[action](**dbt_kwargs)
         except Exception as e:
             return {"success": False, "error": str(e)}
     
@@ -773,20 +797,20 @@ class DBTTools:
     
     # --------- Project Operations ---------
     
+    @contextmanager
+    def _capture_stdout(self):
+        """Capture stdout in a string buffer"""
+        stdout_buffer = StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = stdout_buffer
+        try:
+            yield stdout_buffer
+        finally:
+            sys.stdout = old_stdout
+
     def run_models(self, models: Optional[List[str]] = None, exclude: Optional[List[str]] = None, 
                  full_refresh: bool = False, vars: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Run dbt models
-        
-        Args:
-            models: List of models to run (if None, runs all models)
-            exclude: List of models to exclude
-            full_refresh: Whether to perform a full refresh
-            vars: Variables to pass to the run
-            
-        Returns:
-            Dict with run result
-        """
+        """Run dbt models"""
         self._ensure_project_selected()
         
         # Change to project directory
@@ -794,8 +818,8 @@ class DBTTools:
         os.chdir(self.current_project)
         
         try:
-            # Build command
-            command = ["run"]
+            # Build command with debug flag
+            command = ["run", "--debug"]  # Add --debug flag for verbose output
             
             if models:
                 command.extend(["--select", " ".join(models)])
@@ -810,12 +834,15 @@ class DBTTools:
                 vars_str = " ".join([f"{k}={v}" for k, v in vars.items()])
                 command.extend(["--vars", vars_str])
             
-            # Run command
-            result = self.runner.invoke(command)
+            # Run command with stdout capture
+            with self._capture_stdout() as stdout:
+                result = self.runner.invoke(command, log_printer=lambda x: print(x))
+                logs = stdout.getvalue()
             
             return {
                 "success": result.success,
-                "logs": result.stdout,
+                "result": result.result,
+                "logs": logs,
                 "command": " ".join(command),
                 "message": "Models run completed successfully" if result.success else "Models run failed"
             }
@@ -856,12 +883,13 @@ class DBTTools:
                 vars_str = " ".join([f"{k}={v}" for k, v in vars.items()])
                 command.extend(["--vars", vars_str])
             
-            # Run command
-            result = self.runner.invoke(command)
+            # Run command with log capture
+            result = self.runner.invoke(command, log_fmt="text")
             
             return {
                 "success": result.success,
-                "logs": result.stdout,
+                "result": result.result,
+                "logs": result.log,  # Add captured logs
                 "command": " ".join(command),
                 "message": "Tests completed successfully" if result.success else "Tests failed"
             }
@@ -897,12 +925,13 @@ class DBTTools:
             if full_refresh:
                 command.append("--full-refresh")
             
-            # Run command
-            result = self.runner.invoke(command)
+            # Run command with log capture
+            result = self.runner.invoke(command, log_fmt="text")
             
             return {
                 "success": result.success,
-                "logs": result.stdout,
+                "result": result.result,
+                "logs": result.log,  # Add captured logs
                 "command": " ".join(command),
                 "message": "Seeds loaded successfully" if result.success else "Seeds failed to load"
             }
@@ -933,12 +962,13 @@ class DBTTools:
             if select:
                 command.extend(["--select", " ".join(select)])
             
-            # Run command
-            result = self.runner.invoke(command)
+            # Run command with log capture
+            result = self.runner.invoke(command, log_fmt="text")
             
             return {
                 "success": result.success,
-                "logs": result.stdout,
+                "result": result.result,
+                "logs": result.log,  # Add captured logs
                 "command": " ".join(command),
                 "message": "Snapshots completed successfully" if result.success else "Snapshots failed"
             }
@@ -983,12 +1013,13 @@ class DBTTools:
                 vars_str = " ".join([f"{k}={v}" for k, v in vars.items()])
                 command.extend(["--vars", vars_str])
             
-            # Run command
-            result = self.runner.invoke(command)
+            # Run command with log capture
+            result = self.runner.invoke(command, log_fmt="text")
             
             return {
                 "success": result.success,
-                "logs": result.stdout,
+                "result": result.result,
+                "logs": result.log,  # Add captured logs
                 "command": " ".join(command),
                 "message": "Build completed successfully" if result.success else "Build failed"
             }
@@ -1016,13 +1047,14 @@ class DBTTools:
             # Build command for docs
             command = ["docs", "generate"]
             
-            # Run command
-            result = self.runner.invoke(command)
+            # Run command with log capture
+            result = self.runner.invoke(command, log_fmt="text")
             
             if not result.success:
                 return {
                     "success": False,
-                    "logs": result.stdout,
+                    "result": result.result,
+                    "logs": result.log,  # Add captured logs
                     "command": " ".join(command),
                     "message": "Failed to generate documentation"
                 }
@@ -1030,7 +1062,8 @@ class DBTTools:
             if compile_only:
                 return {
                     "success": True,
-                    "logs": result.stdout,
+                    "result": result.result,
+                    "logs": result.log,  # Add captured logs
                     "command": " ".join(command),
                     "docs_path": str(self.current_project / "target" / "index.html"),
                     "message": "Documentation generated successfully"
@@ -1045,7 +1078,8 @@ class DBTTools:
             
             return {
                 "success": True,
-                "logs": result.stdout,
+                "result": result.result,
+                "logs": result.log,  # Add captured logs
                 "command": " ".join(command),
                 "docs_path": str(self.current_project / "target" / "index.html"),
                 "message": "Documentation generated successfully. To serve, run 'dbt docs serve'"
@@ -1054,10 +1088,214 @@ class DBTTools:
             # Restore original directory
             os.chdir(original_dir)
 
+    def _ensure_project_selected(self):
+        """Ensure a project is selected before performing operations."""
+        if not self.current_project or not isinstance(self.current_project, Path):
+            raise ValueError("No project selected or invalid project path. Use create_project() or use_project() first.")
+        if not self.current_project.exists():
+            raise ValueError(f"Project directory does not exist: {self.current_project}")
+        return self.current_project
+
+    def list_models(self) -> Dict[str, Any]:
+        """List all models in the current project."""
+        self._ensure_project_selected()
+        models_dir = self.current_project / "models"
+        models = []
+        
+        if models_dir.exists():
+            for file in models_dir.rglob("*.sql"):
+                models.append({
+                    "name": file.stem,
+                    "path": str(file.relative_to(models_dir))
+                })
+        
+        return {
+            "success": True,
+            "models": models
+        }
+
+    def list_sources(self) -> Dict[str, Any]:
+        """List all sources defined in the project."""
+        self._ensure_project_selected()
+        sources_file = self.current_project / "models" / "sources.yml"
+        sources = []
+        
+        if sources_file.exists():
+            with open(sources_file, "r") as f:
+                sources_config = yaml.safe_load(f) or {}
+                sources = sources_config.get("sources", [])
+        
+        return {
+            "success": True,
+            "sources": sources
+        }
+
+    def list_seeds(self) -> Dict[str, Any]:
+        """List all seed files in the project."""
+        self._ensure_project_selected()
+        seeds_dir = self.current_project / "seeds"
+        seeds = []
+        
+        if seeds_dir.exists():
+            for file in seeds_dir.glob("*.csv"):
+                seeds.append({
+                    "name": file.stem,
+                    "path": str(file.relative_to(seeds_dir))
+                })
+        
+        return {
+            "success": True,
+            "seeds": seeds
+        }
+
+    def get_model_sql(self, model_name: str) -> Dict[str, Any]:
+        """Get the SQL content of a specific model."""
+        self._ensure_project_selected()
+        models_dir = self.current_project / "models"
+        
+        # Search recursively for the model
+        for file in models_dir.rglob("*.sql"):
+            if file.stem == model_name:
+                with open(file, "r") as f:
+                    content = f.read()
+                return {
+                    "success": True,
+                    "model_name": model_name,
+                    "content": content,
+                    "path": str(file.relative_to(self.current_project))
+                }
+        
+        return {
+            "success": False,
+            "error": f"Model '{model_name}' not found"
+        }
+
+    def execute_query(self, query: str) -> Dict[str, Any]:
+        """Execute a SQL query using dbt."""
+        self._ensure_project_selected()
+        
+        # Create a temporary analysis file
+        temp_analysis = self.current_project / "analyses" / "_temp_query.sql"
+        with open(temp_analysis, "w") as f:
+            f.write(query)
+        
+        try:
+            # Run the query using dbt compile
+            result = self.runner.invoke(["compile", "--select", "analysis:_temp_query"])
+            
+            return {
+                "success": result.success,
+                "result": result.result,
+                "message": "Query executed successfully" if result.success else "Query execution failed"
+            }
+        finally:
+            # Clean up temporary file
+            if temp_analysis.exists():
+                temp_analysis.unlink()
+
+    def get_manifest(self) -> Dict[str, Any]:
+        """Get the dbt manifest (compiled graph) for the project."""
+        self._ensure_project_selected()
+        manifest_path = self.current_project / "target" / "manifest.json"
+        
+        if not manifest_path.exists():
+            # Generate manifest if it doesn't exist
+            result = self.runner.invoke(["compile"])
+            if not result.success:
+                return {
+                    "success": False,
+                    "error": "Failed to generate manifest"
+                }
+        
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        
+        return {
+            "success": True,
+            "manifest": manifest
+        }
+
+    def get_catalog(self) -> Dict[str, Any]:
+        """Get the dbt catalog (information about the tables in your warehouse)."""
+        self._ensure_project_selected()
+        
+        # Generate catalog
+        result = self.runner.invoke(["docs", "generate"])
+        if not result.success:
+            return {
+                "success": False,
+                "error": "Failed to generate catalog"
+            }
+        
+        catalog_path = self.current_project / "target" / "catalog.json"
+        if not catalog_path.exists():
+            return {
+                "success": False,
+                "error": "Catalog file not found after generation"
+            }
+        
+        with open(catalog_path, "r") as f:
+            catalog = json.load(f)
+        
+        return {
+            "success": True,
+            "catalog": catalog
+        }
+
+    def add_package(self, package_name: str, version: Optional[str] = None) -> Dict[str, Any]:
+        """Add a package dependency to the project."""
+        self._ensure_project_selected()
+        packages_file = self.current_project / "packages.yml"
+        
+        # Read existing packages
+        if packages_file.exists():
+            with open(packages_file, "r") as f:
+                packages = yaml.safe_load(f) or {}
+        else:
+            packages = {"packages": []}
+        
+        # Add new package
+        package_def = {"package": package_name}
+        if version:
+            package_def["version"] = version
+        
+        if "packages" not in packages:
+            packages["packages"] = []
+        
+        # Check if package already exists
+        for pkg in packages["packages"]:
+            if isinstance(pkg, dict) and pkg.get("package") == package_name:
+                return {
+                    "success": False,
+                    "error": f"Package '{package_name}' already exists in packages.yml"
+                }
+        
+        packages["packages"].append(package_def)
+        
+        # Write updated packages.yml
+        with open(packages_file, "w") as f:
+            yaml.dump(packages, f, default_flow_style=False)
+        
+        return {
+            "success": True,
+            "message": f"Package '{package_name}' added successfully"
+        }
+
+    def install_deps(self) -> Dict[str, Any]:
+        """Install project dependencies."""
+        self._ensure_project_selected()
+        
+        result = self.runner.invoke(["deps"])
+        
+        return {
+            "success": result.success,
+            "message": "Dependencies installed successfully" if result.success else "Failed to install dependencies"
+        }
+
 dbt_action_grp = ToolFuncGroup(
     name="dbt_action",
     description="DBT project management and operations",
-    lifetime="PERSISTENT",
+    lifetime="PERSISTENT"
 )
 
 @gc_tool(
@@ -1085,53 +1323,59 @@ dbt_action_grp = ToolFuncGroup(
             ]
         ),
     ),
+    model_name=ToolFuncParamDescriptor(
+        name="model_name",
+        description="Name of the dbt model to operate on",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     workspace_dir=ToolFuncParamDescriptor(
         name="workspace_dir",
         description="Directory where dbt projects will be created and managed",
         required=False,
-        llm_type_desc=dict(type="string"),
+        llm_type_desc=dict(type="string", nullable=True),
     ),
     project_name=ToolFuncParamDescriptor(
         name="project_name",
         description="Name of the DBT project",
         required=False,
-        llm_type_desc=dict(type="string"),
+        llm_type_desc=dict(type="string", nullable=True),
     ),
     profile_name=ToolFuncParamDescriptor(
         name="profile_name",
         description="Name of the DBT profile",
         required=False,
-        llm_type_desc=dict(type="string"),
+        llm_type_desc=dict(type="string", nullable=True),
     ),
     sql_content=ToolFuncParamDescriptor(
         name="sql_content",
         description="SQL content for models, tests, etc.",
         required=False,
-        llm_type_desc=dict(type="string"),
+        llm_type_desc=dict(type="string", nullable=True),
     ),
     materialized=ToolFuncParamDescriptor(
         name="materialized",
         description="Materialization type for models",
         required=False,
-        llm_type_desc=dict(type="string"),
+        llm_type_desc=dict(type="string", nullable=True),
     ),
     adapter_type=ToolFuncParamDescriptor(
         name="adapter_type",
         description="Type of database adapter",
         required=False,
-        llm_type_desc=dict(type="string"),
+        llm_type_desc=dict(type="string", nullable=True),
     ),
     credentials=ToolFuncParamDescriptor(
         name="credentials",
         description="Database connection credentials",
         required=False,
-        llm_type_desc=dict(type="object"),
+        llm_type_desc=dict(type="object", nullable=True),
     ),
     config_updates=ToolFuncParamDescriptor(
         name="config_updates",
         description="Updates to project configuration",
         required=False,
-        llm_type_desc=dict(type="object"),
+        llm_type_desc=dict(type="object", nullable=True),
     ),
     kwargs=ToolFuncParamDescriptor(
         name="kwargs",
@@ -1145,6 +1389,7 @@ dbt_action_grp = ToolFuncGroup(
 )
 def dbt_action(
     action: str,
+    model_name: str = None,
     workspace_dir: str = None,
     project_name: str = None,
     profile_name: str = None,
@@ -1159,33 +1404,18 @@ def dbt_action(
 ) -> Dict[str, Any]:
     """
     Wrapper for DBT operations
-
-    Args:
-        action: The DBT action to perform
-        workspace_dir: Directory for DBT projects
-        project_name: Name of the DBT project
-        profile_name: Name of the DBT profile
-        sql_content: SQL content for models, tests, etc.
-        materialized: Materialization type for models
-        adapter_type: Type of database adapter
-        credentials: Database connection credentials
-        config_updates: Updates to project configuration
-        bot_id: Bot identifier
-        thread_id: Thread identifier
-        kwargs: Additional arguments needed for the specific action
-
-    Returns:
-        Dict containing operation result and any relevant data
     """
-    # Initialize DBTTools if not already initialized
-    if not hasattr(dbt_action, '_dbt_tools'):
-        dbt_action._dbt_tools = DBTTools(workspace_dir)
+    # Store DBTTools instance as a global variable
+    global _dbt_tools
+    if not '_dbt_tools' in globals():
+        _dbt_tools = DBTTools(workspace_dir)
 
     # Combine all parameters into a single dict
     params = {
         'workspace_dir': workspace_dir,
         'project_name': project_name,
         'profile_name': profile_name,
+        'model_name': model_name,
         'sql_content': sql_content,
         'materialized': materialized,
         'adapter_type': adapter_type,
@@ -1198,7 +1428,7 @@ def dbt_action(
     # Remove None values
     params = {k: v for k, v in params.items() if v is not None}
     
-    return dbt_action._dbt_tools.action(action, **params)
+    return _dbt_tools.action(action, **params)
 
 # Define as a list explicitly
 dbt_action_functions = [dbt_action]

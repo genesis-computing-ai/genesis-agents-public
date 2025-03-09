@@ -69,6 +69,8 @@ dependencies = [
     "spider-client",
     "openpyxl",
     "PyGithub",
+    "dbt-core",
+    "dbt-snowflake",
     # Additional dependencies not in requirements.txt
     "ngrok"
 ]

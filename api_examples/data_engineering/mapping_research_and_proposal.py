@@ -1180,7 +1180,6 @@ def initialize_system(client, bot_id=None, pm_bot_id=None, genesis_db='GENESIS_B
     # initialize project
     initialize_project(client, pm_bot_id, project_id)
     initialize_project(client, data_connector_bot_id, data_connector_project_id, project_name="Establish Iceberg Data Connections", project_description="Project for connecting source system tables to Snowflake tables via Iceberg")
-
     push_knowledge_files_to_git(client, eve_bot_id, past_projects_dir, past_projects_git_path)
 
     push_knowledge_files_to_git(client, eve_bot_id, "data_engineering/eval_answers/", "data_engineering/eval_answers/")

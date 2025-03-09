@@ -2,6 +2,7 @@
 GENESIS BOT TODOS
 =================
 
+DBT-make project_name requried on all calls to make it thread safe for multiple bots at the same time to use it
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

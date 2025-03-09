@@ -51,4 +51,5 @@ sqlalchemy-redshift
 sqlalchemy-bigquery
 PyGithub
 sqlalchemy-databricks
-
+dbt-core
+dbt-snowflake

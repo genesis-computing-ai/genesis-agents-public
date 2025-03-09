@@ -800,26 +800,59 @@ class DBTTools:
     @contextmanager
     def _capture_stdout(self):
         """Capture stdout in a string buffer"""
-        stdout_buffer = StringIO()
         old_stdout = sys.stdout
-        sys.stdout = stdout_buffer
+        string_buffer = StringIO()
+        sys.stdout = string_buffer
         try:
-            yield stdout_buffer
+            yield string_buffer
         finally:
             sys.stdout = old_stdout
+            string_buffer.close()
+
+    def _serialize_result(self, result) -> Dict[str, Any]:
+        """Convert dbt result into JSON-serializable format"""
+        try:
+            # Create a basic serializable result
+            serialized = {
+                "success": bool(result.success),
+                "elapsed": float(result.elapsed) if hasattr(result, 'elapsed') else None,
+                "message": str(getattr(result, 'message', ''))
+            }
+            
+            # Safely add result if it exists and is serializable
+            if hasattr(result, 'result'):
+                try:
+                    # Try to convert result to a basic type
+                    if result.result is None:
+                        serialized["result"] = None
+                    elif isinstance(result.result, (str, int, float, bool)):
+                        serialized["result"] = result.result
+                    else:
+                        # For complex objects, convert to string
+                        serialized["result"] = str(result.result)
+                except Exception as e:
+                    serialized["result"] = f"<unserializable: {str(e)}>"
+            
+            return serialized
+            
+        except Exception as e:
+            logger.warning(f"Error serializing dbt result: {e}")
+            return {
+                "success": bool(result.success),
+                "error": "Could not fully serialize result",
+                "message": str(e)
+            }
 
     def run_models(self, models: Optional[List[str]] = None, exclude: Optional[List[str]] = None, 
                  full_refresh: bool = False, vars: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Run dbt models"""
         self._ensure_project_selected()
         
-        # Change to project directory
         original_dir = os.getcwd()
         os.chdir(self.current_project)
         
         try:
-            # Build command with debug flag
-            command = ["run", "--debug"]  # Add --debug flag for verbose output
+            command = ["run", "--debug"]
             
             if models:
                 command.extend(["--select", " ".join(models)])
@@ -840,14 +873,18 @@ class DBTTools:
                 logs = stdout.getvalue()
             
             return {
-                "success": result.success,
-                "result": result.result,
-                "logs": logs,
-                "command": " ".join(command),
-                "message": "Models run completed successfully" if result.success else "Models run failed"
+                **self._serialize_result(result),
+                "logs": str(logs).strip() if logs else "",
+                "command": " ".join(command)
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "logs": "Error during execution",
+                "command": " ".join(command)
             }
         finally:
-            # Restore original directory
             os.chdir(original_dir)
     
     def run_tests(self, models: Optional[List[str]] = None, tests: Optional[List[str]] = None, 

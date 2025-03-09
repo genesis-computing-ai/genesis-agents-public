@@ -220,22 +220,18 @@ class DBTTools:
             "message": f"Now using dbt project '{project_name}'"
         }
     
-    def delete_project(self, project_name: str, confirm: bool = False) -> Dict[str, Any]:
+    def delete_project(self, project_name: str) -> Dict[str, Any]:
         """
         Delete a dbt project
         
         Args:
             project_name: Name of the project to delete
-            confirm: Must be True to confirm deletion
             
         Returns:
             Dict with deletion result
         """
         if not project_name:
             return {"success": False, "error": "project_name is required"}
-        
-        if not confirm:
-            return {"success": False, "error": "Set confirm=True to confirm project deletion"}
         
         try:
             project_dir = self.workspace_dir / project_name
@@ -868,6 +864,10 @@ class DBTTools:
                 "elapsed": float(result.elapsed) if hasattr(result, 'elapsed') else None,
                 "message": str(getattr(result, 'message', ''))
             }
+            
+            # Add logs if they exist
+            if hasattr(result, 'log'):
+                serialized["logs"] = result.log
             
             # Safely add result if it exists and is serializable
             if hasattr(result, 'result'):

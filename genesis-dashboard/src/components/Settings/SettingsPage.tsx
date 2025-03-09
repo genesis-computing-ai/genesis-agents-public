@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import PropTypes from "prop-types";
 
 interface SettingsPageProps {
     handler: string;
@@ -55,16 +54,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({
     };
 
     return <div className="scroller settings-innerpage">{content()}</div>;
-};
-
-SettingsPage.propTypes = {
-    handler: PropTypes.string.isRequired,
-    options: PropTypes.object,
-    settings: PropTypes.object,
-    onChange: PropTypes.func,
-    switchContent: PropTypes.func,
-    onPaneLeave: PropTypes.func,
-    onMenuItemClick: PropTypes.func,
 };
 
 export default SettingsPage;

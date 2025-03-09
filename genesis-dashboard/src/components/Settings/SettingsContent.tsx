@@ -42,7 +42,7 @@ const SettingsContent: React.FC<SettingsContentProps> = (props) => {
         if (page.length === 0) {
             page = [
                 <div key="settingsEmptyMessage" className="empty-message">
-                    <p>Page not defined</p>
+                    <p>Under Construction</p>
                 </div>,
             ];
         }

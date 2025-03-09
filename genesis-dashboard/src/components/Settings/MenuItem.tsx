@@ -19,7 +19,7 @@ const MenuItem: FC<MenuItemProps> = ({
   onMenuItemClick,
   active,
 }) => {
-  const clicked = (ev: MouseEvent<HTMLDivElement>) => {
+  const clicked = (ev: MouseEvent<HTMLLIElement>) => {
     ev.preventDefault();
 
     if (ev.button !== 0) {
@@ -37,15 +37,14 @@ const MenuItem: FC<MenuItemProps> = ({
   };
 
   return (
-    <li className={`menu-item ${active ? "active" : ""}`}>
-      <div 
-        onClick={clicked}
-        role="button"
-        tabIndex={0}
-        style={{ cursor: 'pointer' }}
-      >
-        {item.title || item.name || item.url}
-      </div>
+    <li
+      className={`menu-item ${active ? "active" : ""}`}
+      onClick={clicked}
+      role="button"
+      tabIndex={0}
+      style={{ cursor: 'pointer' }}
+    >
+      {item.title || item.name || item.url}
     </li>
   );
 };

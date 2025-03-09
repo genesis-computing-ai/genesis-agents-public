@@ -13,14 +13,7 @@ interface SettingsState {
 const Settings: React.FC = () => {
   // State for settings
   const [settings, setSettings] = useState<SettingsState>({
-    "mysettings.general.name": "Joe Schmoe",
-    "mysettings.general.username": "jschmoe",
-    "mysettings.general.color-theme": "purple",
-    "mysettings.general.email": "jschmoe@genesiscomputing.ai",
-    "mysettings.general.picture": "earth",
-    "mysettings.profile.firstname": "Joe",
-    "mysettings.profile.lastname": "Schmoe",
-    "mysettings.profile.biography": "",
+    "mysettings.llm.llm-model": "OpenAI",
   });
 
   const [currentPage, setCurrentPage] = useState<string>("/settings/general");
@@ -99,144 +92,141 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Genesis Settings</h1>
-      </div>
-      <div style={{ margin: "30px 0 90px 0" }}>
-        <button onClick={showPrefs} className="btn btn-default">
-          Show Preferences
-        </button>
-      </div>
-      <p>
-        <h4>Result</h4>
-        <pre className="well">{JSON.stringify(settings, null, 4)}</pre>
-      </p>
-      <div ref={overlayRef} className="overlay" />
-
-      <div ref={prefsRef} className="md-modal">
-        <SettingsPane
+    <div className="settings-wrapper">
+      <SettingsPane
+        items={menu}
+        index="/settings/llm_config"
+        settings={settings}
+        onChange={handleSettingsChange}
+        onPaneLeave={handleLeavePane}
+      >
+        <SettingsMenu
+          headline="Config"
           items={menu}
-          index="/settings/llm_config"
-          settings={settings}
-          onChange={handleSettingsChange}
-          onPaneLeave={handleLeavePane}
-        >
-          <SettingsMenu
-            headline="LLM Model & Key"
-            items={menu}
-            currentPage={currentPage}
-            switchContent={switchContent}
-            onMenuItemClick={handleMenuItemClick}
-          />
-          <SettingsContent header>
-            <SettingsPage handler="/settings/llm_config">
-              <fieldset className="form-group">
-                <label htmlFor="generalName">Name: </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="mysettings.general.name"
-                  placeholder="Name"
-                  id="generalName"
-                  onChange={handleSettingsChange}
-                  defaultValue={settings["mysettings.general.name"]}
-                />
-              </fieldset>
-              <fieldset className="form-group">
-                <label htmlFor="generalUsername">Username: </label>
-                <div className="input-group">
-                  <span className="input-group-addon">@</span>
-                  <input
-                    type="text"
-                    name="mysettings.general.username"
-                    className="form-control"
-                    placeholder="Username"
-                    aria-describedby="basic-addon1"
-                    onChange={handleSettingsChange}
-                    defaultValue={settings["mysettings.general.username"]}
-                  />
-                </div>
-              </fieldset>
-              <fieldset className="form-group">
-                <label htmlFor="generalMail">E-Mail address: </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="mysettings.general.email"
-                  placeholder="E-Mail Address"
-                  id="generalMail"
-                  onChange={handleSettingsChange}
-                  defaultValue={settings["mysettings.general.email"]}
-                />
-              </fieldset>
-              <fieldset className="form-group">
-                <label htmlFor="generalPic">Picture: </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="mysettings.general.picture"
-                  placeholder="Picture"
-                  id="generalPic"
-                  onChange={handleSettingsChange}
-                  defaultValue={settings["mysettings.general.picture"]}
-                />
-              </fieldset>
-              <fieldset className="form-group">
-                <label htmlFor="profileColor">Color-Theme: </label>
-                <select
-                  name="mysettings.general.color-theme"
-                  id="profileColor"
-                  className="form-control"
-                  defaultValue={settings["mysettings.general.color-theme"]}
-                >
-                  <option value="blue">Blue</option>
-                  <option value="red">Red</option>
-                  <option value="purple">Purple</option>
-                  <option value="orange">Orange</option>
-                </select>
-              </fieldset>
-            </SettingsPage>
-            <SettingsPage handler="/settings/slack_config">
-              <fieldset className="form-group">
-                <label htmlFor="profileFirstname">Firstname: </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="mysettings.profile.firstname"
-                  placeholder="Firstname"
-                  id="profileFirstname"
-                  onChange={handleSettingsChange}
-                  defaultValue={settings["mysettings.profile.firstname"]}
-                />
-              </fieldset>
-              <fieldset className="form-group">
-                <label htmlFor="profileLastname">Lastname: </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="mysettings.profile.lastname"
-                  placeholder="Lastname"
-                  id="profileLastname"
-                  onChange={handleSettingsChange}
-                  defaultValue={settings["mysettings.profile.lastname"]}
-                />
-              </fieldset>
-              <fieldset className="form-group">
-                <label htmlFor="profileBiography">Biography: </label>
-                <textarea
-                  className="form-control"
-                  name="mysettings.profile.biography"
-                  placeholder="Biography"
-                  id="profileBiography"
-                  onChange={handleSettingsChange}
-                  defaultValue={settings["mysettings.profile.biography"]}
-                />
-              </fieldset>
-            </SettingsPage>
-          </SettingsContent>
-        </SettingsPane>
-      </div>
+          currentPage={currentPage}
+          switchContent={switchContent}
+          onMenuItemClick={handleMenuItemClick}
+        />
+        <SettingsContent header>
+          <SettingsPage handler="/settings/llm_config">
+            <h4 style={{ textAlign: "left" }}>
+              Genesis Bots use OpenAI LLM models to operate. Please choose your
+              OpenAI provider (OpenAI or Azure OpenAI) and API key. If you need
+              an OpenAI API key, you can get one at OpenAI's website.
+            </h4>
+            <h4 style={{ textAlign: "left" }}>Currently Stored LLMs</h4>
+            <fieldset className="form-group">
+              <label htmlFor="llm-model-picker">Choose LLM Model: </label>
+              <select
+                name="mysettings.llm.llm-model"
+                id="llm-model-picker"
+                className="form-control"
+                defaultValue={settings["mysettings.llm.llm-model"]}
+              >
+                <option value="Open AI">Blue</option>
+                <option value="Azure OpenAI">Red</option>
+                <option value="Cortex">Purple</option>
+              </select>
+            </fieldset>
+            <fieldset className="form-group">
+              <label htmlFor="dummy">Name: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.llm.dummy"
+                placeholder="LLM Key"
+                id="dummy"
+                onChange={handleSettingsChange}
+                defaultValue="" // {settings["mysettings.llm.key"]}
+              />
+            </fieldset>
+          </SettingsPage>
+          <SettingsPage handler="/settings/slack_config">
+            <fieldset className="form-group">
+              <label htmlFor="slackKey">Slack Key: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.slack.dummy"
+                placeholder="Slack Key"
+                id="slackKey"
+                onChange={handleSettingsChange}
+                defaultValue="" // {settings["mysettings.profile.firstname"]}
+              />
+            </fieldset>
+          </SettingsPage>
+          <SettingsPage handler="/settings/bot_config">
+            <fieldset className="form-group">
+              <label htmlFor="botName">Bot Name: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.bots.dummy"
+                placeholder="Bot Name"
+                id="botName"
+                onChange={handleSettingsChange}
+                defaultValue="MyBot" // {settings["mysettings.profile.firstname"]}
+              />
+            </fieldset>
+          </SettingsPage>
+          <SettingsPage handler="/settings/harvester_config">
+            <fieldset className="form-group">
+              <label htmlFor="harvesterConfig">Harvester Config: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.harvester.dummy"
+                placeholder="Harvester Config"
+                id="harvesterConfig"
+                onChange={handleSettingsChange}
+                defaultValue="" // {settings["mysettings.profile.firstname"]}
+              />
+            </fieldset>
+          </SettingsPage>
+          <SettingsPage handler="/settings/jira_config">
+            <fieldset className="form-group">
+              <label htmlFor="jiraKey">Jira Key: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.jita.dummy"
+                placeholder="Jira Key"
+                id="jiraKey"
+                onChange={handleSettingsChange}
+                defaultValue="" // {settings["mysettings.profile.firstname"]}
+              />
+            </fieldset>
+          </SettingsPage>
+          <SettingsPage handler="/settings/web_access_api_config">
+            <fieldset className="form-group">
+              <label htmlFor="webAccessKey">Web Access Key: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.webaccess.dummy"
+                placeholder="Web Access Key"
+                id="webAccessKey"
+                onChange={handleSettingsChange}
+                defaultValue="" // {settings["mysettings.profile.firstname"]}
+              />
+            </fieldset>
+          </SettingsPage>
+          <SettingsPage handler="/settings/google_api_config">
+            <fieldset className="form-group">
+              <label htmlFor="googleKey">Google Key: </label>
+              <input
+                type="text"
+                className="form-control"
+                name="mysettings.google.dummy"
+                placeholder="Google Key"
+                id="googleKey"
+                onChange={handleSettingsChange}
+                defaultValue="" // {settings["mysettings.profile.firstname"]}
+              />
+            </fieldset>
+          </SettingsPage>
+        </SettingsContent>
+      </SettingsPane>
     </div>
   );
 };

@@ -30,12 +30,6 @@ const SettingsFooter: React.FC<SettingsFooterProps> = ({
   return (
     <div className="settings-footer">
       <div className="settings-close">
-        <button
-          className={closeButtonClass || "btn btn-default"}
-          onClick={closeClicked}
-        >
-          Close
-        </button>
       </div>
       <button
         className={saveButtonClass || "btn btn-primary"}

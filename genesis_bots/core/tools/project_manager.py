@@ -156,8 +156,8 @@ def manage_projects(
 @gc_tool(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     todo_id="ID of the todo item to record work for",
-    work_description="Detailed description of the work performed or progress made",
-    work_results="Optional results, output, or findings from the work performed",
+    work_description="Detailed description of ALL the work performed or progress made since your last call to this function",
+    work_results="Optional results, output, or findings from all the work performed since your last call to this function",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )

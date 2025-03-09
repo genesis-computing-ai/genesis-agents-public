@@ -52,7 +52,34 @@ def file_viewer():
     # Get file path from session state
     file_path = st.session_state.get("file_path_to_view", None)
     
-    if file_path:
+    # Check if this is a thread ID request
+    if file_path and file_path.startswith("Thread:"):
+        thread_id = file_path.split(":", 1)[1]
+        try:
+            from utils import get_metadata
+            thread_data = get_metadata(f"get_thread {thread_id}")
+            
+            # Override file_path and display raw thread data
+            file_path = f"Thread {thread_id}"
+            
+            # Format thread data as chat messages
+            st.markdown(f"### {file_path}")
+            
+            # Parse thread data into messages
+            messages = eval(thread_data) if isinstance(thread_data, str) else thread_data
+            # Display each message in the thread
+            for msg_type, msg_content in messages:
+                if msg_type == "User Prompt":
+                    with st.chat_message("user"):
+                        st.markdown(msg_content)
+                elif msg_type == "Assistant Response":
+                    with st.chat_message("assistant", avatar="🤖"):
+                        st.markdown(msg_content)
+            return
+        except Exception as e:
+            st.error(f"Error retrieving thread data: {str(e)}")
+            return
+    elif file_path:
         # Ensure the file path is within the genesis/tmp directory for security
         base_path = "/Users/justin/Documents/Code/genesis/"
         full_path = os.path.join(base_path, file_path)

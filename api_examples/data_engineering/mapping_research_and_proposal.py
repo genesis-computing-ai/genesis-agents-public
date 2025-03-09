@@ -1067,7 +1067,7 @@ Use _run_program tool to run the mapping_research_and_proposal program referenci
 
 
 
-def record_work(client, todo_id, description, bot_id, results=None):
+def record_work(client, todo_id, description, bot_id, thread_id=None, results=None):
     """
     Record work progress on a todo item.
     
@@ -1085,7 +1085,8 @@ def record_work(client, todo_id, description, bot_id, results=None):
                 "todo_id": todo_id,
                 "work_description": description,
                 "work_results": str(results),
-                "bot_id": bot_id
+                "bot_id": bot_id,
+                "thread_id": thread_id
             },
             bot_id=bot_id
         )
@@ -1470,7 +1471,7 @@ def main():
                 git_file_path = source_research_results['git_file_path']
                 source_research_thread = source_research_results['thread']
                 # add ability to tag the threads in message log that the work was done by          
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed source research for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {source_research_thread}", bot_id=pm_bot_id, results=source_research)     
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed source research for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {source_research_thread}", bot_id=pm_bot_id, results=source_research, thread_id=source_research_thread)     
 
             mapping_proposal_results = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id, pm_bot_id=pm_bot_id, project_id=project_id)
             #mapping_proposal_results = {
@@ -1485,15 +1486,15 @@ def main():
                 git_file_path = mapping_proposal_results['git_file_path'] 
                 mapping_proposal_thread = mapping_proposal_results['thread']
 
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed mapping proposal for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {mapping_proposal_thread}", bot_id=pm_bot_id, results=mapping_proposal)     
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed mapping proposal for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {mapping_proposal_thread}", bot_id=pm_bot_id, results=mapping_proposal, thread_id=mapping_proposal_thread)     
 
             if not skip_confidence:
                 confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report)     
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report, thread_id=mapping_proposal_thread)     
 
             summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
             summary = summary_results['summary']
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {summary_results['thread']}", bot_id=pm_bot_id, results=summary_results)     
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {summary_results['thread']}", bot_id=pm_bot_id, results=summary_results, thread_id=summary_results['thread'])     
         
             # Get the full content of each file from git
             source_research_content = source_research
@@ -1503,7 +1504,7 @@ def main():
             # Evaluate results
             if requirement['CORRECT_ANSWER_FOR_EVAL']:
                 evaluation, eval_json, thread = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation)     
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation, thread_id=thread)     
             else:
                 evaluation = None
                 eval_json = None
@@ -1533,7 +1534,7 @@ def main():
                 requirements_table_name
             )
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None)     
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=summary_results['thread'])     
 
             # if correct, ready for review, otherwise needs help
             # Update todo status to complete
@@ -1560,7 +1561,8 @@ def main():
                         todo_id=todo['todo_id'],
                         description=f"Updated [Google Sheet]({gsheet_location}) for column: {requirement['PHYSICAL_COLUMN_NAME']}. ",
                         bot_id=pm_bot_id,
-                        results=None
+                        results=None,
+                        thread_id=summary_results['thread']
                     )
                 else:
                     print("\033[33mSkipping Google Sheet update - no sheet location provided\033[0m")
@@ -1571,12 +1573,13 @@ def main():
                     todo_id=todo['todo_id'],
                     description=f"Error updating Google Sheet: {e}",
                     bot_id=pm_bot_id,
-                    results=None
+                    results=None,
+                    thread_id=summary_results['thread']
                 )
 
         except Exception as e:
             print(f"\033[31mError occurred: {e}\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Error occurred: {e}", bot_id=pm_bot_id, results=None)     
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Error occurred: {e}", bot_id=pm_bot_id, results=None, thread_id=None)     
 
             # Save error state to database for this field
             error_fields = {
@@ -1603,7 +1606,7 @@ def main():
             )
             # Update the Google Sheet with error state
             print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Saved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None)     
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Saved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=None)     
 
             # Update todo status to complete
             update_todo_status(client=client, todo_id=todo['todo_id'], new_status='ON_HOLD', bot_id=pm_bot_id)

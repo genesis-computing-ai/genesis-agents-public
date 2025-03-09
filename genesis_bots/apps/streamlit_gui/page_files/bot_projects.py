@@ -200,9 +200,9 @@ def bot_projects():
 
                     # Create rows of 3 todos each
                     todos_list = todos['todos']
-                    for i in range(0, len(todos_list), 3):
-                        cols = st.columns(3)
-                        for j in range(3):
+                    for i in range(0, len(todos_list), 2):
+                        cols = st.columns(2)
+                        for j in range(2):
                             if i + j < len(todos_list):
                                 todo = todos_list[i + j]
                                 with cols[j]:
@@ -235,7 +235,7 @@ def bot_projects():
                                                 st.session_state[f"messages_{new_thread_id}"] = []
 
                                                 from page_files.chat_page import set_initial_chat_sesssion_data
-                                                initial_message = f"Perform work on the following todo:\ntodo id: {todo.get('todo_id')}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record work, and update the status of the todo to completed if applicable."
+                                                initial_message = f"Perform work on the following todo:\ntodo id: {todo.get('todo_id')}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record_todo_work (include ALL the work you performed), and update the status of the todo to completed if applicable. The user is watching you do this work, so explain what you are doing and what tool calls you are making."
                                                 set_initial_chat_sesssion_data(
                                                     bot_name=selected_bot,
                                                     initial_prompt=initial_message,
@@ -303,11 +303,13 @@ def bot_projects():
                                                     history_text = {
                                                         'action_taken': entry.get('action_taken', 'N/A'),
                                                         'action_details': entry.get('action_details', 'N/A'),
-                                                        'work_description': entry.get('work_description', 'N/A')
+                                                        'work_description': entry.get('work_description', 'N/A'),
+                                                        'thread_id': entry.get('thread_id', 'N/A')
                                                     }
 
                                                     # Convert file paths to links in all fields
                                                     for key, text in history_text.items():
+
                                                         if isinstance(text, str) and 'tmp/' in text:
                                                             import re
                                                             pattern = r'tmp/[^\s)]*\.txt'
@@ -333,14 +335,31 @@ def bot_projects():
                                                                     file_path,
                                                                     f"[View work log above]"
                                                                 )
+                                                    # Add button for thread ID if it exists and isn't 'N/A'
+                                                    if history_text['thread_id'] and history_text['thread_id'] != 'N/A':
+                                                        if st.button(f"🧵 View Thread", key=f"view_thread_{history_text['thread_id']}"):
+                                                            # Store current state
+                                                            st.session_state["previous_bot"] = selected_bot
+                                                            st.session_state["previous_project"] = selected_project
+                                                            st.session_state["previous_todo_id"] = todo.get('todo_id')
+                                                            st.session_state["previous_history_open"] = True
+                                                            st.session_state[f"history_{todo.get('todo_id')}"] = True  # Store history expander state
+                                                            # Navigate to file viewer
+                                                            st.session_state["selected_page_id"] = "file_viewer"
+                                                            st.session_state["radio"] = "File Viewer"
+                                                            st.session_state["file_path_to_view"] = f"Thread:{history_text['thread_id']}"
+                                                            st.session_state['hide_chat_elements'] = True
+                                                            st.rerun()
 
                                                     st.markdown(
                                                         f"<small>"
                                                         f"Action: {history_text['action_taken']}<br>"
                                                         f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
+                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
+                                                        f"Thread ID: {entry.get('thread_id', 'N/A')}<br>"
                                                         f"Details: {history_text['action_details']}<br>"
                                                         f"Work Description: {history_text['work_description']}<br>"
-                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
+                                                      
                                                         f"</small>",
                                                         unsafe_allow_html=True
                                                     )

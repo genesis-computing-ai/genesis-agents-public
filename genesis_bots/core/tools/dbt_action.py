@@ -123,20 +123,17 @@ class DBTTools:
     
     # --------- Project Management ---------
     
-    def create_project(self, project_name: str, profile_name: Optional[str] = None) -> Dict[str, Any]:
+    def create_project(self, project_name: str, profile_name: str) -> Dict[str, Any]:
         """
         Create a new dbt project
         
         Args:
             project_name: Name of the project
-            profile_name: Profile name to use (defaults to project_name)
+            profile_name: Profile name to use
             
         Returns:
             Dict with project information
         """
-        if not profile_name:
-            profile_name = project_name
-        
         project_dir = self.workspace_dir / project_name
         
         # Check if project already exists
@@ -480,6 +477,62 @@ class DBTTools:
                 "success": False,
                 "error": f"Error reading profiles: {str(e)}",
                 "profiles_path": str(profiles_path)
+            }
+    
+    def delete_profile(self, profile_name: str) -> Dict[str, Any]:
+        """
+        Delete a dbt profile
+        
+        Args:
+            profile_name: Name of the profile to delete
+            
+        Returns:
+            Dict with deletion result
+        """
+        if not profile_name:
+            return {"success": False, "error": "profile_name is required"}
+        
+        try:
+            profiles_path = Path.home() / ".dbt" / "profiles.yml"
+            
+            if not profiles_path.exists():
+                return {"success": False, "error": f"profiles.yml not found at {profiles_path}"}
+            
+            with open(profiles_path, "r") as f:
+                profiles = yaml.safe_load(f) or {}
+            
+            if profile_name not in profiles:
+                return {"success": False, "error": f"Profile '{profile_name}' not found in profiles.yml"}
+            
+            # Remove the profile
+            deleted_profile = profiles.pop(profile_name)
+            
+            # Write updated profiles.yml
+            with open(profiles_path, "w") as f:
+                yaml.dump(profiles, f, default_flow_style=False)
+            
+            # Check for projects using the deleted profile
+            projects_using_profile = []
+            for project_dir in self.workspace_dir.iterdir():
+                if project_dir.is_dir() and (project_dir / "dbt_project.yml").exists():
+                    project_file = project_dir / "dbt_project.yml"
+                    with open(project_file, "r") as f:
+                        project_config = yaml.safe_load(f)
+                    
+                    if project_config.get("profile") == profile_name:
+                        projects_using_profile.append(project_config.get("name"))
+            
+            return {
+                "success": True,
+                "message": f"Profile '{profile_name}' deleted successfully",
+                "deleted_profile": deleted_profile,
+                "remaining_profiles": list(profiles.keys()),
+                "projects_using_deleted_profile": projects_using_profile
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to delete profile: {str(e)}"
             }
     
     def update_project_config(self, config_updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -1097,25 +1150,14 @@ class DBTTools:
              full_refresh: bool = False, vars: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Run dbt build (runs, tests, seeds, and snapshots)
-        
-        Args:
-            select: List of resources to build (if None, builds all)
-            exclude: List of resources to exclude
-            full_refresh: Whether to perform a full refresh
-            vars: Variables to pass to the build
-            
-        Returns:
-            Dict with build result
         """
         self._ensure_project_selected()
         
-        # Change to project directory
         original_dir = os.getcwd()
         os.chdir(self.current_project)
         
         try:
-            # Build command
-            command = ["build"]
+            command = ["build", "--debug"]
             
             if select:
                 command.extend(["--select", " ".join(select)])
@@ -1130,18 +1172,54 @@ class DBTTools:
                 vars_str = " ".join([f"{k}={v}" for k, v in vars.items()])
                 command.extend(["--vars", vars_str])
             
-            # Run command with log capture
-            result = self.runner.invoke(command, log_fmt="text")
+            # Set up detailed logging capture
+            log_buffer = StringIO()
+            log_handler = logging.StreamHandler(log_buffer)
+            log_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+            log_handler.setFormatter(formatter)
+            
+            # Add handler to both dbt logger and root logger
+            dbt_logger = logging.getLogger('dbt')
+            root_logger = logging.getLogger()
+            
+            dbt_logger.addHandler(log_handler)
+            root_logger.addHandler(log_handler)
+            
+            # Store original log levels
+            original_dbt_level = dbt_logger.level
+            original_root_level = root_logger.level
+            
+            # Set to DEBUG for maximum detail
+            dbt_logger.setLevel(logging.DEBUG)
+            root_logger.setLevel(logging.DEBUG)
+            
+            try:
+                # Run command with stdout capture
+                with self._capture_stdout() as stdout:
+                    result = self.runner.invoke(command)
+                    logs = stdout.getvalue()
+            finally:
+                # Clean up logging
+                dbt_logger.removeHandler(log_handler)
+                root_logger.removeHandler(log_handler)
+                dbt_logger.setLevel(original_dbt_level)
+                root_logger.setLevel(original_root_level)
+                log_buffer.close()
             
             return {
-                "success": result.success,
-                "result": result.result,
-                "logs": result.log,  # Add captured logs
-                "command": " ".join(command),
-                "message": "Build completed successfully" if result.success else "Build failed"
+                **self._serialize_result(result),
+                "logs": logs,
+                "command": " ".join(command)
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "logs": "Error during execution",
+                "command": " ".join(command)
             }
         finally:
-            # Restore original directory
             os.chdir(original_dir)
     
     def generate_docs(self, compile_only: bool = False) -> Dict[str, Any]:
@@ -1409,75 +1487,6 @@ class DBTTools:
             "message": "Dependencies installed successfully" if result.success else "Failed to install dependencies"
         }
 
-    def delete_profile(self, profile_name: str) -> Dict[str, Any]:
-        """
-        Delete a profile from profiles.yml
-        
-        Args:
-            profile_name: Name of the profile to delete
-            
-        Returns:
-            Dict with deletion result
-        """
-        try:
-            profiles_path = Path.home() / ".dbt" / "profiles.yml"
-            
-            if not profiles_path.exists():
-                return {
-                    "success": False, 
-                    "error": "profiles.yml not found",
-                    "profiles_path": str(profiles_path)
-                }
-            
-            # Read existing profiles
-            with open(profiles_path, "r") as f:
-                profiles = yaml.safe_load(f) or {}
-            
-            if profile_name not in profiles:
-                return {
-                    "success": False,
-                    "error": f"Profile '{profile_name}' not found",
-                    "available_profiles": list(profiles.keys())
-                }
-            
-            # Store profile info for the response
-            deleted_profile = profiles[profile_name]
-            
-            # Remove the profile
-            del profiles[profile_name]
-            
-            # Write updated profiles back
-            with open(profiles_path, "w") as f:
-                yaml.dump(profiles, f, default_flow_style=False)
-            
-            # Check if any projects are using this profile
-            affected_projects = []
-            if self.workspace_dir.exists():
-                for project_dir in self.workspace_dir.iterdir():
-                    if project_dir.is_dir():
-                        project_yml = project_dir / "dbt_project.yml"
-                        if project_yml.exists():
-                            with open(project_yml, "r") as f:
-                                project_config = yaml.safe_load(f)
-                                if project_config.get("profile") == profile_name:
-                                    affected_projects.append(project_dir.name)
-            
-            return {
-                "success": True,
-                "message": f"Profile '{profile_name}' deleted successfully",
-                "deleted_profile_name": profile_name,
-                "deleted_profile_targets": list(deleted_profile.get("outputs", {}).keys()),
-                "profiles_path": str(profiles_path),
-                "remaining_profiles": list(profiles.keys()),
-                "warning": f"The following projects were using this profile: {affected_projects}" if affected_projects else None
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Error deleting profile: {str(e)}",
-                "profiles_path": str(profiles_path)
-            }
-
 dbt_action_grp = ToolFuncGroup(
     name="dbt_action",
     description="DBT project management and operations",
@@ -1535,7 +1544,7 @@ dbt_action_grp = ToolFuncGroup(
     ),
     sql_content=ToolFuncParamDescriptor(
         name="sql_content",
-        description="SQL content for models, tests, etc.",
+        description="SQL content for models, tests, etc. Do NOT include a trailing semicolon.",
         required=False,
         llm_type_desc=dict(type="string", nullable=True),
     ),

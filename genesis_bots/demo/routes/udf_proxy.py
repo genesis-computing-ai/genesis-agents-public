@@ -241,6 +241,9 @@ def get_metadata():
             result = {"Success": True, "Data": json.dumps(project_manager.get_todo_history(
                 todo_id=todo_id
             ))}
+        elif metadata_type.startswith('get_thread '):
+            thread_id = metadata_type.split('get_thread ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(genesis_app.db_adapter.read_thread_messages(thread_id))}
         elif metadata_type.startswith('list_project_artifacts '):
             project_id = metadata_type.split('list_project_artifacts ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.manage_project_assets(

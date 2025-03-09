@@ -72,9 +72,13 @@ class ProjectManager:
                 work_results TEXT,
                 action_details TEXT,
                 action_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                thread_id VARCHAR(255),
                 FOREIGN KEY (todo_id) REFERENCES {self.db_adapter.schema}.TODO_ITEMS(todo_id)
             )
             """
+
+            # Add thread_id column to TODO_ITEMS if not exists
+            add_thread_id_query = f"""ALTER TABLE {self.db_adapter.schema}.TODO_HISTORY ADD COLUMN thread_id VARCHAR(255)"""
             
             # Add new TODO_DEPENDENCIES table
             create_dependencies_query = f"""
@@ -106,6 +110,10 @@ class ProjectManager:
             cursor.execute(create_project_history_query)
             cursor.execute(create_todos_query)
             cursor.execute(create_history_query)
+            try:
+                cursor.execute(add_thread_id_query)
+            except Exception as e:
+                pass
             cursor.execute(create_dependencies_query)
             cursor.execute(create_assets_query)
             self.db_adapter.client.commit()
@@ -385,7 +393,8 @@ class ProjectManager:
                     previous_status=old_status,
                     current_status=new_status,
                     work_description=work_description,
-                    work_results=work_results
+                    work_results=work_results,
+                    thread_id=None
                 )
 
                 self.db_adapter.client.commit()
@@ -569,7 +578,7 @@ class ProjectManager:
             cursor.close()
 
     def _add_history(self, cursor, todo_id, action_taken, action_by_bot_id, action_details, 
-                    previous_status=None, current_status=None, work_description=None, work_results=None):
+                    previous_status=None, current_status=None, work_description=None, work_results=None, thread_id = None):
         """Helper method to add an entry to the todo history"""
         history_id = f"hist_{todo_id}_{int(time.time())}_{random.randint(1000, 9999)}"
         status_changed_flag = 'Y' if (previous_status and current_status and previous_status != current_status) else 'N'
@@ -577,13 +586,13 @@ class ProjectManager:
         insert_query = f"""
         INSERT INTO {self.db_adapter.schema}.TODO_HISTORY 
         (history_id, todo_id, action_taken, action_by_bot_id, action_details,
-         previous_status, current_status, status_changed_flag, work_description, work_results)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+         previous_status, current_status, status_changed_flag, work_description, work_results, thread_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(
             insert_query,
             (history_id, todo_id, action_taken, action_by_bot_id, action_details,
-             previous_status, current_status, status_changed_flag, work_description, work_results)
+             previous_status, current_status, status_changed_flag, work_description, work_results, thread_id)
         )
 
     def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id = None, requested_by_user=None, static_project_id = False):
@@ -956,7 +965,8 @@ class ProjectManager:
                 previous_status=current_status,
                 current_status=current_status,
                 work_description=work_description,
-                work_results=work_results
+                work_results=work_results,
+                thread_id=thread_id
             )
             
             # Update the todo's updated_at timestamp
@@ -999,7 +1009,7 @@ class ProjectManager:
                 f"""
                 SELECT history_id, action_taken, action_by_bot_id, action_details,
                        previous_status, current_status, status_changed_flag,
-                       work_description, work_results, created_at
+                       work_description, work_results, created_at, thread_id
                 FROM {self.db_adapter.schema}.TODO_HISTORY
                 WHERE todo_id = %s
                 ORDER BY created_at DESC
@@ -1019,7 +1029,8 @@ class ProjectManager:
                     "status_changed": row[6] == 'Y',
                     "work_description": row[7],
                     "work_results": row[8],
-                    "created_at": str(row[9])
+                    "created_at": str(row[9]),
+                    "thread_id": row[10]
                 })
                 
             return {
@@ -1216,7 +1227,7 @@ class ProjectManager:
             result_todos = []
             for todo in todos:
                 history_query = f"""
-                SELECT action_taken, action_by_bot_id, action_details, action_timestamp, work_description, work_results, previous_status, current_status, status_changed_flag
+                SELECT action_taken, action_by_bot_id, action_details, action_timestamp, work_description, work_results, previous_status, current_status, status_changed_flag, thread_id
                 FROM {self.db_adapter.schema}.TODO_HISTORY
                 WHERE todo_id = %s
                 ORDER BY action_timestamp DESC
@@ -1243,7 +1254,8 @@ class ProjectManager:
                             "work_results": h[5],
                             "previous_status": h[6],
                             "current_status": h[7],
-                            "status_changed_flag": h[8]
+                            "status_changed_flag": h[8],
+                            "thread_id": h[9]
                         } for h in history
                     ]
                 })

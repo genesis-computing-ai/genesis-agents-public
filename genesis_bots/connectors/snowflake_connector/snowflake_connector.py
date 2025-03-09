@@ -4356,6 +4356,36 @@ def get_status(site):
             return knowledge
         return {}
 
+
+    def read_thread_messages(self, thread_id):
+        """
+        Query messages from a specific thread, filtering for user prompts and assistant responses.
+        
+        Args:
+            thread_id (str): The thread ID to query messages for
+            
+        Returns:
+            list: List of message records from the thread
+        """
+        query = f"""
+            SELECT message_type, message_payload FROM {self.message_log_table_name}
+            WHERE thread_id = %s
+            AND (message_type = 'User Prompt' OR message_type = 'Assistant Response')
+            AND message_payload <> 'Tool call completed, results'
+            ORDER BY timestamp
+        """
+        
+        try:
+            cursor = self.client.cursor()
+            cursor.execute(query, (thread_id,))
+            results = cursor.fetchall()
+            cursor.close()
+            return results
+        except Exception as e:
+            logger.error(f"Error querying thread messages: {e}")
+            return []
+
+
     def query_threads_message_log(self, cutoff):
         query = f"""
                 WITH K AS (SELECT thread_id, max(last_timestamp) as last_timestamp FROM {self.knowledge_table_name}

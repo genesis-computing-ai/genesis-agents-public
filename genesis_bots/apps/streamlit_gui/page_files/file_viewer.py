@@ -56,8 +56,17 @@ def file_viewer():
     if file_path and file_path.startswith("Thread:"):
         thread_id = file_path.split(":", 1)[1]
         try:
-            from utils import get_metadata
+            from utils import get_metadata, get_metadata_cached
             thread_data = get_metadata(f"get_thread {thread_id}")
+            
+            # Get bot avatar image like in chat_page
+            bot_images = get_metadata_cached("bot_images")
+            bot_avatar_image_url = None
+            if len(bot_images) > 0:
+                # Use the default G logo image for all bots
+                encoded_bot_avatar_image = bot_images[0]["bot_avatar_image"]
+                if encoded_bot_avatar_image:
+                    bot_avatar_image_url = f"data:image/png;base64,{encoded_bot_avatar_image}"
             
             # Override file_path and display raw thread data
             file_path = f"Thread {thread_id}"
@@ -73,7 +82,7 @@ def file_viewer():
                     with st.chat_message("user"):
                         st.markdown(msg_content)
                 elif msg_type == "Assistant Response":
-                    with st.chat_message("assistant", avatar="🤖"):
+                    with st.chat_message("assistant", avatar=bot_avatar_image_url):
                         st.markdown(msg_content)
             return
         except Exception as e:

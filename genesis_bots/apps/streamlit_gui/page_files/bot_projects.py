@@ -336,6 +336,20 @@ def bot_projects():
                                                                     f"[View work log above]"
                                                                 )
                                                     # Add button for thread ID if it exists and isn't 'N/A'
+                                                    
+
+                                                    st.markdown(
+                                                        f"<small>"
+                                                        f"Action: {history_text['action_taken']}<br>"
+                                                        f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
+                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
+                                                        f"Thread ID: {entry.get('thread_id', 'N/A')}<br>"
+                                                        f"Details: {history_text['action_details']}<br>"
+                                                        f"Work Description: {history_text['work_description']}<br>"
+                                                      
+                                                        f"</small>",
+                                                        unsafe_allow_html=True
+                                                    )
                                                     if history_text['thread_id'] and history_text['thread_id'] != 'N/A':
                                                         if st.button(f"🧵 View Thread", key=f"view_thread_{history_text['thread_id']}_{idx}_{todo.get('todo_id')}"):
                                                             # Store current state
@@ -350,19 +364,6 @@ def bot_projects():
                                                             st.session_state["file_path_to_view"] = f"Thread:{history_text['thread_id']}"
                                                             st.session_state['hide_chat_elements'] = True
                                                             st.rerun()
-
-                                                    st.markdown(
-                                                        f"<small>"
-                                                        f"Action: {history_text['action_taken']}<br>"
-                                                        f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
-                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
-                                                        f"Thread ID: {entry.get('thread_id', 'N/A')}<br>"
-                                                        f"Details: {history_text['action_details']}<br>"
-                                                        f"Work Description: {history_text['work_description']}<br>"
-                                                      
-                                                        f"</small>",
-                                                        unsafe_allow_html=True
-                                                    )
                     st.markdown("---")
         else:
             st.info("No projects available.")

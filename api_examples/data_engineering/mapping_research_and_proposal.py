@@ -1496,7 +1496,7 @@ def main():
 
             if not skip_confidence:
                 confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id)
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report, thread_id=mapping_proposal_thread)     
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report)     
 
             summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
             summary = summary_results['summary']
@@ -1540,7 +1540,7 @@ def main():
                 requirements_table_name
             )
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=summary_results['thread'])     
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None)     
 
             # if correct, ready for review, otherwise needs help
             # Update todo status to complete
@@ -1567,8 +1567,7 @@ def main():
                         todo_id=todo['todo_id'],
                         description=f"Updated [Google Sheet]({gsheet_location}) for column: {requirement['PHYSICAL_COLUMN_NAME']}. ",
                         bot_id=pm_bot_id,
-                        results=None,
-                        thread_id=summary_results['thread']
+                        results=None
                     )
                 else:
                     print("\033[33mSkipping Google Sheet update - no sheet location provided\033[0m")
@@ -1579,8 +1578,7 @@ def main():
                     todo_id=todo['todo_id'],
                     description=f"Error updating Google Sheet: {e}",
                     bot_id=pm_bot_id,
-                    results=None,
-                    thread_id=summary_results['thread']
+                    results=None
                 )
 
         except Exception as e:

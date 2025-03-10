@@ -668,6 +668,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             # Trigger immediate harvest after successful update - don't wait for result
             try:
                 from genesis_bots.demo.app.genesis_app import genesis_app
+                from datetime import datetime
                 if hasattr(genesis_app, 'scheduler'):
                     genesis_app.scheduler.modify_job(
                         'harvester_job',

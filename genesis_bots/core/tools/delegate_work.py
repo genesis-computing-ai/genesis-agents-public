@@ -34,6 +34,8 @@ delegate_work = ToolFuncGroup(
 @gc_tool(
     program_id="ID of the program to run (e.g. 'mapping_research_and_proposal')", 
     todo_id="ID of the todo to process",
+    project_id="Project ID argument for the program",
+    root_folder="Root folder argument for the program",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[delegate_work],
 )
@@ -44,6 +46,8 @@ def run_program(
     thread_id: str = None,
     run_id: str = None,
     session_id: str = None,
+    project_id: str = None,
+    root_folder: str = None,
     status_update_callback: str = None,
     input_metadata: str = None,
 ):
@@ -89,6 +93,12 @@ def run_program(
             "--genesis_db", genesis_db,
             "--todo-id", todo_id
         ]
+        
+        if root_folder:
+            cmd.extend(["--base-file-path", root_folder])
+            
+        if project_id:
+            cmd.extend(["--project-id", project_id])
         
         # Define the output file in /tmp/
         tmp_output_file = f"tmp/{program_id}_{int(time.time())}.txt"

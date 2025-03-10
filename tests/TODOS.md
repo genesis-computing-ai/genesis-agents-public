@@ -2,10 +2,18 @@
 GENESIS BOT TODOS
 =================
 
+gxs mapping quality (try in new system as a project, using same bots)
 DBT-make project_name requried on all calls to make it thread safe for multiple bots at the same time to use it, or make it per thread
 DBT- see if stdout can be captured and returned instead of the debug logs ?
 Databricks connector times out, needs reconnect logic
 profile name is mixe up with project naem and they need to be the same nwo
+Why didnt the run work 
+Show g-sheets comment read and response.
+autonomy loop
+test with fresh schema
+lazy load history of todos
+
+
 
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them

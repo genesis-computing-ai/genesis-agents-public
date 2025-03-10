@@ -269,7 +269,7 @@ def bot_projects():
 
                                     # Delete button
                                     with btn_col3:
-                                        if st.button("❌ Delete", key=f"delete_button_{todo.get('todo_id')}", use_container_width=True):
+                                        if st.button("❌", key=f"delete_button_{todo.get('todo_id')}", use_container_width=True):
                                             try:
                                                 todo_id = todo.get('todo_id')
                                                 selected_bot_id = next((bot["bot_id"] for bot in bot_details if bot["bot_name"] == selected_bot), None)

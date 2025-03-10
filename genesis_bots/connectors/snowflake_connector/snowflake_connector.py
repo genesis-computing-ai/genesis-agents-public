@@ -671,7 +671,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
                 if hasattr(genesis_app, 'scheduler'):
                     genesis_app.scheduler.modify_job(
                         'harvester_job',
-                        next_run_time=datetime.datetime.now()
+                        next_run_time=datetime.now()
                     )
             except Exception as e:
                 logger.info(f"Non-critical error triggering immediate harvest: {e}")
@@ -4360,6 +4360,7 @@ def get_status(site):
     def read_thread_messages(self, thread_id):
         """
         Query messages from a specific thread, filtering for user prompts and assistant responses.
+        If no results found with the given thread_id, try to find a valid thread_id from message_metadata.
         
         Args:
             thread_id (str): The thread ID to query messages for
@@ -4379,6 +4380,26 @@ def get_status(site):
             cursor = self.client.cursor()
             cursor.execute(query, (thread_id,))
             results = cursor.fetchall()
+            
+            # If no results found, try to find a valid thread_id from message_metadata
+            if not results:
+                fallback_query = f"""
+                    SELECT any_value(thread_id) as thread_id FROM {self.message_log_table_name}
+                    WHERE message_metadata LIKE %s
+                    AND (message_type = 'User Prompt' OR message_type = 'Assistant Response')
+                    AND message_payload <> 'Tool call completed, results'
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                """
+                cursor.execute(fallback_query, (f'%{thread_id}%',))
+                thread_id_result = cursor.fetchone()
+                
+                # If we found a valid thread_id, retry the original query
+                if thread_id_result:
+                    new_thread_id = thread_id_result[0]
+                    cursor.execute(query, (new_thread_id,))
+                    results = cursor.fetchall()
+            
             cursor.close()
             return results
         except Exception as e:

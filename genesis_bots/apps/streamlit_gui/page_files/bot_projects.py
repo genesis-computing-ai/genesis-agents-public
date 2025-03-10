@@ -200,9 +200,9 @@ def bot_projects():
 
                     # Create rows of 3 todos each
                     todos_list = todos['todos']
-                    for i in range(0, len(todos_list), 2):
-                        cols = st.columns(2)
-                        for j in range(2):
+                    for i in range(0, len(todos_list), 3):
+                        cols = st.columns(3)
+                        for j in range(3):
                             if i + j < len(todos_list):
                                 todo = todos_list[i + j]
                                 with cols[j]:
@@ -295,7 +295,7 @@ def bot_projects():
                                             if not history_entries:
                                                 st.info("No history entries available.")
                                             else:
-                                                for entry in history_entries:
+                                                for idx, entry in enumerate(history_entries):
                                                     if not isinstance(entry, dict):
                                                         continue
 
@@ -337,7 +337,7 @@ def bot_projects():
                                                                 )
                                                     # Add button for thread ID if it exists and isn't 'N/A'
                                                     if history_text['thread_id'] and history_text['thread_id'] != 'N/A':
-                                                        if st.button(f"🧵 View Thread", key=f"view_thread_{history_text['thread_id']}"):
+                                                        if st.button(f"🧵 View Thread", key=f"view_thread_{history_text['thread_id']}_{idx}_{todo.get('todo_id')}"):
                                                             # Store current state
                                                             st.session_state["previous_bot"] = selected_bot
                                                             st.session_state["previous_project"] = selected_project

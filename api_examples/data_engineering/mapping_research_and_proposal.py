@@ -1079,14 +1079,20 @@ def record_work(client, todo_id, description, bot_id, thread_id=None, results=No
         results: Optional results or output from the work
     """
     try:
+        # Convert thread_id to string if it's a UUID
+        thread_id_str = str(thread_id) if thread_id else None
+        
+        # Convert results to string if not JSON serializable
+        results_str = str(results) if results else None
+        
         result = client.run_genesis_tool(
             tool_name="record_todo_work",
             params={
                 "todo_id": todo_id,
                 "work_description": description,
-                "work_results": str(results),
+                "work_results": results_str,
                 "bot_id": bot_id,
-                "thread_id": thread_id
+                "thread_id": thread_id_str
             },
             bot_id=bot_id
         )

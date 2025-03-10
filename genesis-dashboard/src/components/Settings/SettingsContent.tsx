@@ -1,5 +1,5 @@
 import React, { ReactNode } from "react";
-import { SettingsFooter } from "./index";
+import SettingsFooter from "./SettingsFooter";
 
 interface SettingsContentProps {
   currentPage?: string;

@@ -1,10 +1,8 @@
 import React, { useState, useRef } from "react";
-import {
-  SettingsPane,
-  SettingsPage,
-  SettingsContent,
-  SettingsMenu,
-} from "./index";
+import SettingsPane from "./SettingsPane";
+import SettingsPage from "./SettingsPage";
+import SettingsContent from "./SettingsContent";
+import SettingsMenu from "./SettingsMenu";
 
 interface SettingsState {
   [key: string]: string;
@@ -231,4 +229,4 @@ const Settings: React.FC = () => {
   );
 };
 
-export default Settings;
+export { Settings as default };

@@ -18,7 +18,9 @@
     "react-dom": "^18.2.0",
     "react-settings-pane": "^0.1.5",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0"
   },
   "devDependencies": {
     "@types/babel__generator": "^7.6.8",

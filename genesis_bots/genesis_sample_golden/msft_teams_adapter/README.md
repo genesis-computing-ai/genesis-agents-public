@@ -1,4 +1,7 @@
-Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Genesis instance running in SPCS or any other host on www
+Python utility to relay messages to and from an Azure Bot (for MS Teams) to a Genesis instance running in SPCS or any other host on www.
+
+• A bot is created on Azure (portal.azure.com) for each Genesis bot that you want to use.  It will have ita own instance of the msft teams adapter.  Type 'azure bot' in the search bar and select 'Azure Bot' which will be under the 'Marketplace' heading.
+• The bot is specified in the BOT_ID environment variable.
 
 1.  Sign up for an Azure account.  The free tier is sufficient to set up a bot and adapter
 2.  Sign up for an M365 developer account.  This is required to deploy a bot to Teams.

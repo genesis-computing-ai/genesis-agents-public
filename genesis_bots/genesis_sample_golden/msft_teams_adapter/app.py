@@ -15,8 +15,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get credentials from environment variables (more secure)
-APP_ID = os.environ.get("APP_ID", "")
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+APP_ID = os.environ.get("APP_ID", "73e855e4-fefc-441d-bbca-5256a95dabf6")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "k6T8Q~nYVpKA.ww4zlrecj1Jxi2Q3UWr.C4XwaUH")
 
 logger.info("Initializing bot with APP_ID: %s", APP_ID)
 
@@ -55,6 +55,10 @@ async def messages(request):
 
     try:
         auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            logger.error("Missing Authorization header")
+            return web.Response(text="Unauthorized - Missing auth header", status=401)
+
         body = await request.json()
 
         if not body:
@@ -118,3 +122,14 @@ if __name__ == "__main__":
     except Exception as error:
         logger.error(f"Error running app: {error}")
         raise error
+
+# from flask import Flask, jsonify
+
+# app = Flask(__name__)
+
+# @app.route('/api/greet', methods=['GET'])
+# def greet():
+#     return ({'value': 'hello world'})
+
+# if __name__ == '__main__':
+#     app.run(debug=True)

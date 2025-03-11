@@ -193,7 +193,7 @@ class Args:
       self.user = os.getenv('SNOWFLAKE_USER', 'JUSTIN.LANGSETH@GENESISCOMPUTING.AI')
       self.role = os.getenv('SNOWFLAKE_ROLE', 'ACCOUNTADMIN')
       self.private_key_path = os.getenv('PRIVATE_KEY_PATH', 'rsa_key.p8')
-      self.platform = os.getenv('PLATFORM', 'ALPHA')
+      self.platform = os.getenv('PLATFORM', 'DEV')
       if self.platform == 'DEV':
         self.endpoint = os.getenv('SNOWFLAKE_ENDPOINT_DEV', 'blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app')
       elif self.platform == 'ALPHA':
@@ -286,7 +286,6 @@ def call_submit_udf(token, url, bot_id, row_data, conversation_id, thread_id=Non
     """
 
     print(f'Enter call submit udf - url: {url} bot_id: {bot_id} row_data: {row_data} thread_id: {thread_id} file: {file}', flush=True)
-
     headers = {'Authorization': f'Snowflake Token="{token}"'}
 
     # Format bot_id as JSON object
@@ -325,6 +324,7 @@ def call_lookup_udf(token, url, bot_id, uuid):
         "data": [[1, uuid, bot_id]]
     }
 
+    pring(f"Call lookup udf - data: {data} Url: {url}", flush=True)
     lookup_url = f'{url}/udf_proxy/lookup_udf'
     response = requests.post(lookup_url, headers=headers, json=data)  # Use json parameter instead of data
 

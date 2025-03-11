@@ -252,6 +252,17 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         else:
             return False
 
+    def get_credentials(self, credential_type):
+        # Return the credentials for Google Drive & WebAccess
+        query = f"""
+        SELECT * FROM {self.genbot_internal_project_and_schema}.EXT_SERVICE_CONFIG WHERE ext_service_name = %s
+        """
+        # Execute the query
+        cursor = self.client.cursor()
+        cursor.execute(query, (credential_type,))
+        rows = cursor.fetchall()
+
+
     def test_cortex(self):
         newarray = [{"role": "user", "content": "hi there"} ]
         new_array_str = json.dumps(newarray)

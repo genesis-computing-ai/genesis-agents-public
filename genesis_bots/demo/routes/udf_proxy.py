@@ -200,8 +200,9 @@ def get_metadata():
 
         if metadata_type == "harvest_control":
             result = genesis_app.db_adapter.get_harvest_control_data_as_json()
-        elif metadata_type == "project_dashboard":
-            pass
+        elif metadata_type.startswith == "get_credentials":
+            credential_type = metadata_type.split('get_credentials ')[1].strip()
+            result = genesis_app.db_adapter.get_credentials(credential_type)
         elif metadata_type == "db_connections":
             db_connector = DatabaseConnector()
             db_result = db_connector.list_database_connections(bot_id = '', bot_id_override=True)
@@ -357,13 +358,13 @@ def set_metadata():
             parts = metadata_type.split(' ', 3)
             if len(parts) < 4:
                 raise ValueError("add_todo requires PROJECT_ID BOT_ID TODO_NAME WHAT_TO_DO")
-            
+
             _, project_id, bot_id, rest = parts
             # Split remaining text on first space to separate TODO_NAME from WHAT_TO_DO
             todo_parts = rest.split(' ', 1)
             if len(todo_parts) < 2:
                 raise ValueError("add_todo requires both TODO_NAME and WHAT_TO_DO")
-                
+
             todo_name, what_to_do = todo_parts
 
             # URL decode todo_name if it's URL encoded
@@ -372,7 +373,7 @@ def set_metadata():
                 todo_name = unquote(todo_name)
             except Exception as e:
                 logger.warning(f"Failed to URL decode todo_name: {str(e)}")
-            
+
             # Call project manager to add todo
             todo_details = {
                 "project_id": project_id,
@@ -392,7 +393,7 @@ def set_metadata():
             parts = metadata_type.split(' ', 3)
             if len(parts) < 4:
                 raise ValueError("create_project requires BOT_ID PROJECT_NAME DESCRIPTION")
-            
+
             _, bot_id, project_name, description = parts
 
             # URL decode project_name if it's URL encoded

@@ -1002,12 +1002,12 @@ Use _run_program function to run:
  todo_id=<This Todo's id>
 
 Field Details:
-- Physical Name: {req['PHYSICAL_COLUMN_NAME']}
-- Logical Name: {req['LOGICAL_COLUMN_NAME']}
-- Description: {req['COLUMN_DESCRIPTION']}
-- Data Type: {req['DATA_TYPE']}
-- Length: {req['LENGTH']}
-- List of Values: {req['LIST_OF_VALUES']}
+- Physical Name: {req.get('PHYSICAL_COLUMN_NAME', '')}
+- Logical Name: {req.get('LOGICAL_COLUMN_NAME', '')}
+- Description: {req.get('COLUMN_DESCRIPTION', '')}
+- Data Type: {req.get('DATA_TYPE', '')}
+- Length: {req.get('LENGTH', '')}
+- List of Values: {req.get('LIST_OF_VALUES', '')}
             """.strip()
         }
         todos.append(todo)
@@ -1446,7 +1446,7 @@ def main():
 
         # Initialize requirements table if not exists 
 
-        reset_all = False
+        reset_all = True
         req_max = -1
     else:
 
@@ -1503,12 +1503,12 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
     requirement = next((req for req in requirements if req['PHYSICAL_COLUMN_NAME'] == field_name), None)
     try:
         filtered_requirement = {
-            'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
-            'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
-            'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
-            'DATA_TYPE': requirement['DATA_TYPE'],
-            'LENGTH': requirement['LENGTH'],
-            'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
+            'PHYSICAL_COLUMN_NAME': requirement.get('PHYSICAL_COLUMN_NAME', ''),
+            'LOGICAL_COLUMN_NAME': requirement.get('LOGICAL_COLUMN_NAME', ''),
+            'COLUMN_DESCRIPTION': requirement.get('COLUMN_DESCRIPTION', ''),
+            'DATA_TYPE': requirement.get('DATA_TYPE', ''),
+            'LENGTH': requirement.get('LENGTH', ''),
+            'LIST_OF_VALUES': requirement.get('LIST_OF_VALUES', '')
         }
         # set status to in progress?
 

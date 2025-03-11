@@ -127,7 +127,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.providers.provider_id | Direct mapping"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.providers.provider_id | JOIN bronze.healthcare_claims.claims ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Name of the healthcare provider.",
@@ -139,7 +139,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.providers.provider_name | Direct mapping"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.providers.provider_name | JOIN bronze.healthcare_claims.claims ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Medical specialty of the provider.",
@@ -152,7 +152,7 @@
       "STATUS": "NEW",
       "LIST_OF_VALUES": "Cardiology, Dermatology, Neurology",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.providers.specialty | Direct mapping"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.providers.specialty | JOIN bronze.healthcare_claims.claims ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Year of the report period, extracted from the claim date.",
@@ -163,7 +163,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | YEAR(claim_date)"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | YEAR(claim_date) | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Month of the report period, extracted from the claim date.",
@@ -174,7 +174,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | MONTH(claim_date)"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | MONTH(claim_date) | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Total number of claims submitted by the provider during the report period, calculated by counting claims grouped by provider, year, and month.",
@@ -185,7 +185,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_id | COUNT(claim_id) GROUP BY provider_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_id | COUNT(claim_id) GROUP BY provider_id, report_year, report_month | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Number of unique patients seen by the provider during the report period, calculated by counting distinct patients grouped by provider, year, and month.",
@@ -196,7 +196,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.patient_id | COUNT(DISTINCT patient_id) GROUP BY provider_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.patient_id | COUNT(DISTINCT patient_id) GROUP BY provider_id, report_year, report_month | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Sum of all charges from the provider during the report period, calculated by summing total charge values grouped by provider, year, and month.",
@@ -207,7 +207,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.total_charge | SUM(total_charge) GROUP BY provider_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.total_charge | SUM(total_charge) GROUP BY provider_id, report_year, report_month | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Sum of all insurance payments to the provider during the report period, calculated by summing insurance paid values grouped by provider, year, and month.",
@@ -218,7 +218,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.insurance_paid | SUM(insurance_paid) GROUP BY provider_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.insurance_paid | SUM(insurance_paid) GROUP BY provider_id, report_year, report_month | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Percentage of claims that were denied during the report period, calculated as (count of denied claims / total claims) grouped by provider, year, and month.",
@@ -229,7 +229,7 @@
       "PHYSICAL_TABLE_NAME": "PROVIDER_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table aggregates claim information by provider and time period to enable provider performance analysis.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_status | SUM(CASE WHEN claim_status = 'Denied' THEN 1 ELSE 0 END) / COUNT(claim_id) GROUP BY provider_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_status | SUM(CASE WHEN claim_status = 'Denied' THEN 1 ELSE 0 END) / COUNT(claim_id) GROUP BY provider_id, report_year, report_month | JOIN bronze.healthcare_claims.providers ON bronze.healthcare_claims.providers.provider_id = bronze.healthcare_claims.claims.provider_id"
     },
     {
       "COLUMN_DESCRIPTION": "Identifier for the patient.",
@@ -253,7 +253,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.patients.first_name, bronze.healthcare_claims.patients.last_name | CONCAT(first_name, ' ', last_name)"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.patients.first_name, bronze.healthcare_claims.patients.last_name | CONCAT(first_name, ' ', last_name) | JOIN bronze.healthcare_claims.claims ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Current age of the patient in years, calculated from the date of birth to the current date.",
@@ -264,7 +264,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.patients.date_of_birth | FLOOR(DATEDIFF(CURRENT_DATE(), date_of_birth) / 365.25)"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.patients.date_of_birth | FLOOR(DATEDIFF(CURRENT_DATE(), date_of_birth) / 365.25) | JOIN bronze.healthcare_claims.claims ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Age category assigned based on the patient's calculated age, categorized into groups: Under 18, 18-34, 35-50, 51-65, and Over 65.",
@@ -277,7 +277,7 @@
       "LIST_OF_VALUES": "Under 18, 18-34, 35-50, 51-65, Over 65",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.patients.date_of_birth | CASE WHEN patient_age < 18 THEN 'Under 18' WHEN patient_age BETWEEN 18 AND 34 THEN '18-34' WHEN patient_age BETWEEN 35 AND 50 THEN '35-50' WHEN patient_age BETWEEN 51 AND 65 THEN '51-65' ELSE 'Over 65' END"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.patients.date_of_birth | CASE WHEN patient_age < 18 THEN 'Under 18' WHEN patient_age BETWEEN 18 AND 34 THEN '18-34' WHEN patient_age BETWEEN 35 AND 50 THEN '35-50' WHEN patient_age BETWEEN 51 AND 65 THEN '51-65' ELSE 'Over 65' END | JOIN bronze.healthcare_claims.claims ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Year of the report period, extracted from the claim date.",
@@ -288,7 +288,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | YEAR(claim_date)"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | YEAR(claim_date) | JOIN bronze.healthcare_claims.patients ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Month of the report period, extracted from the claim date.",
@@ -299,7 +299,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | MONTH(claim_date)"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_date | MONTH(claim_date) | JOIN bronze.healthcare_claims.patients ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Total number of claims filed by the patient during the report period, calculated by counting claims grouped by patient, year, and month.",
@@ -310,7 +310,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_id | COUNT(claim_id) GROUP BY patient_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.claim_id | COUNT(claim_id) GROUP BY patient_id, report_year, report_month | JOIN bronze.healthcare_claims.patients ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Sum of all charges for the patient during the report period, calculated by summing total charge values grouped by patient, year, and month.",
@@ -321,7 +321,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.total_charge | SUM(total_charge) GROUP BY patient_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.total_charge | SUM(total_charge) GROUP BY patient_id, report_year, report_month | JOIN bronze.healthcare_claims.patients ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Sum of all patient responsibility amounts during the report period, calculated by summing patient responsibility values grouped by patient, year, and month.",
@@ -332,7 +332,7 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.patient_responsibility | SUM(patient_responsibility) GROUP BY patient_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.patient_responsibility | SUM(patient_responsibility) GROUP BY patient_id, report_year, report_month | JOIN bronze.healthcare_claims.patients ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     },
     {
       "COLUMN_DESCRIPTION": "Sum of all insurance payments for the patient during the report period, calculated by summing insurance paid values grouped by patient, year, and month.",
@@ -343,6 +343,6 @@
       "PHYSICAL_TABLE_NAME": "PATIENT_SUMMARY",
       "STATUS": "NEW",
       "TABLE_DESCRIPTION": "This table provides patient-level healthcare utilization metrics by time period.",
-      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.insurance_paid | SUM(insurance_paid) GROUP BY patient_id, report_year, report_month"
+      "CORRECT_ANSWER_FOR_EVAL": "bronze.healthcare_claims.claims.insurance_paid | SUM(insurance_paid) GROUP BY patient_id, report_year, report_month | JOIN bronze.healthcare_claims.patients ON bronze.healthcare_claims.patients.patient_id = bronze.healthcare_claims.claims.patient_id"
     }
   ]

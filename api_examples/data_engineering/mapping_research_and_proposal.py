@@ -273,6 +273,11 @@ def update_single_gsheet_cell(client, g_file_id, cell_location, value, pm_bot_id
         # Convert value to string if it's not a basic type that can go in a sheet cell
         if not isinstance(value, (str, int, float, bool)):
             value = str(value)
+        
+        # Prepend a single quote if the value starts with '='
+        if isinstance(value, str) and value.startswith('='):
+            value = "'" + value
+
         result = client.run_genesis_tool(
             tool_name="google_drive",
             params={
@@ -591,7 +596,7 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
         research_prompt = f'''{message_prefix}Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
 
-        First explore the available data for fields that may be useful using data_explorer function.
+        First explore the available data for the field that may be useful using data_explorer function.
         You may want to try a couple different search terms to make sure your search is comprehensive.
         Be sure to explore various database connections, as the source data may be in a different database connection.  If you are unsure, omit the db_connection parameter when using data_explorer.
         IF there are multiple tables that look relevant, provide full detailed information for all of them.
@@ -1446,7 +1451,7 @@ def main():
 
         # Initialize requirements table if not exists 
 
-        reset_all = True
+        reset_all = False
         req_max = -1
     else:
 
@@ -1500,15 +1505,20 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
     print(f"\033[34mProcessing todo item: {todo['todo_name']}\033[0m")
     print(f"\033[34mLooking up requirement for field: {field_name}\033[0m")
 
-    requirement = next((req for req in requirements if req['PHYSICAL_COLUMN_NAME'] == field_name), None)
     try:
+        requirement = next((req for req in requirements if req['PHYSICAL_COLUMN_NAME'] == field_name), None)
+        if requirement is None:
+            raise Exception(f"Requirement not found for field: {field_name}")
+
         filtered_requirement = {
             'PHYSICAL_COLUMN_NAME': requirement.get('PHYSICAL_COLUMN_NAME', ''),
             'LOGICAL_COLUMN_NAME': requirement.get('LOGICAL_COLUMN_NAME', ''),
             'COLUMN_DESCRIPTION': requirement.get('COLUMN_DESCRIPTION', ''),
             'DATA_TYPE': requirement.get('DATA_TYPE', ''),
             'LENGTH': requirement.get('LENGTH', ''),
-            'LIST_OF_VALUES': requirement.get('LIST_OF_VALUES', '')
+            'LIST_OF_VALUES': requirement.get('LIST_OF_VALUES', ''),
+            'PHYSICAL_TABLE_NAME': requirement.get('PHYSICAL_TABLE_NAME', ''),
+            'TABLE_DESCRIPTION': requirement.get('TABLE_DESCRIPTION', '')
         }
         # set status to in progress?
 
@@ -1672,14 +1682,15 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
             'status': 'ERROR'
         }
 
-        save_pm_summary_to_requirements(
-            requirement['PHYSICAL_COLUMN_NAME'],
-            error_fields,
-            requirements_table_name
-        )
+        if requirement is not None and 'PHYSICAL_COLUMN_NAME' in requirement:
+            save_pm_summary_to_requirements(
+                requirement['PHYSICAL_COLUMN_NAME'],
+                error_fields,
+                requirements_table_name
+            )
         # Update the Google Sheet with error state
-        print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
-        record_work(client=client, todo_id=todo['todo_id'], description=f"Saved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=None)     
+            print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Saved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=None)     
 
         # Update todo status to complete
         update_todo_status(client=client, todo_id=todo['todo_id'], new_status='ON_HOLD', bot_id=pm_bot_id)

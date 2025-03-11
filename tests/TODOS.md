@@ -13,7 +13,7 @@ autonomy loop
 test with fresh schema
 lazy load history of todos
 fix return to correct project back to projects page
-
+Alation import for GXS from CSV file into harvester (supplement harvester info with this alation notes stuff)
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

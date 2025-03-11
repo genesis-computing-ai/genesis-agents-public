@@ -83,10 +83,26 @@ async def health_check(request):
     last_wake_up_pacific = last_wake_up.astimezone(pacific).strftime("%Y-%m-%d %H:%M:%S")
     return web.Response(text=f"A votre sante! Last wake up: {last_wake_up_pacific}", status=200)
 
+async def favicon(request):
+    """Handle favicon.ico requests"""
+    return web.Response(status=204)  # No content response
+
+async def handle_404(request):
+    """Handle all unmatched routes"""
+    logger.info(f"404 Not Found: {request.path}")
+    return web.Response(
+        text=f"404 - Path not found: {request.path}",
+        status=404
+    )
+
 async def init_app():
     app = web.Application(middlewares=[aiohttp_error_middleware])
+
+    app.router.add_get('/favicon.ico', favicon)
     app.router.add_post("/api/messages", messages)
     app.router.add_get("/health", health_check)
+
+    app.router.add_route('*', '/{tail:.*}', handle_404)
 
     if os.environ.get("KEEP-ALIVE"):
         print('Starting wake up task...', flush=True)

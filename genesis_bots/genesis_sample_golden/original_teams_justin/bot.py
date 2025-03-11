@@ -19,12 +19,7 @@ from getpass import getpass
 import hashlib
 import logging
 import sys
-from dotenv import load_dotenv
-import os
-
 logger = logging.getLogger(__name__)
-script_dir = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(script_dir, '.env'))
 
 #cryptography>=3.0
 #PyJWT>=2.0.0
@@ -60,13 +55,13 @@ class JWTGenerator(object):
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
     ALGORITHM = "RS256"  # Tokens will be generated using RSA with SHA256
 
-    def __init__(self, account: Text, user: Text, private_key_path: Text,
+    def __init__(self, account: Text, user: Text, private_key: Text,
                 lifetime: timedelta = LIFETIME, renewal_delay: timedelta = RENEWAL_DELTA):
         """
         __init__ creates an object that generates JWTs for the specified user, account identifier, and private key.
         :param account: Your Snowflake account identifier.
         :param user: The Snowflake username.
-        :param private_key_path: Path to private key string in PEM format
+        :param private_key: Private key string in PEM format
         :param lifetime: The number of minutes (as a timedelta) during which the key will be valid.
         :param renewal_delay: The number of minutes (as a timedelta) from now after which the JWT generator should renew the JWT.
         """
@@ -79,22 +74,19 @@ class JWTGenerator(object):
         self.account = self.prepare_account_name_for_jwt(account)
         self.user = user.upper()
         self.qualified_username = self.account + "." + self.user
-        self.private_key_path = private_key_path
 
         self.lifetime = lifetime
         self.renewal_delay = renewal_delay
         self.renew_time = datetime.now(timezone.utc)
         self.token = None
 
-        # Load the private key from the specified file.
-        with open(self.private_key_path, 'rb') as pem_in:
-            pemlines = pem_in.read()
-            try:
-                # Try to access the private key without a passphrase.
-                self.private_key = load_pem_private_key(pemlines, None, default_backend())
-            except TypeError:
-                # If that fails, provide the passphrase returned from get_private_key_passphrase().
-                self.private_key = load_pem_private_key(pemlines, get_private_key_passphrase().encode(), default_backend())
+        # Load the private key from the string
+        try:
+            # Try to access the private key without a passphrase
+            self.private_key = load_pem_private_key(private_key.encode(), None, default_backend())
+        except TypeError:
+            # If that fails, provide the passphrase returned from get_private_key_passphrase()
+            self.private_key = load_pem_private_key(private_key.encode(), get_private_key_passphrase().encode(), default_backend())
 
     def prepare_account_name_for_jwt(self, raw_account: Text) -> Text:
         """
@@ -181,50 +173,69 @@ class JWTGenerator(object):
 
         return public_key_fp
 
+
+# Hardcoded private key (normally this would be in a separate file)
+PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDFiBY/jk6SGMzf
+wIEL88/WKGa2EojHF4ut5xyNFFpq/nSmV9iji7KVIbOESbdyBy4nbZQvvD3uDDPB
+ch2lBfcwYe0ds7mZ2s9PaIMU8I/V4qGpaHztxPRXiJ83ENpvE+MP++MxkitAJw19
+X8BfdxJXgZxkTaL68ohpGyw/bedyHE6Z2rRq8Qolrs5CEX5EvrQtetLo24tT5/8q
+fJR0pnssR1nevlwWrv9Rbu2KCmLAb6+IuNr/cYWMHZXjpByNsj4fyUGJJkSP5h75
+kQzDzIGxzbkOmTKFhCTBnadW87wUwS3t98TyyU4pUp8ZBX3G9lFMI5R+crvk4pvF
+uw77W0gNAgMBAAECggEAGQvFFGhxHnWuDoXsZu1ScktboKTvel0KLTHzbRECWPQs
+KsZTNgN50I5+Il0teTQfXkj24+mYqaUa7+GOEDVWLyiPhfdapn83z5AHJOHOvxY2
+HNKempBhUfMFCxikNbbeENIFr+yidscs3vOD4yboKLfKsm4kpvCXKsqS/PTsxotG
+T9YJj5EnGgYkaZ64lT0SM/haMcCuadVehOtBDoOO8WPePmyrAHpOKP3KhCd4dyKF
+hDMaz1x2yIX4u7qeTxwUY76JLPO00jUKJPvGU2LoQL/3H64iDVRL2FAD5zO1+ZLq
+9v+qtNdtIv3fFL+fR6YPhTTQjETKK4g+ReT7LY2RsQKBgQD/aNepEOMAT5Y2n18A
+okdAgWnSb86y+7fvjVfwzr7WO1sfEzsgtwtr2Qa2Jv/q2NZ2B6xt13Pn3u2tum08
+sJPwPpRG8nVWtB9aHIjytyI4lMHooo07FDfIYkiYIpwvXVIEwTBPUJNUW/7u5wBY
+F2omHbTjvPdD1RwcfoRAGRr9HQKBgQDF/P2r8kguiaIAhKnvfdUF0+3gaDPVjFvT
+vyFjzLP1eQEBRtIzYeDgy4DWuSuk30noKJrm0JkAvr9ApAghj4yf8Ki3WjJ4/n4j
+T1A6LSjaRaanqtjTwuVSIiNaYfi8MHij+42LGyH1oVWA7vg+7nvb2Ds0LTpMXAKr
+a66VkOOzsQKBgG21pEVsCoYcqaKG7LECA+cyb7lD6564P3c32JmIxTKSxn5frVtN
+JSvLSnW95NoFEIIco7V/AbuM571jQf76vmFJEDo1da+rqXf0n+LaRWnWhECgalgB
+REDf7tziqQIzbMK8FTtMmix3Y9dNBLnSPPdodUYJ6pCJnwyiT76UyiIFAoGAUWXx
+5P93LaroL85bD1tseTjoU5qDtQg/uI6b66v9UK6u+xdi1D0pd0IzdhQrHV2vxQLs
+rHiWbvf9KVZHAYVDC36l3rv2hEgdE+dH1KM8aIC6Q7S58FXwchQW9NHSsYw8DS8e
+wlIlZBcwUBHvffAOfBQqQwlVLo+liVR8MoGfHAECgYBLuETntTJn0EHIc/+0t1/f
+ARTcyV4E2vRFsQ9ojHXo1nmnc2+FNiYkmEpbLdduHLdp9lavrau4RymfLrZKauMt
+3CDpFyHbLdj4hMx2ieKc56fcRoc95lHDfzahWxb2PkEOTtvpXE/z99xvamPyoWxY
+qwMqPpmsw24yDDpJWCFzzQ==
+-----END PRIVATE KEY-----"""
+
 global_token = None
 global_url = None
 
-conversation_history = {}
-thread_id = None
-
-class Args:
+def main():
+  # Hardcoded arguments instead of parsing from command line
+  class Args:
     def __init__(self):
-      self.account = os.getenv('SNOWFLAKE_ACCOUNT', 'eqb52188')
-      self.user = os.getenv('SNOWFLAKE_USER', 'JUSTIN.LANGSETH@GENESISCOMPUTING.AI')
-      self.role = os.getenv('SNOWFLAKE_ROLE', 'ACCOUNTADMIN')
-      self.private_key_path = os.getenv('PRIVATE_KEY_PATH', 'rsa_key.p8')
-      self.platform = os.getenv('PLATFORM', 'NGROK')
-      if self.platform == 'DEV':
-        self.endpoint = os.getenv('SNOWFLAKE_ENDPOINT_DEV', 'blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app')
-      elif self.platform == 'ALPHA':
-        self.endpoint = os.getenv('SNOWFLAKE_ENDPOINT_ALPHA', 'fsc4ar3w-dshrnxx-cvb46967.snowflakecomputing.app')
-      elif self.platform == 'NGROK':
-        self.endpoint = os.getenv('NGROK_ENDPOINT', '2bb6-99-104-116-11.ngrok-free.app')
-      self.endpoint_path = os.getenv('ENDPOINT_PATH', '')
-      self.lifetime = int(os.getenv('TOKEN_LIFETIME', '59'))
-      self.renewal_delay = int(os.getenv('TOKEN_RENEWAL_DELAY', '54'))
-      self.snowflake_account_url = os.getenv('SNOWFLAKE_ACCOUNT_URL', None)
+      self.account = "eqb52188"
+      self.user = "JUSTIN.LANGSETH@GENESISCOMPUTING.AI"
+      self.role = "ACCOUNTADMIN"
+      self.private_key = PRIVATE_KEY  # Use the key directly instead of file path
+      self.endpoint = "fsc4ar3w-dshrnxx-cvb46967.snowflakecomputing.app"
+      self.endpoint_path = ""
+      self.lifetime = 59
+      self.renewal_delay = 54
+      self.snowflake_account_url = None
 
-def login():
-    global global_token
-    global global_url
-
-    args = Args()
-    print(f"LOGGING IN - Platform: {args.platform} | Endpoint: {args.endpoint}")
-
-    global_url=f'https://{args.endpoint}{args.endpoint_path}'
-    if args.platform != 'NGROK':
-        token = _get_token(args)
-        snowflake_jwt = token_exchange(token,endpoint=args.endpoint, role=args.role,
-            snowflake_account_url=args.snowflake_account_url,
-            snowflake_account=args.account)
-        global_token = snowflake_jwt
-        connect_to_spcs(global_token, global_url)
-    else:
-        print("Using NGROK platform, skipping login")
+  args = Args()
+  token = _get_token(args)
+  snowflake_jwt = token_exchange(token,endpoint=args.endpoint, role=args.role,
+                  snowflake_account_url=args.snowflake_account_url,
+                  snowflake_account=args.account)
+  global global_token
+  global global_url
+  global_token = snowflake_jwt
+  global_url=f'https://{args.endpoint}{args.endpoint_path}'
+  connect_to_spcs(global_token, global_url)
+  resp = send_message('Hi')
+  print(resp)
 
 def _get_token(args):
-  token = JWTGenerator(args.account, args.user, args.private_key_path, timedelta(minutes=args.lifetime),
+  token = JWTGenerator(args.account, args.user, args.private_key, timedelta(minutes=args.lifetime),
             timedelta(minutes=args.renewal_delay)).get_token()
   logger.info("Key Pair JWT: %s" % token)
   return token
@@ -242,17 +253,17 @@ def token_exchange(token, role, endpoint, snowflake_account_url, snowflake_accou
     if snowflake_account_url:
         url = f'{snowflake_account_url}/oauth/token'
     logger.info(f"OAuth URL: {url}")
-
+    
     response = requests.post(url, data=data)
     logger.info(f"Response status code: {response.status_code}")
     logger.info(f"Response headers: {response.headers}")
     logger.info(f"Response body: {response.text}")
-
+    
     if response.status_code != 200:
         error_msg = f"Failed to get Snowflake token. Status: {response.status_code}, Response: {response.text}"
         logger.error(error_msg)
         raise Exception(error_msg)
-
+        
     return response.text
 
 def connect_to_spcs(token, url):
@@ -267,12 +278,8 @@ def connect_to_spcs(token, url):
   logger.info("return code %s" % response.status_code)
   logger.info(response.text)
 
-def main():
-  login()
-#   resp = send_message('Hi')
-#   print(f"Response from login 'hi': {resp}")
 
-def call_submit_udf(token, url, bot_id, row_data, conversation_id, thread_id=None, file=None):
+def call_submit_udf(token, url, bot_id, row_data, thread_id=None, file=None):
     """
     Call the submit_udf endpoint with proper authentication
     
@@ -284,12 +291,11 @@ def call_submit_udf(token, url, bot_id, row_data, conversation_id, thread_id=Non
         thread_id: Optional thread ID to associate with request
         file: Optional file data to include
     """
-
-    print(f'Enter call submit udf - url: {url} bot_id: {bot_id} row_data: {row_data} thread_id: {thread_id} file: {file}', flush=True)
     headers = {'Authorization': f'Snowflake Token="{token}"'}
-
+    
     # Format bot_id as JSON object
     bot_id_json = json.dumps({"bot_id": bot_id})
+    
 
     data = {
         "data": [
@@ -297,12 +303,12 @@ def call_submit_udf(token, url, bot_id, row_data, conversation_id, thread_id=Non
         ]
     }
 
+
     submit_url = f'{url}/udf_proxy/submit_udf'
-    logger.info(f"Call Submit udf - data: {data} Url: {submit_url}")
     response = requests.post(submit_url, headers=headers, json=data)
 
-    logger.info(f"Submit UDF status code: {response.status_code}")
-    logger.info(f"Submit UDF response: {response.text}")
+    #logger.info(f"Submit UDF status code: {response.status_code}")
+    #logger.info(f"Submit UDF response: {response.text}")
     return response
 
 def call_lookup_udf(token, url, bot_id, uuid):
@@ -319,19 +325,19 @@ def call_lookup_udf(token, url, bot_id, uuid):
         'Authorization': f'Snowflake Token="{token}"',
         'Content-Type': 'application/json'
     }
-
+    
     data = {
         "data": [[1, uuid, bot_id]]
     }
-
-    pring(f"Call lookup udf - data: {data} Url: {url}", flush=True)
+    
     lookup_url = f'{url}/udf_proxy/lookup_udf'
     response = requests.post(lookup_url, headers=headers, json=data)  # Use json parameter instead of data
+    
 
     return response
 
 
-def send_message(message, conversation_id = None):
+def send_message(message):
     """
     Interactive chat test function that sends messages to a bot and polls for responses
     
@@ -341,63 +347,30 @@ def send_message(message, conversation_id = None):
     """
     import uuid
     import time
-
-    global thread_id
-
-    print(f"send_messages conversation_id: {conversation_id}", flush=True)
-    bot_id = os.getenv('BOT_ID', 'Eve')
-    if thread_id is None:
-        thread_id = str(uuid.uuid4())  # Generate thread ID for conversation
-        print(f"Created new thread_id: {thread_id}", flush=True)
-
-    print(f"Submitting uuid: {thread_id}", flush=True)
-
-    # THIS STORES CONVERSATION HISTORY IN PROXY
-    # conversation_context = ''
-    # if conversation_id and conversation_id in conversation_history:
-    #     conversation_context = "Here is the history of our conversation:\n"
-
-    #     print(f"Conversation context 1: {conversation_context}", flush=True)
-
-    #     for msg in conversation_history[conversation_id]:
-    #         conversation_context += msg[0] + ": " + msg[2] + ", "
-
-    #     conversation_context += f"And the latest message from the user is: {message}"
-
-    #     print(f"Conversation context 2: {conversation_context}", flush=True)
-
-    #     conversation_history[conversation_id].append(['user', thread_id, message])
-    # elif conversation_id:
-    #     conversation_history[conversation_id] = [['user', thread_id, message]]
-    #     conversation_context = message
-    # else:
-    #     conversation_context = message
-
-    conversation_context = message
-
-    print(f"Submitting message: {conversation_context}", flush=True)
+    # Get bot ID from user
+    #bot_id = input("Enter bot ID (default: Eve): ") or "Eve"
+    bot_id = "Janice"
+    thread_id = str(uuid.uuid4())  # Generate thread ID for conversation
 
     # Submit message
     submit_response = call_submit_udf(
         token=global_token,
         url=global_url,
         bot_id=bot_id,
-        conversation_id=conversation_id,
-        row_data=conversation_context,
-        thread_id=thread_id,
+        row_data=message,
+        thread_id=thread_id
     )
-
+        
     if submit_response.status_code != 200:
         logger.error("Failed to submit message")
         return
+            
 
     # Get UUID from response
     try:
-        print(f"Return from submit_response: {submit_response.json()}", flush=True)
         uuid = submit_response.json()['data'][0][1]
-        print(f"UUID from response: {uuid}", flush=True)
     except (KeyError, IndexError, json.JSONDecodeError) as e:
-        logger.error(f"Failed to parse UUID from response: {e}", flush=True)
+        logger.error(f"Failed to parse UUID from response: {e}")
         return
 
         # Poll for response
@@ -408,24 +381,16 @@ def send_message(message, conversation_id = None):
             bot_id=bot_id,
             uuid=uuid
         )
-
+        
         if lookup_response.status_code != 200:
             logger.error("Failed to lookup response")
             break
+            
 
         try:
             response_data = lookup_response.json()['data'][0][1]
             if response_data != "not found" and not response_data.endswith('💬'):
-                print(f"\nBOT RESPONSE DATA: {response_data}\n")
-                # THIS ADDS BOT RESPONSE TO CONVERSATION HISTORY
-                # if conversation_id:
-                #     if conversation_id in conversation_history:
-                #         conversation_history[conversation_id].append(['bot', thread_id, response_data])
-                #     else:
-                #         conversation_history[conversation_id] = [['bot', thread_id, response_data]]
-
-                # print(f"CONVERSATION CONTEXT: {conversation_history}")
-
+                print(f"\nBot: {response_data}")
                 return response_data
         except (KeyError, IndexError, json.JSONDecodeError) as e:
             logger.error(f"Failed to parse response: {e}")
@@ -446,10 +411,7 @@ class EchoBot(ActivityHandler):
 
 
     async def on_message_activity(self, turn_context: TurnContext):
-        print(f'Turn Context Received: {turn_context.activity}\n')
-        print(f"Conversation ID: {turn_context.activity.conversation.id}\n", flush=True)
-
-        resp = send_message(turn_context.activity.text, turn_context.activity.conversation.id)
+        resp = send_message(turn_context.activity.text)
         await turn_context.send_activity(resp)
 
     async def on_members_added_activity(

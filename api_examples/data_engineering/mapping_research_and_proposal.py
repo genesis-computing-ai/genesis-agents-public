@@ -5,6 +5,9 @@ import argparse
 from   genesis_bots.api         import GenesisAPI, build_server_proxy
 from   genesis_bots.api.utils   import add_default_argparse_options
 import os
+import time
+import sys
+from contextlib import contextmanager
 
 eve_bot_id = 'Eve'
 genesis_api_client = None
@@ -18,6 +21,28 @@ else:
     print("-> Using o3-mini model")
 
 print("-> Message prefix: ", message_prefix)
+
+class Tee:
+    def __init__(self, *files):
+        self.files = files
+
+    def write(self, obj):
+        for f in self.files:
+            f.write(obj)
+            f.flush()  # If you want the output to be visible immediately
+
+    def flush(self):
+        for f in self.files:
+            f.flush()
+
+@contextmanager
+def stdout_redirector(*files):
+    original_stdout = sys.stdout
+    sys.stdout = Tee(*files)
+    try:
+        yield
+    finally:
+        sys.stdout = original_stdout
 
 def print_file_contents(title, file_path, contents):
     """
@@ -1454,192 +1479,210 @@ def main():
     requirements = run_snowflake_query(client, requirements_query, eve_bot_id)
 
     for todo in todos:
-        field_name = todo['todo_name'][11:]
-        print(f"\033[34mProcessing todo item: {todo['todo_name']}\033[0m")
-        print(f"\033[34mLooking up requirement for field: {field_name}\033[0m")
-
-        requirement = next((req for req in requirements if req['PHYSICAL_COLUMN_NAME'] == field_name), None)
-        try:
-            filtered_requirement = {
-                'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
-                'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
-                'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
-                'DATA_TYPE': requirement['DATA_TYPE'],
-                'LENGTH': requirement['LENGTH'],
-                'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
-            }
-            # set status to in progress?
-
-            print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
-
-            update_todo_status(client=client, todo_id=todo['todo_id'], new_status='IN_PROGRESS', bot_id=pm_bot_id)
-            
-            paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db, project_id=project_id)
-
-            # create and tag the git project assets for this requirement
-
-            source_research_results = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id, pm_bot_id=pm_bot_id, past_projects_list=past_projects_list, project_id=project_id, deng_project_config=deng_project_config)
-            #source_research_results = {
-            #    'success': True,
-            #    'contents': 'source research contents',
-            #    'git_file_path': 'source_research_file.txt',
-            #    'thread': 'source_research_thread'
-            #}
-
-        
-            if source_research_results.get('success'):  
-                source_research = source_research_results['contents']
-                git_file_path = source_research_results['git_file_path']
-                source_research_thread = source_research_results['thread']
-                # add ability to tag the threads in message log that the work was done by          
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed source research for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {source_research_thread}", bot_id=pm_bot_id, results=source_research, thread_id=source_research_thread)     
-
-            mapping_proposal_results = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id, pm_bot_id=pm_bot_id, project_id=project_id, deng_project_config=deng_project_config)
-            #mapping_proposal_results = {
-            #    'success': True,
-            #    'contents': 'mapping proposal contents',
-            #    'git_file_path': 'mapping_proposal_file.txt',
-            #    'thread': 'mapping_proposal_thread'
-            #}
-
-            if mapping_proposal_results.get('success'):
-                mapping_proposal = mapping_proposal_results['contents']
-                git_file_path = mapping_proposal_results['git_file_path'] 
-                mapping_proposal_thread = mapping_proposal_results['thread']
-
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed mapping proposal for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {mapping_proposal_thread}", bot_id=pm_bot_id, results=mapping_proposal, thread_id=mapping_proposal_thread)     
-
-            if not skip_confidence:
-                confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id, deng_project_config=deng_project_config)
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report)     
-
-            summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
-            summary = summary_results['summary']
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {summary_results['thread']}", bot_id=pm_bot_id, results=summary_results, thread_id=summary_results['thread'])     
-        
-            # Get the full content of each file from git
-            source_research_content = source_research
-            mapping_proposal_content = mapping_proposal
-            
-            confidence_output_content = 'bypassed currently while we improve this bot'
-            # Evaluate results
-            if requirement['CORRECT_ANSWER_FOR_EVAL']:
-                evaluation, eval_json, thread = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
-                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation, thread_id=thread)     
-            else:
-                evaluation = None
-                eval_json = None
-            
-            # Prepare fields for database update
-            db_fields = {
-                'upstream_table': summary['UPSTREAM_TABLE'],
-                'upstream_column': summary['UPSTREAM_COLUMN'],
-                'upstream_db_connection': summary['UPSTREAM_DB_CONNECTION'],
-                'source_research': source_research_content,
-                'mapping_proposal': mapping_proposal_content,
-                'confidence_output': confidence_output_content,
-                'confidence_score': summary['CONFIDENCE_SCORE'],
-                'confidence_summary': summary['CONFIDENCE_SUMMARY'],
-                'pm_bot_comments': summary['PM_BOT_COMMENTS'],
-                'transformation_logic': summary['TRANSFORMATION_LOGIC'],
-                'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
-                'primary_issues': eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
-                'secondary_issues': eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
-                'status': 'READY_FOR_REVIEW'
-            }
-
-            # Save results of work to database
-            save_pm_summary_to_requirements(
-                requirement['PHYSICAL_COLUMN_NAME'],
-                db_fields,
-                requirements_table_name
-            )
-            print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None)     
-
-            # if correct, ready for review, otherwise needs help
-            # Update todo status to complete
-            update_todo_status(client=client, todo_id=todo['todo_id'], new_status='COMPLETED', bot_id=pm_bot_id)
-
-            # Update the Google Sheet with mapping results
-            try:
-                if gsheet_location:
-                    update_gsheet_with_mapping(
-                        client=client,
-                        filtered_requirement=filtered_requirement,
-                        summary=summary,
-                        gsheet_location=gsheet_location,
-                        pm_bot_id=pm_bot_id,
-                        source_research_content=source_research_content,
-                        mapping_proposal_content=mapping_proposal_content,
-                        which_mapping_correct=eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
-                        primary_issues=eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
-                        secondary_issues=eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else ''
-                    )
-                    print(f"\033[32mSuccessfully updated Google Sheet for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
-                    record_work(
-                        client=client,
-                        todo_id=todo['todo_id'],
-                        description=f"Updated [Google Sheet]({gsheet_location}) for column: {requirement['PHYSICAL_COLUMN_NAME']}. ",
-                        bot_id=pm_bot_id,
-                        results=None
-                    )
-                else:
-                    print("\033[33mSkipping Google Sheet update - no sheet location provided\033[0m")
-            except Exception as e:
-                print(f"\033[31mError updating Google Sheet: {e}\033[0m")
-                record_work(
-                    client=client,
-                    todo_id=todo['todo_id'],
-                    description=f"Error updating Google Sheet: {e}",
-                    bot_id=pm_bot_id,
-                    results=None
-                )
-
-        except Exception as e:
-            print(f"\033[31mError occurred: {e}\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Error occurred: {e}", bot_id=pm_bot_id, results=None, thread_id=None)     
-
-            # Save error state to database for this field
-            error_fields = {
-                'upstream_table': None,
-                'upstream_column': None,
-                'upstream_db_connection': None,
-                'source_research': str(e),
-                'mapping_proposal': None,
-                'confidence_output': None,
-                'confidence_score': 0,
-                'confidence_summary': None,
-                'pm_bot_comments': f'Error: {str(e)}',
-                'transformation_logic': None,
-                'which_mapping_correct': 'error',
-                'primary_issues': f'Error: {str(e)}',
-                'secondary_issues': None,
-                'status': 'ERROR'
-            }
-
-            save_pm_summary_to_requirements(
-                requirement['PHYSICAL_COLUMN_NAME'],
-                error_fields,
-                requirements_table_name
-            )
-            # Update the Google Sheet with error state
-            print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Saved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=None)     
-
-            # Update todo status to complete
-            update_todo_status(client=client, todo_id=todo['todo_id'], new_status='ON_HOLD', bot_id=pm_bot_id)
+        # Check if todo_id is not provided
+        if not args.todo_id:
+            # Generate a filename with the current timestamp
+            unique_id = str(uuid.uuid4())
+            filename = f"tmp/mapping_research_and_proposal_{unique_id}.txt"
+            with open(filename, 'w') as f:
+                with stdout_redirector(f, sys.stdout):
+                    process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, past_projects_list, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, filename=filename)
+        else:
+            process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, past_projects_list, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence)
 
     # Return success status
     return {
         "success": True
     }
 
-                    # update the row in the g-sheet with the mapping and results
+def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, past_projects_list, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, filename=None):
+    field_name = todo['todo_name'][11:]
+    print(f"\033[34mProcessing todo item: {todo['todo_name']}\033[0m")
+    print(f"\033[34mLooking up requirement for field: {field_name}\033[0m")
 
-        #i = input('press return to continue (this is for runaway prevention when testing...) ')
+    requirement = next((req for req in requirements if req['PHYSICAL_COLUMN_NAME'] == field_name), None)
+    try:
+        filtered_requirement = {
+            'PHYSICAL_COLUMN_NAME': requirement['PHYSICAL_COLUMN_NAME'],
+            'LOGICAL_COLUMN_NAME': requirement['LOGICAL_COLUMN_NAME'],
+            'COLUMN_DESCRIPTION': requirement['COLUMN_DESCRIPTION'],
+            'DATA_TYPE': requirement['DATA_TYPE'],
+            'LENGTH': requirement['LENGTH'],
+            'LIST_OF_VALUES': requirement['LIST_OF_VALUES']
+        }
+        # set status to in progress?
 
+        print("\033[34mWorking on requirement:", filtered_requirement, "\033[0m")
 
+        update_todo_status(client=client, todo_id=todo['todo_id'], new_status='IN_PROGRESS', bot_id=pm_bot_id)
+        
+        paths = setup_paths(requirement["PHYSICAL_COLUMN_NAME"], run_number=run_number, genesis_db = args.genesis_db, project_id=project_id)
+
+        # create and tag the git project assets for this requirement
+
+        source_research_results = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id, pm_bot_id=pm_bot_id, past_projects_list=past_projects_list, project_id=project_id, deng_project_config=deng_project_config)
+        #source_research_results = {
+        #    'success': True,
+        #    'contents': 'source research contents',
+        #    'git_file_path': 'source_research_file.txt',
+        #    'thread': 'source_research_thread'
+        #}
+
+    
+        if source_research_results.get('success'):  
+            source_research = source_research_results['contents']
+            git_file_path = source_research_results['git_file_path']
+            source_research_thread = source_research_results['thread']
+            # add ability to tag the threads in message log that the work was done by          
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed source research for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {source_research_thread}", bot_id=pm_bot_id, results=source_research, thread_id=source_research_thread)     
+
+        mapping_proposal_results = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id, pm_bot_id=pm_bot_id, project_id=project_id, deng_project_config=deng_project_config)
+        #mapping_proposal_results = {
+        #    'success': True,
+        #    'contents': 'mapping proposal contents',
+        #    'git_file_path': 'mapping_proposal_file.txt',
+        #    'thread': 'mapping_proposal_thread'
+        #}
+
+        if mapping_proposal_results.get('success'):
+            mapping_proposal = mapping_proposal_results['contents']
+            git_file_path = mapping_proposal_results['git_file_path'] 
+            mapping_proposal_thread = mapping_proposal_results['thread']
+
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed mapping proposal for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {mapping_proposal_thread}", bot_id=pm_bot_id, results=mapping_proposal, thread_id=mapping_proposal_thread)     
+
+        if not skip_confidence:
+            confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id, deng_project_config=deng_project_config)
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report)     
+
+        summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
+        summary = summary_results['summary']
+        record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {summary_results['thread']}", bot_id=pm_bot_id, results=summary_results, thread_id=summary_results['thread'])     
+    
+        # Get the full content of each file from git
+        source_research_content = source_research
+        mapping_proposal_content = mapping_proposal
+        
+        confidence_output_content = 'bypassed currently while we improve this bot'
+        # Evaluate results
+        if requirement['CORRECT_ANSWER_FOR_EVAL']:
+            evaluation, eval_json, thread = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation, thread_id=thread)     
+        else:
+            evaluation = None
+            eval_json = None
+        
+        # Prepare fields for database update
+        db_fields = {
+            'upstream_table': summary['UPSTREAM_TABLE'],
+            'upstream_column': summary['UPSTREAM_COLUMN'],
+            'upstream_db_connection': summary['UPSTREAM_DB_CONNECTION'],
+            'source_research': source_research_content,
+            'mapping_proposal': mapping_proposal_content,
+            'confidence_output': confidence_output_content,
+            'confidence_score': summary['CONFIDENCE_SCORE'],
+            'confidence_summary': summary['CONFIDENCE_SUMMARY'],
+            'pm_bot_comments': summary['PM_BOT_COMMENTS'],
+            'transformation_logic': summary['TRANSFORMATION_LOGIC'],
+            'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
+            'primary_issues': eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
+            'secondary_issues': eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
+            'status': 'READY_FOR_REVIEW'
+        }
+
+        # Save results of work to database
+        save_pm_summary_to_requirements(
+            requirement['PHYSICAL_COLUMN_NAME'],
+            db_fields,
+            requirements_table_name
+        )
+        print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
+        record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id)     
+
+        # if correct, ready for review, otherwise needs help
+        # Update todo status to complete
+        update_todo_status(client=client, todo_id=todo['todo_id'], new_status='COMPLETED', bot_id=pm_bot_id)
+
+        # Update the Google Sheet with mapping results
+
+        try:
+            if gsheet_location:
+                update_gsheet_with_mapping(
+                    client=client,
+                    filtered_requirement=filtered_requirement,
+                    summary=summary,
+                    gsheet_location=gsheet_location,
+                    pm_bot_id=pm_bot_id,
+                    source_research_content=source_research_content,
+                    mapping_proposal_content=mapping_proposal_content,
+                    which_mapping_correct=eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
+                    primary_issues=eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
+                    secondary_issues=eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else ''
+                )
+                print(f"\033[32mSuccessfully updated Google Sheet for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+                record_work(
+                    client=client,
+                    todo_id=todo['todo_id'],
+                    description=f"Updated [Google Sheet]({gsheet_location}) for column: {requirement['PHYSICAL_COLUMN_NAME']}. ",
+                    bot_id=pm_bot_id,
+                    results=None
+                )
+            else:
+                print("\033[33mSkipping Google Sheet update - no sheet location provided\033[0m")
+            
+        except Exception as e:
+            print(f"\033[31mError updating Google Sheet: {e}\033[0m")
+            record_work(
+                client=client,
+                todo_id=todo['todo_id'],
+                description=f"Error updating Google Sheet: {e}",
+                bot_id=pm_bot_id,
+                results=None
+            )
+
+        if filename:
+            print(f"\033[32mFull output saved to: {filename}\033[0m")
+            record_work(
+                client=client,
+                todo_id=todo['todo_id'],
+                description=f"Full output saved to: {filename}",
+                bot_id=pm_bot_id,
+                results=None
+            )
+
+    except Exception as e:
+        print(f"\033[31mError occurred: {e}\033[0m")
+        record_work(client=client, todo_id=todo['todo_id'], description=f"Error occurred: {e}", bot_id=pm_bot_id, results=None, thread_id=None)     
+
+        # Save error state to database for this field
+        error_fields = {
+            'upstream_table': None,
+            'upstream_column': None,
+            'upstream_db_connection': None,
+            'source_research': str(e),
+            'mapping_proposal': None,
+            'confidence_output': None,
+            'confidence_score': 0,
+            'confidence_summary': None,
+            'pm_bot_comments': f'Error: {str(e)}',
+            'transformation_logic': None,
+            'which_mapping_correct': 'error',
+            'primary_issues': f'Error: {str(e)}',
+            'secondary_issues': None,
+            'status': 'ERROR'
+        }
+
+        save_pm_summary_to_requirements(
+            requirement['PHYSICAL_COLUMN_NAME'],
+            error_fields,
+            requirements_table_name
+        )
+        # Update the Google Sheet with error state
+        print(f"\033[33mSaved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
+        record_work(client=client, todo_id=todo['todo_id'], description=f"Saved error state to database for requirement: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=None)     
+
+        # Update todo status to complete
+        update_todo_status(client=client, todo_id=todo['todo_id'], new_status='ON_HOLD', bot_id=pm_bot_id)
 
 if __name__ == "__main__":
     main()

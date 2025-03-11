@@ -234,10 +234,12 @@ def get_metadata():
             project_id = metadata_type.split('list_todos ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_project_todos(
                 bot_id=None,  # Not needed for listing todos
-                project_id=project_id
+                project_id=project_id,
+                no_history=True
+
             ))}
-        elif metadata_type.startswith('list_todo_history '):
-            todo_id = metadata_type.split('list_todo_history ')[1].strip()
+        elif metadata_type.startswith('get_todo_history '):
+            todo_id = metadata_type.split('get_todo_history ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_todo_history(
                 todo_id=todo_id
             ))}

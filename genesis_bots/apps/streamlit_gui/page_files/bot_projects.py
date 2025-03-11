@@ -289,11 +289,12 @@ def bot_projects():
                                         st.markdown(f"<p>{details}</p>", unsafe_allow_html=True)
 
                                     # History expander
-                                    if todo.get('history'):
+                                    if True:
                                         with st.expander("View History"):
-                                            history_entries = todo.get('history', [])
+                                            history = get_metadata(f"get_todo_history {todo.get('todo_id')}")
+                                            history_entries = history.get('history', [])
                                             if not history_entries:
-                                                st.info("No history entries available.")
+                                                st.markdown("No history entries available.")
                                             else:
                                                 for idx, entry in enumerate(history_entries):
                                                     if not isinstance(entry, dict):

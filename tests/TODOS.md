@@ -12,8 +12,7 @@ Show g-sheets comment read and response.
 autonomy loop
 test with fresh schema
 lazy load history of todos
-
-
+fix return to correct project back to projects page
 
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them

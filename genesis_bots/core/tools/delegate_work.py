@@ -101,7 +101,7 @@ def run_program(
             cmd.extend(["--project-id", project_id])
         
         # Define the output file in /tmp/
-        tmp_output_file = f"tmp/{program_id}_{int(time.time())}.txt"
+        tmp_output_file = f"tmp/{program_id}_{str(uuid.uuid4())}.txt"
         
         # Update status with output file location
         if status_update_callback:

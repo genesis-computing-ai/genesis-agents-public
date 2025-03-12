@@ -297,8 +297,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     # but offering to describe the table if needed
                     return {
                         "success": False,
-                        "message": f"Table not found in harvested metadata. "
-                                 f"If you know this table exists, you can try using a query on the database's metadata (using the specific sql or other commands required by that type of database to list tables) "
+                        "message": f"Table not yet in harvested metadata, but it may still exist in the database. "
+                                 f"You should now try to use a query on the database's metadata (using the specific sql or other commands required by that type of database to list tables to see if you can find it that way, or try select * from it limit 5 using query_database "
                                  f"for the {connection_id} connection to get its details directly from the database. Also BTW database, schema, and table names are case sensitive."
                     }
 
@@ -358,6 +358,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     "Message": "Use list_database_connections to see available connections first."
                 }
 
+            if table:
+                full_metadata = self.get_full_metadata_details(source_name=self.source_name, connection_id=connection_id, database_name=database, schema_name=schema, table_name=table)
+                if full_metadata:
+                    return [full_metadata]
+                else:
+                    return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
             # Validate database if specified
             if database:
@@ -405,12 +411,6 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     return [full_metadata]
                 return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
-            if table:
-                full_metadata = self.get_full_metadata_details(source_name=self.source_name, connection_id=connection_id, database_name=database, schema_name=schema, table_name=table)
-                if full_metadata:
-                    return [full_metadata]
-                else:
-                    return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
             # Build structural filters
             filtered_entries = None

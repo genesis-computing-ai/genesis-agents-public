@@ -197,8 +197,8 @@ class SnowflakeConnector(SnowflakeConnectorBase):
     ):
         return add_file_to_stage(self, database,schema,stage,openai_file_id,file_name,file_content,target_path,thread_id)
 
-    def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None, bot_id=None):
-        return read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
+    def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None, bot_id=None, max_bytes=10000):
+        return read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id, max_bytes=max_bytes)
     def update_file_in_stage(self, database=None, schema=None, stage=None, file_name=None, thread_id=None, bot_id=None):
         return update_file_in_stage(self, database, schema, stage, file_name, thread_id)
 
@@ -1802,6 +1802,7 @@ def get_status(site):
         memory_uuid=None,
         ddl_hash=None,
         matching_connection=None,
+        catalog_supplement=None,
     ):
         qualified_table_name = f'"{database_name}"."{schema_name}"."{table_name}"'
         if not memory_uuid:
@@ -1823,6 +1824,10 @@ def get_status(site):
         # Convert embedding list to string format if not None
         embedding_str = (",".join(str(e) for e in embedding) if embedding is not None else None)
 
+        catalog_supplement_loaded = None
+        if catalog_supplement:
+            catalog_supplement_loaded = 'TRUE'
+
         query_params = {
             "source_name": matching_connection['connection_id'] if matching_connection is not None else self.source_name,
             "qualified_table_name": qualified_table_name,
@@ -1840,7 +1845,10 @@ def get_status(site):
             "crawl_status": crawl_status,
             "role_used_for_crawl": role_used_for_crawl,
             "embedding": embedding_str,
+            "catalog_supplement": catalog_supplement,
+            "catalog_supplement_loaded": catalog_supplement_loaded
         }
+
         if self.source_name == 'Snowflake':
             # Construct the MERGE SQL statement with placeholders for parameters
             merge_sql = f"""
@@ -1861,7 +1869,9 @@ def get_status(site):
                     %(last_crawled_timestamp)s AS last_crawled_timestamp,
                     %(crawl_status)s AS crawl_status,
                     %(role_used_for_crawl)s AS role_used_for_crawl,
-                    %(embedding)s AS {embedding_target}
+                    %(embedding)s AS {embedding_target},
+                    %(catalog_supplement)s AS catalog_supplement,
+                    %(catalog_supplement_loaded)s AS catalog_supplement_loaded
             ) AS new_data
             ON {self.metadata_table_name}.qualified_table_name = new_data.qualified_table_name
             WHEN MATCHED THEN UPDATE SET
@@ -1879,16 +1889,20 @@ def get_status(site):
                 last_crawled_timestamp = TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
                 crawl_status = new_data.crawl_status,
                 role_used_for_crawl = new_data.role_used_for_crawl,
-                {embedding_target} = ARRAY_CONSTRUCT(new_data.{embedding_target})
+                {embedding_target} = ARRAY_CONSTRUCT(new_data.{embedding_target}),
+                catalog_supplement = new_data.catalog_supplement,
+                catalog_supplement_loaded = new_data.catalog_supplement_loaded
             WHEN NOT MATCHED THEN INSERT (
                 source_name, qualified_table_name, memory_uuid, database_name, schema_name, table_name,
                 complete_description, ddl, ddl_short, ddl_hash, summary, sample_data_text, last_crawled_timestamp,
-                crawl_status, role_used_for_crawl, {embedding_target}
+                crawl_status, role_used_for_crawl, {embedding_target},
+                catalog_supplement, catalog_supplement_loaded
             ) VALUES (
                 new_data.source_name, new_data.qualified_table_name, new_data.memory_uuid, new_data.database_name,
                 new_data.schema_name, new_data.table_name, new_data.complete_description, new_data.ddl, new_data.ddl_short,
                 new_data.ddl_hash, new_data.summary, new_data.sample_data_text, TO_TIMESTAMP_NTZ(new_data.last_crawled_timestamp),
-                new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.{embedding_target})
+                new_data.crawl_status, new_data.role_used_for_crawl, ARRAY_CONSTRUCT(new_data.{embedding_target}),
+                new_data.catalog_supplement, new_data.catalog_supplement_loaded
             );
             """
 
@@ -1938,7 +1952,9 @@ def get_status(site):
                             last_crawled_timestamp = :last_crawled_timestamp,
                             crawl_status = :crawl_status,
                             role_used_for_crawl = :role_used_for_crawl,
-                            {embedding_target} = :embedding
+                            {embedding_target} = :embedding,
+                            catalog_supplement = :catalog_supplement,
+                            catalog_supplement_loaded = :catalog_supplement_loaded
                         WHERE source_name = :source_name
                         AND qualified_table_name = :qualified_table_name
                     """
@@ -1950,12 +1966,14 @@ def get_status(site):
                             source_name, qualified_table_name, memory_uuid, database_name,
                             schema_name, table_name, complete_description, ddl, ddl_short,
                             ddl_hash, summary, sample_data_text, last_crawled_timestamp,
-                            crawl_status, role_used_for_crawl, {embedding_target}
+                            crawl_status, role_used_for_crawl, {embedding_target},
+                            catalog_supplement, catalog_supplement_loaded
                         ) VALUES (
                             :source_name, :qualified_table_name, :memory_uuid, :database_name,
                             :schema_name, :table_name, :complete_description, :ddl, :ddl_short,
                             :ddl_hash, :summary, :sample_data_text, :last_crawled_timestamp,
-                            :crawl_status, :role_used_for_crawl, :embedding)
+                            :crawl_status, :role_used_for_crawl, :embedding,
+                            :catalog_supplement, :catalog_supplement_loaded)
 
                     """
                     cursor.execute(insert_sql, query_params)
@@ -5416,7 +5434,8 @@ def _delete_file_from_stage(
     stage="The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
     file_name="The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
     return_contents="Whether to return the contents of the file or just the file name.",
-    is_binary="Whether to return the contents of the file as binary or text.",
+    max_bytes="The maximum number of bytes of content to return. Default is 10000.",
+    is_binary="True to return contents of a binary file.",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[snowflake_tools],)
@@ -5426,6 +5445,7 @@ def _read_file_from_stage(
         stage: str,
         file_name: str,
         return_contents: bool = False,
+        max_bytes: int = 10000,
         is_binary: bool = False,
         bot_id: str = None,
         thread_id: str = None,
@@ -5439,6 +5459,7 @@ def _read_file_from_stage(
         stage=stage,
         file_name=file_name,
         return_contents=return_contents,
+        max_bytes=max_bytes,
         is_binary=is_binary,
         bot_id=bot_id,
         thread_id=thread_id,

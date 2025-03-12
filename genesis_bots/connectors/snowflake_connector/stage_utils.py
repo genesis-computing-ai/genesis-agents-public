@@ -111,7 +111,8 @@ def read_file_from_stage(
     return_contents: bool = True,
     is_binary: bool = False,
     for_bot=None,
-    thread_id=None
+    thread_id=None,
+    max_bytes: int = 10000,
 ):
     """
     Read a file from a Snowflake stage.
@@ -153,7 +154,12 @@ def read_file_from_stage(
 
         # Modify the GET command to include the local file path
 
-        query = f'GET @{database}.{schema}.{stage}/{file_name} file://{local_dir}'
+        # Extract path prefix if file_name contains directories
+        path_prefix = ''
+        if '/' in file_name:
+            path_parts = file_name.split('/')
+            path_prefix = '/'.join(path_parts[:-1]) + '/'
+        query = f'GET @{database}.{schema}.{stage}/{file_name} file://{local_dir}/{path_prefix}'
         cursor.execute(query)
         ret = cursor.fetchall()
         cursor.close()
@@ -173,24 +179,16 @@ def read_file_from_stage(
             if return_contents:
                 if is_binary:
                     with open(local_file_path, "rb") as file:
-                        return file.read()
+                        binary_content = file.read(max_bytes)
+                        return {"success": True, "binary_contents_in_hex": binary_content.hex(), "max_bytes": max_bytes, "local_file_path": local_file_path}
                 else:
                     with open(local_file_path, "r") as file:
-                        return file.read()
+                        return {"success": True, "contents": file.read(max_bytes).replace('\ufeff', ''), "max_bytes": max_bytes, "local_file_path": local_file_path}
             else:
-                return local_file_path
-        if os.path.isfile(local_file_path_flat):
-            if return_contents:
-                if is_binary:
-                    with open(local_file_path_flat, "rb") as file:
-                        return file.read()
-                else:
-                    with open(local_file_path_flat, "r") as file:
-                        return file.read()
-            else:
-                return local_file_path
-        # else:
-                return None
+                return {"success": True, "file_path": local_file_path}
+        else:
+            return {"success": False, "error": f"File not found: {file_name}"}
+       
     except Exception as e:
         return {"success": False, "error": str(e)}
 

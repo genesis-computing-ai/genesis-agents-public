@@ -18,7 +18,7 @@ Redo past projects for GXS and redo eval answers (principal rollover ROLLOVER_PR
 x HCLS - cant find report-year, month, etc?
 GXS list
 check put file to stage for Slack uploaded files
-
+test harvester with catalog supplement change on sqlite metadata, test inserting new, and test updating
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

@@ -51,3 +51,6 @@ sqlalchemy-redshift
 sqlalchemy-bigquery
 PyGithub
 pymupdf
+llama-index
+pypdf
+sentence-transformers

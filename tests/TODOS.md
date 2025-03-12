@@ -14,6 +14,11 @@ test with fresh schema
 lazy load history of todos
 fix return to correct project back to projects page
 Alation import for GXS from CSV file into harvester (supplement harvester info with this alation notes stuff)
+Redo past projects for GXS and redo eval answers (principal rollover ROLLOVER_PRIN_OUTSTANDING_AMT is off for example)
+x HCLS - cant find report-year, month, etc?
+GXS list
+check put file to stage for Slack uploaded files
+
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

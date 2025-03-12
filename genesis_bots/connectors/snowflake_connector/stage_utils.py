@@ -13,6 +13,7 @@ def add_file_to_stage(
     openai_file_id: str = None,
     file_name: str = None,
     file_content: str = None,
+    target_path: str = None,
     thread_id=None,
 ):
     """
@@ -31,73 +32,69 @@ def add_file_to_stage(
 
     try:
         if file_content is None:
-            file_name = file_name.replace("serverlocal:", "")
-            if openai_file_id is not None:
-                openai_file_id = openai_file_id.replace("serverlocal:", "")
 
-            if file_name.startswith("file-"):
-                return {
-                    "success": False,
-                    "error": "Please provide a human-readable file name in the file_name parameter, with a supported extension, not the OpenAI file ID. If unsure, ask the user what the file should be called.",
-                }
+            if file_name.startswith("./"):
+                file_name = file_name[2:]
 
-            # allow files to have relative paths
-            #     if '/' in file_name:
-            #         file_name = file_name.split('/')[-1]
             if file_name.startswith("/"):
                 file_name = file_name[1:]
 
-            file_name = re.sub(r"[^\w\s\/\.-]", "", file_name.replace(" ", "_"))
-            if openai_file_id is not None:
-                if "/" in openai_file_id:
-                    openai_file_id = openai_file_id.split("/")[-1]
+            if os.path.isfile(file_name) and file_name.startswith("runtime/downloaded_files/"):
+                file_path = file_name
+                file_name = file_name.split("/")[-1]   
+                if '/' in file_name:
+                    file_name = file_name.split('/')[-1]
 
-            file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
-            existing_location = f"./runtime/downloaded_files/{thread_id}/{openai_file_id}"
-
-            if not os.path.exists(os.path.dirname(file_path)):
-                os.makedirs(os.path.dirname(file_path))
-
-            # Replace spaces with underscores and remove disallowed characters
-            #  file_name = re.sub(r'[^\w\s-]', '', file_name.replace(' ', '_'))
-            if os.path.isfile(existing_location) and (
-                file_path != existing_location
-            ):
-                with open(existing_location, "rb") as source_file:
-                    with open(file_path, "wb") as dest_file:
-                        dest_file.write(source_file.read())
-
-            if not os.path.isfile(file_path):
+                if " " in file_name:
+                    # Create new filename with underscores instead of spaces
+                    new_file_name = file_name.replace(" ", "_")
+                    new_file_path = os.path.join(os.path.dirname(file_path), new_file_name)
+                    
+                    # Copy the file to new location
+                    import shutil
+                    shutil.copy2(file_path, new_file_path)
+                    
+                    file_path = new_file_path
+                    file_name = new_file_name
+            else:
 
                 logger.error(f"File not found: {file_path}")
                 return {
                     "success": False,
-                    "error": f"File needs to be returned first: Please first save and RETURN THE FILE *AS A FILE* (not just as inline text), and show it to the user.  Then ask them to ask you to proceed, so you can call this function again referencing the SAME FILE_NAME THAT YOU RETURNED to actually save it to stage.",
+                    "error": f"File not found at {file_path}",
                 }
 
         else:
+            file_name = re.sub(r"[^\w\s\/\.-]", "", file_name.replace(" ", "_"))
+
+            file_path = f"./runtime/downloaded_files/{thread_id}/" + file_name
+
             if thread_id is None:
                 thread_id = "".join(
                     random.choices(string.ascii_letters + string.digits, k=6)
                 )
 
-        if file_content is not None:
-            # Ensure the directory exists
-            directory = f"./runtime/downloaded_files/{thread_id}"
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            if file_content is not None:
+                # Ensure the directory exists
+                directory = f"./runtime/downloaded_files/{thread_id}"
+                if not os.path.exists(directory):
+                    os.makedirs(directory)
 
-            # Write the content to the file
-            file_path = os.path.join(directory, file_name)
-            with open(file_path, "w") as file:
-                file.write(file_content)
+                # Write the content to the file
+                file_path = os.path.join(directory, file_name)
+                with open(file_path, "w") as file:
+                    file.write(file_content)
+                    
     except Exception as e:
         return {"success": False, "error": str(e)}
 
     try:
-        p = os.path.dirname(file_name) if "/" in file_name else None
-        if p is not None:
-            query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{p} overwrite=TRUE AUTO_COMPRESS=FALSE'
+        if target_path is not None:
+            if target_path.startswith('/'):
+                target_path = target_path[1:]
+            if target_path.endswith('/'):
+                target_path = target_path[:-1]
+            query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}"/{target_path} overwrite=TRUE AUTO_COMPRESS=FALSE'
         else:
             query = f'PUT file://{file_path} @"{database}"."{schema}"."{stage}" overwrite=TRUE AUTO_COMPRESS=FALSE'
         return self.run_query(query)

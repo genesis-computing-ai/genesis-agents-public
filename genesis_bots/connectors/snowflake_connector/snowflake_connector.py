@@ -191,10 +191,11 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         openai_file_id: str = None,
         file_name: str = None,
         file_content: str = None,
+        target_path: str = None,
         thread_id=None,
         bot_id=None,
     ):
-        return add_file_to_stage(self, database,schema,stage,openai_file_id,file_name,file_content,thread_id)
+        return add_file_to_stage(self, database,schema,stage,openai_file_id,file_name,file_content,target_path,thread_id)
 
     def read_file_from_stage(self, database, schema, stage, file_name, return_contents=True,is_binary=False,for_bot=None,thread_id=None, bot_id=None):
         return read_file_from_stage(self, database, schema, stage, file_name, return_contents, is_binary, for_bot, thread_id)
@@ -5347,7 +5348,13 @@ def _list_stage_contents(
     database="The name of the database. Use your WORKSPACE database unless told to use something else.",
     schema="The name of the schema.  Use your WORKSPACE schema unless told to use something else.",
     stage="The name of the stage to add the file to. Use your WORKSPACE stage unless told to use something else.",
-    file_name="The original filename of the file, human-readable. Can optionally include a relative path, such as bot_1_files/file_name.txt",
+    file_name=ToolFuncParamDescriptor(
+        name="file_name",
+        description="The full local path to the file to add to stage",
+        required=True,
+        llm_type_desc=dict(type="string"),
+    ),
+    target_path="The relative path of the file as you'd like it to be located at on stage, such as my_files/good_files, not including the file name (optional)",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[snowflake_tools]
@@ -5357,6 +5364,7 @@ def _add_file_to_stage(
     schema: str,
     stage: str,
     file_name: str,
+    target_path: str = None,
     bot_id: str = None,
     thread_id: str = None,
 ):
@@ -5368,6 +5376,7 @@ def _add_file_to_stage(
         schema=schema,
         stage=stage,
         file_name=file_name,
+        target_path=target_path,
         bot_id=bot_id,
         thread_id=thread_id,
     )

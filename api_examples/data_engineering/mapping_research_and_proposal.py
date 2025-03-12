@@ -821,7 +821,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def run_snowflake_query(client, query, bot_id=None):
+def run_snowflake_query(client, query, bot_id=None, max_rows=1000):
     """
     Run a Snowflake query using the Genesis tool API.
     
@@ -841,7 +841,8 @@ def run_snowflake_query(client, query, bot_id=None):
         params={
             "query": query,
             "connection_id": connection_id,
-            "bot_id": bot_id
+            "bot_id": bot_id,
+            "max_rows": max_rows
         }, 
         bot_id=bot_id
     )
@@ -1481,7 +1482,7 @@ def main():
     run_number = 1;
 
     requirements_query = f"SELECT * FROM {requirements_table_name}"
-    requirements = run_snowflake_query(client, requirements_query, eve_bot_id)
+    requirements = run_snowflake_query(client, requirements_query, eve_bot_id, max_rows=1000)
 
     for todo in todos:
         # Check if todo_id is not provided

@@ -42,3 +42,4 @@ genesis_bots.egg-info/
 customer_demos/*
 hcls/*
 hcls_gold/*
+genesis-dashboard/node_modules/

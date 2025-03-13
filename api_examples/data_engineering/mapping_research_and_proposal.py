@@ -154,8 +154,8 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     - UPSTREAM_TABLE: List of source table(s) needed for the data, with schema prefixes
     - UPSTREAM_COLUMN: List of source column(s) for the mapping
     - TRANSFORMATION_LOGIC: SQL snippet or natural language description of any needed transformations
-    - CONFIDENCE_SCORE: Score from confidence bot report (if available)
-    - CONFIDENCE_SUMMARY: Brief explanation of the confidence score (if available)
+    - CONFIDENCE_SCORE: Mapping proposers confidence in the mapping, HIGH or LOW.
+    - CONFIDENCE_SUMMARY: Description of the confidence expressed by the mapping proposer, why it scored it this way.
     - PM_BOT_COMMENTS: Your brief statement about the team's work and what specific feedback would be helpful from human reviewers
 
     Format as valid JSON with these exact field names between !!JSON_START!! and !!JSON_END!! tags. Use git_action to retrieve the files if needed.
@@ -586,7 +586,7 @@ def associate_git_file_with_project(client, project_id, file_path, description, 
         print(f"\033[91mError associating git file with project: {e}\033[0m")
         raise e
 
-def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=None, past_projects_list=None, project_id=None, deng_project_config=None):
+def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=None, project_id=None, deng_project_config=None, index_id=None):
     """Execute source research step and validate results."""
     try:
         print("\033[34mExecuting source research...\033[0m")
@@ -605,19 +605,16 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
 
 '''
 
-        past_projects_str = ""
-        if past_projects_list:
-            for project in past_projects_list:
-                past_projects_str += f"git_action(action='read_file',file_path='{project}')\n"
-
         research_prompt += f'''
-        Then, consider these past projects in your past project consideration step, stored in git. Get it by calling:
-        {past_projects_str}
+        Then, search the {index_id} document index for related information from past projects. 
+        Get it by calling:
+        document_index(action='SEARCH', index_id='{index_id}', query='<put query here>')
+        Try a variety of queries on topics related to the requirement for this field, to learn as much as you can from past projects.
 
-        Be sure to use the git_action function, do NOT just hallucinate the contents of these files.
-        Make SURE that you have read ALL of these past project files (if more than one provided), not just one of them.
-     
-        It is important to analyze BOTH the data explorer results, and ALSO the past project, and to discuss both in your report.
+        If one or more of the past project files seems particularly relevent, you can read the entire file about the past project with:
+        git_action(action='read_file',file_path='{paths["base_git_path"]}<past project file name>')
+
+        It is important to search and fully analyze BOTH the data explorer results to find Schema information, and ALSO the past project, and to discuss BOTH in your report.
         When discussing past project in your report, describe their sources and transforms independently, don't say things like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
         When you're done, be sure to save your detailed results in git using the git_action function at {paths["base_git_path"]}{paths["source_research_file"]}
@@ -699,11 +696,21 @@ def perform_mapping_proposal_new(client, requirement, paths, bot_id, pm_bot_id=N
 
     {hint}
 
-    Now, make a mapping proposal for this field based on the source research and the requirments of the field.
+    Now, first decide if you have enough information from the source research report to make a solid case for a specific mapping proposal.
+
+    For a proposal to be solid you want to see:
+    1. Clear source data referenced in the report that supports the mapping and is directly and clearly relevent
+    2. A clear mapping logic that either completely obvious based on the source data, or that is supported by very similar mappings found in past projcets
+
+    If the source research (schema and past project information) report does not support a solid mapping proposal, then your response and report mention that you are not able to 
+    propose a mapping based on the source research with high confidence, and explain why not.
+
+    Clearly state in your respose if you are or are not making a confident proposal, and if you have HIGH or LOW (anything other than high=LOW) confidence in the mapping, and
+
+    If the source research does support a solid mapping proposal, then do make a proposal for a field mapping.
     Only reference tables and objects and logic that are supported by the source research, be careful not to halicinate any other data sources, tables, or fields..
     Be sure to note both the connection_id and fully qualified table name of any source tables you propose to use.
-    Explain your reasoning for each proposed mapping, and note any assumptions you are making, and quote the source research to support your case.
-    If there are two options that both look good, label the best as Primary and the other as Secondary (in a separate section, but also with full details.)
+    Explain your reasoning for each proposed mapping, and note any assumptions you are making, and quote the source research (both about schemas and past projects) to support your case.
 
     Then save your full results at this git location using git_action: {paths["base_git_path"]}{paths["mapping_proposal_file"]}
     Don't forget use use git_action to save your full and complete mapping results.  Don't just put "see above" or similar as this file will be read by another bot who will not see your full completion output.
@@ -883,7 +890,7 @@ def export_table_to_gsheets(client, table_name, sheet_name, bot_id=None):
     print(res)
     return res
 
-def push_knowledge_files_to_git(client, bot_id, past_projects_dir, past_projects_git_path):
+def push_knowledge_files_to_git_and_index(client, bot_id, past_projects_dir, past_projects_git_path, index_id):
     """
     Push knowledge base files to git repository.
     
@@ -908,9 +915,18 @@ def push_knowledge_files_to_git(client, bot_id, past_projects_dir, past_projects
             file_name=os.path.basename(git_path),
             bot_id=bot_id
         )
-
-
-
+        # Add document to index
+        client.run_genesis_tool(
+            tool_name="document_index",
+            params={
+                "action": "ADD_DOCUMENTS",
+                "index_id": index_id, 
+                "filepath": f"BOT_GIT:{past_projects_git_path}/{os.path.basename(local_path)}"
+            },
+            bot_id=bot_id
+        )
+        print(f'...indexed past project file {local_path} in {index_id}, and saved it to git at {past_projects_git_path}/{os.path.basename(local_path)}')
+    
 
 def get_past_project_git_locations(client, past_projects_dir, past_projects_git_path, bot_id):
     """
@@ -977,7 +993,34 @@ def initialize_project(client, bot_id, project_id="deng_requirements_mapping", p
     except Exception as e:
         print(f"Error creating project: {e}")
         raise e
+    
+def initialize_document_index(client, bot_id, project_id):
+    # create a new document index
+    try:
+        result = client.run_genesis_tool(
+            tool_name="document_index",
+            params={
+                "action": "CREATE_INDEX",
+                "index_name": f"{project_id}_past_projects"
+            },
+            bot_id=bot_id
+        )
+        index_id = result['index_id']
+        print(f"Created document index: {index_id}")
+        # Save the index ID for later use
+        # Save index ID to temp file for later use
+        temp_dir = os.path.join(os.getcwd(), 'tmp')
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_file = os.path.join(temp_dir, f'{project_id}_index_id.txt')
+        with open(temp_file, 'w') as f:
+            f.write(index_id)
+        print(f"Saved document index ID to {temp_file}")
+        return index_id
 
+        
+    except Exception as e:
+        print(f"Error creating document index: {e}")
+        raise e
 
 def add_requirements_todos(client, requirements, bot_id, project_id="deng_requirements_mapping", max_todos=-1, root_folder=None):
     """
@@ -1205,12 +1248,21 @@ def initialize_system(
             except Exception as e:
                 print(f"Error reading gsheet location: {e}")
                 gsheet_location = None
-            return gsheet_location
+            # Load index ID from temp file
+            try:
+                with open(f'tmp/{project_id}_index_id.txt', 'r') as f:
+                    index_id = f.read().strip()
+                    print(f"Read index ID: {index_id}")
+            except Exception as e:
+                print(f"Error reading index ID: {e}")
+                index_id = None
+            return gsheet_location, index_id
     
     # initialize projects
     initialize_project(client, pm_bot_id, project_id) # requirements mapping project
     initialize_project(client, data_connector_bot_id, data_connector_project_id, project_name=f"DEng: {data_connector_project_id}", project_description="Project for connecting source system tables to Snowflake tables via Iceberg")
-    push_knowledge_files_to_git(client, eve_bot_id, past_projects_dir, past_projects_git_path)
+    index_id = initialize_document_index(client, pm_bot_id, project_id)
+    push_knowledge_files_to_git_and_index(client, eve_bot_id, past_projects_dir, past_projects_git_path, index_id)
 
     #push_knowledge_files_to_git(client, eve_bot_id, os.path.join('api_examples/data_engineering', 'knowledge/eval_answers'), "data_engineering/eval_answers/")
 
@@ -1444,6 +1496,7 @@ def main():
         # If a specific todo_id is provided, filter the todos to only include this one
     
         load_bots = False
+        print("!!!! Skipping bot loading, using existing bots")
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
@@ -1459,7 +1512,7 @@ def main():
         reset_all = False
         req_max = -1
     
-    gsheet_location = initialize_system(
+    gsheet_location, index_id = initialize_system(
         client=client,
         pm_bot_id=pm_bot_id,
         genesis_db=args.genesis_db,
@@ -1477,7 +1530,7 @@ def main():
     )
     todos = get_todos(client, project_id, pm_bot_id, todo_id=args.todo_id) 
 
-    past_projects_list = get_past_project_git_locations(client, past_projects_dir, past_projects_git_path, pm_bot_id)
+   # past_projects_list = get_past_project_git_locations(client, past_projects_dir, past_projects_git_path, pm_bot_id)
 
     run_number = 1;
 
@@ -1492,16 +1545,16 @@ def main():
             filename = f"tmp/mapping_research_and_proposal_{unique_id}.txt"
             with open(filename, 'w') as f:
                 with stdout_redirector(f, sys.stdout):
-                    process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, past_projects_list, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, filename=filename)
+                    process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, filename=filename, index_id=index_id)
         else:
-            process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, past_projects_list, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence)
+            process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, index_id=index_id)
 
     # Return success status
     return {
         "success": True
     }
 
-def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, past_projects_list, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, filename=None):
+def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project_id, deng_project_config, gsheet_location, requirements_table_name, args, source_research_bot_id, mapping_proposer_bot_id, confidence_analyst_bot_id, skip_confidence, filename=None, index_id=None):
     field_name = todo['todo_name'][11:]
     print(f"\033[34mProcessing todo item: {todo['todo_name']}\033[0m")
     print(f"\033[34mLooking up requirement for field: {field_name}\033[0m")
@@ -1531,7 +1584,7 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
 
         # create and tag the git project assets for this requirement
 
-        source_research_results = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id, pm_bot_id=pm_bot_id, past_projects_list=past_projects_list, project_id=project_id, deng_project_config=deng_project_config)
+        source_research_results = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id, pm_bot_id=pm_bot_id, project_id=project_id, deng_project_config=deng_project_config, index_id=index_id)
         #source_research_results = {
         #    'success': True,
         #    'contents': 'source research contents',

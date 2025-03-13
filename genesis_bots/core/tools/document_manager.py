@@ -178,8 +178,6 @@ def _document_index(
     """
     if (not index_id and not index_name) and action != 'CREATE_INDEX' and action != 'LIST_INDICES':
         return {"Success": False, "Error": "Either index_id or index_name must be provided"}
-    if index_name:
-        return {"Success": False, "Error": "Working with index names is not yet implemented. Please use index_id instead."}
     datapath = filepath 
     if action == 'ADD_DOCUMENTS':
         try:

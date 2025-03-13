@@ -62,13 +62,34 @@ class DocumentManager(object):
         return index.index_id
     
     def delete_index(self, index_id):
-        index = self.load_index(index_id)
-        index.delete(index_id)
-        self.storage_context.persist(self.storage_path)
-        # Remove from cache
-        if index_id in self._index_cache:
-            del self._index_cache[index_id]
-        return True
+        try:
+            # Get all node IDs associated with this index before deletion
+            index = self.load_index(index_id)
+            all_nodes = index.ref_doc_info.keys()
+            
+            # Delete from storage context
+            if hasattr(self.storage_context, 'index_store'):
+                self.storage_context.index_store.delete_index_struct(index_id)
+            
+            # Delete from vector store - both the index-specific and default store
+            if hasattr(self.storage_context, 'vector_store'):
+                # Delete from index-specific store
+                self.storage_context.vector_store.delete(index_id)
+                # Delete all nodes from default store
+                for node_id in all_nodes:
+                    self.storage_context.vector_store.delete(node_id)
+            
+            # Remove from cache
+            if index_id in self._index_cache:
+                del self._index_cache[index_id]
+            
+            # Persist the changes
+            self.storage_context.persist(self.storage_path)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting index {index_id}: {str(e)}")
+            raise
 
     def load_index(self, index_id):
         # Cache the loaded index
@@ -155,7 +176,7 @@ def _document_index(
     """
     Tool to manage document indicies such as adding documents, creating indices, listing indices, deleting indices, listing documents, and querying indicies for matching documents.
     """
-    if not index_id and not index_name:
+    if (not index_id and not index_name) and action != 'CREATE_INDEX' and action != 'LIST_INDICES':
         return {"Success": False, "Error": "Either index_id or index_name must be provided"}
     if index_name:
         return {"Success": False, "Error": "Working with index names is not yet implemented. Please use index_id instead."}

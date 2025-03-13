@@ -19,6 +19,19 @@ x HCLS - cant find report-year, month, etc?
 GXS list
 check put file to stage for Slack uploaded files
 test harvester with catalog supplement change on sqlite metadata, test inserting new, and test updating
+--
+gxs Reprocess history
+gxs Reprocess the correct answers
+Option for mappper to say it not sure threshold 
+Second pass bot to check that
+Maybe some more past projects 
+New version 
+x Alation load file, hook into the harvester
+doc alation loader
+--- 
+adding document manaeger tool via eve, showed in list, but session didnt have it until restart
+
+
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

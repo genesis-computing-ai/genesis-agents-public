@@ -110,7 +110,7 @@ def _document_manager(
     thread_id: str = '',
     top_n : int = 10,
     index_id: str = '',
-    datapath: str = '',
+    filepath: str = '',
     query: str = '',
 
 ) -> dict:
@@ -129,7 +129,7 @@ def _document_manager(
     Returns:
         dict: The result of the action
     """
-    
+    datapath = filepath 
     if action == 'ADD_DOCUMENT':
         try:
             document_manager.add_document(index_id, datapath)

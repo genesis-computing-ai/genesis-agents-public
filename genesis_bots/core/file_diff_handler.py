@@ -48,12 +48,68 @@ class GitFileManager:
         except Exception as e:
             raise Exception(f"Failed to initialize git repository: {str(e)}")
 
-    def list_files(self, path: str = None) -> List[str]:
-        """List all tracked files in the repository or specific path"""
+    def list_files(self, path: str = None) -> Dict:
+        """List all tracked files in the repository or specific path
+        
+        For large directories (>50 files total):
+        - Lists only immediate files/directories in current path
+        - Shows count of files under each subdirectory
+        
+        For very large directories (>100 files in current path):
+        - Shows only first 100 files
+        - Includes total count of remaining files
+        """
+        # Get all tracked files
+        all_files = [str(item[0]) for item in self.repo.index.entries.keys()]
+        
+        # Filter by path if provided
         if path:
-            full_path = os.path.join(self.repo_path, path)
-            return [str(item[0]) for item in self.repo.index.entries.keys() if str(item[0]).startswith(path)]
-        return [str(item[0]) for item in self.repo.index.entries.keys()]
+            all_files = [f for f in all_files if f.startswith(path)]
+            base_path = path
+        else:
+            base_path = ""
+
+        # Get immediate files/dirs in current path
+        current_level_files = []
+        subdirs = {}
+        
+        for file in all_files:
+            rel_path = file[len(base_path):].lstrip('/')
+            parts = rel_path.split('/')
+            
+            if len(parts) == 1:  # File in current directory
+                current_level_files.append(file)
+            else:  # File in subdirectory
+                subdir = parts[0]
+                if subdir not in subdirs:
+                    subdirs[subdir] = 0
+                subdirs[subdir] += 1
+
+        # Prepare result
+        result = {
+            "success": True,
+            "total_files": len(all_files),
+            "base_path": base_path or "root",
+            "full_path": os.path.join(self.repo_path, base_path) if base_path else self.repo_path
+        }
+
+        # Handle large directories
+        if len(all_files) > 50:
+            result["files"] = current_level_files
+            result["subdirectories"] = {
+                dir_name: f"{count} files" for dir_name, count in subdirs.items()
+            }
+            result["note"] = f"Only showing immediate files/directories in {result['base_path']} due to large file count"
+        else:
+            result["files"] = all_files
+
+        # Handle very large current directories
+        if len(current_level_files) > 100:
+            remaining = len(current_level_files) - 100
+            result["files"] = current_level_files[:100]
+            result["note"] = f"Showing first 100 files in {result['base_path']}. {remaining} more files exist"
+
+        return result
 
     def read_file(self, file_path: str) -> str:
         """Read contents of a file from the repository"""
@@ -290,7 +346,7 @@ class GitFileManager:
             if action == "list_files":
                 path = kwargs.get("path")
                 files = self.list_files(path)
-                return {"success": True, "files": files}
+                return {"success": True, "files": files, "git_base_path_on_server_disk": self.repo_path}
 
             elif action == "read_file":
                 if "file_path" not in kwargs:

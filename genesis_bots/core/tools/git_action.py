@@ -92,7 +92,7 @@ git_action_grp = ToolFuncGroup(
     ),
     path=ToolFuncParamDescriptor(
         name="path",
-        description="Optional path filter for listing files",
+        description="Optional path filter for listing files, otherwise will list all files and folders at the root of the repository",
         required=False,
         llm_type_desc=dict(type="string"),
     ),

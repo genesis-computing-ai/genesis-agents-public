@@ -235,17 +235,17 @@ def make_session(
 
     input_adapters = []
 
-    if os.getenv("TEAMS_BOT") and bot_config["bot_name"] == os.getenv("TEAMS_BOT"):
-        from genesis_bots.teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
-        teams_adapter_local = TeamsBotOsInputAdapter(
-            bot_name=bot_config["bot_name"],
-            app_id=bot_config.get("teams_app_id", None),
-            app_password=bot_config.get("teams_app_password", None),
-            app_type=bot_config.get("teams_app_type", None),
-            app_tenantid=bot_config.get("teams_tenant_id", None),
-            bot_id=bot_config["bot_id"]
-        )
-        input_adapters.append(teams_adapter_local)
+    # if os.getenv("TEAMS_BOT") and bot_config["bot_name"] == os.getenv("TEAMS_BOT"):
+    #     from genesis_bots.teams.teams_bot_os_adapter import TeamsBotOsInputAdapter
+    #     teams_adapter_local = TeamsBotOsInputAdapter(
+    #         bot_name=bot_config["bot_name"],
+    #         app_id=bot_config.get("teams_app_id", None),
+    #         app_password=bot_config.get("teams_app_password", None),
+    #         app_type=bot_config.get("teams_app_type", None),
+    #         app_tenantid=bot_config.get("teams_tenant_id", None),
+    #         bot_id=bot_config["bot_id"]
+    #     )
+    #     input_adapters.append(teams_adapter_local)
 
     slack_adapter_local = None
     if existing_slack:

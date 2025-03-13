@@ -379,13 +379,13 @@ def set_metadata():
             parts = metadata_type.split(' ', 3)
             if len(parts) < 4:
                 raise ValueError("add_todo requires PROJECT_ID BOT_ID TODO_NAME WHAT_TO_DO")
-            
+
             _, project_id, bot_id, rest = parts
             # Split remaining text on first space to separate TODO_NAME from WHAT_TO_DO
             todo_parts = rest.split(' ', 1)
             if len(todo_parts) < 2:
                 raise ValueError("add_todo requires both TODO_NAME and WHAT_TO_DO")
-                
+
             todo_name, what_to_do = todo_parts
 
             # URL decode todo_name if it's URL encoded
@@ -394,7 +394,7 @@ def set_metadata():
                 todo_name = unquote(todo_name)
             except Exception as e:
                 logger.warning(f"Failed to URL decode todo_name: {str(e)}")
-            
+
             # Call project manager to add todo
             todo_details = {
                 "project_id": project_id,
@@ -414,7 +414,7 @@ def set_metadata():
             parts = metadata_type.split(' ', 3)
             if len(parts) < 4:
                 raise ValueError("create_project requires BOT_ID PROJECT_NAME DESCRIPTION")
-            
+
             _, bot_id, project_name, description = parts
 
             # URL decode project_name if it's URL encoded

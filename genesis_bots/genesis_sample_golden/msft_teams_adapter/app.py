@@ -15,8 +15,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get credentials from environment variables (more secure)
-APP_ID = os.environ.get("APP_ID", "")
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+APP_ID = os.environ.get("APP_ID", "73e855e4-fefc-441d-bbca-5256a95dabf6")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "k6T8Q~nYVpKA.ww4zlrecj1Jxi2Q3UWr.C4XwaUH")
 
 logger.info("Initializing bot with APP_ID: %s", APP_ID)
 
@@ -55,6 +55,10 @@ async def messages(request):
 
     try:
         auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            logger.error("Missing Authorization header")
+            return web.Response(text="Unauthorized - Missing auth header", status=401)
+
         body = await request.json()
 
         if not body:
@@ -83,10 +87,26 @@ async def health_check(request):
     last_wake_up_pacific = last_wake_up.astimezone(pacific).strftime("%Y-%m-%d %H:%M:%S")
     return web.Response(text=f"A votre sante! Last wake up: {last_wake_up_pacific}", status=200)
 
+async def favicon(request):
+    """Handle favicon.ico requests"""
+    return web.Response(status=204)  # No content response
+
+async def handle_404(request):
+    """Handle all unmatched routes"""
+    logger.info(f"404 Not Found: {request.path}")
+    return web.Response(
+        text=f"404 - Path not found: {request.path}",
+        status=404
+    )
+
 async def init_app():
     app = web.Application(middlewares=[aiohttp_error_middleware])
+
+    app.router.add_get('/favicon.ico', favicon)
     app.router.add_post("/api/messages", messages)
     app.router.add_get("/health", health_check)
+
+    app.router.add_route('*', '/{tail:.*}', handle_404)
 
     if os.environ.get("KEEP-ALIVE"):
         print('Starting wake up task...', flush=True)
@@ -102,3 +122,14 @@ if __name__ == "__main__":
     except Exception as error:
         logger.error(f"Error running app: {error}")
         raise error
+
+# from flask import Flask, jsonify
+
+# app = Flask(__name__)
+
+# @app.route('/api/greet', methods=['GET'])
+# def greet():
+#     return ({'value': 'hello world'})
+
+# if __name__ == '__main__':
+#     app.run(debug=True)

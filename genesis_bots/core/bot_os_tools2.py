@@ -439,7 +439,7 @@ class ToolFuncDescriptor:
 
 
 
-def gc_tool(_group_tags_: List[str], **param_descriptions):
+def gc_tool(_group_tags_: List[ToolFuncGroup], **param_descriptions):
     """
     A decorator for a 'tool' function that attaches a `gc_tool_descriptor` property to the wrapped function
     as a ToolFuncDescriptor object.
@@ -849,6 +849,8 @@ def get_global_tools_registry():
                 "genesis_bots.core.tools.dbt_action.get_dbt_action_functions",
                 "genesis_bots.core.tools.image_tools.get_image_functions",
                 "genesis_bots.core.tools.jira_connector.get_jira_connector_functions",
+                "genesis_bots.core.tools.pdf_tools.get_pdf_functions",
+                "genesis_bots.core.tools.document_manager.get_document_manager_functions",
                 # "genesis_bots.core.tools.github_connector.get_github_connector_functions",
                 "genesis_bots.core.bot_os_web_access.get_web_access_functions",
                 "genesis_bots.core.tools.send_email.get_send_email_functions",

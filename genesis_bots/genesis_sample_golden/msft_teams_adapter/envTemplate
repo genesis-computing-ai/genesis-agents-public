@@ -13,3 +13,5 @@ RETRY_INTERVAL=5
 BOT=<bot_id>
 SNOWFLAKE_ACCOUNT_URL=None  # Optional, comment out if not needed
 KEEP-ALIVE=True
+APP_ID=<id_of_azure_bot>
+APP_PASSWORD=<password_for_azure_bot>  # Get this from the Configuration tab of the bot

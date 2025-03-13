@@ -46,8 +46,8 @@ class DocumentManager(object):
         return index.index_id
     
     def delete_index(self, index_id):
-        storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
-        index = load_index_from_storage(storage_context, index_id)
+        index = load_index_from_storage(self.storage_context, index_id)
+        # Delete an index is not implemented in llama_index
 
     def load_index(self, index_id):
         index = load_index_from_storage(self.storage_context, index_id)        

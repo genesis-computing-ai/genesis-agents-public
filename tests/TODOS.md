@@ -30,7 +30,7 @@ x Alation load file, hook into the harvester
 doc alation loader
 --- 
 adding document manaeger tool via eve, showed in list, but session didnt have it until restart
-
+record a demo of data eng
 
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them

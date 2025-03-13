@@ -54,6 +54,19 @@ class DocumentManager(object):
         return index
     
     def add_document(self, index_id, datapath):
+
+
+        if datapath.startswith('BOT_GIT:'):
+            repo_path = os.getenv('GIT_PATH', os.path.join(os.getcwd(), 'bot_git'))
+            # Ensure repo_path ends with /
+            if not repo_path.endswith('/'):
+                repo_path = repo_path + '/'
+            if datapath[len('BOT_GIT:'):].startswith('/'):
+                datapath = 'BOT_GIT:' + datapath[len('BOT_GIT:')+1:]
+            datapath = os.path.join(repo_path, datapath[len('BOT_GIT:'):])
+        # Remove any double slashes that might occur from path joining
+        datapath = os.path.normpath(datapath)
+
         if os.path.isfile(datapath):
             new_documents = SimpleDirectoryReader(input_files=[datapath]).load_data()
         elif os.path.isdir(datapath):
@@ -74,8 +87,8 @@ document_manager = DocumentManager()
 
 
 document_manager_tools = ToolFuncGroup(
-    name="document_manager_tools",
-    description="Tools to manage documents such as ",
+    name="document_index_tools",
+    description="Tools to manage document indexes such as adding documents, creating indices, listing indices, deleting indices, listing documents, and searching documents.",
     lifetime="PERSISTENT"
 )
 
@@ -87,12 +100,12 @@ document_manager_tools = ToolFuncGroup(
         llm_type_desc=dict(
             type="string",
             enum=[
-                "ADD_DOCUMENT",
+                "ADD_DOCUMENTS",
                 "CREATE_INDEX",
                 "LIST_INDICES",
                 "DELETE_INDEX",
-                "LIST_DOCUMENTS",
-                "QUERY",
+                "LIST_DOCUMENTS_IN_INDEX",
+                "SEARCH",
             ],
         ),
     ),
@@ -100,11 +113,11 @@ document_manager_tools = ToolFuncGroup(
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     top_n="Top N documents to retrieve",
     index_id="The index id to perform the action on",
-    filepath="The path of the document to add",
+    filepath="The file path on local server disk of the document to add, if from local git repo, prefix with BOT_GIT:",
     query="The query to retrieve the documents",
     _group_tags_=[document_manager_tools],
 )
-def _document_manager(
+def _document_index(
     action: str,
     bot_id: str = '',
     thread_id: str = '',
@@ -115,24 +128,12 @@ def _document_manager(
 
 ) -> dict:
     """
-    Tools to manage documents such as adding documents, creating indices, listing indices, deleting indices, listing documents, and querying documents.
-
-    Args:
-        action (str): List of Actions can be done with document manager
-        bot_id (str): The bot id to perform the action on
-        thread_id (str): The thread id to perform the action on
-        top_n (int): Top N documents to retrieve
-        index_id (str): The index id to perform the action on
-        datapath (str): The path of the document to add (either a file or a directory)
-        query (str): The query to retrieve the documents
-
-    Returns:
-        dict: The result of the action
+    Tool to manage document indicies such as adding documents, creating indices, listing indices, deleting indices, listing documents, and querying indicies for matching documents.
     """
     datapath = filepath 
-    if action == 'ADD_DOCUMENT':
+    if action == 'ADD_DOCUMENTS':
         try:
-            document_manager.add_document(index_id, datapath)
+            document_manager.add_documents(index_id, datapath)
             return {"Success": True, "Message": "Document added successfully"}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
@@ -154,13 +155,13 @@ def _document_manager(
             return {"Success": True, "Message": "Index deleted successfully"}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
-    elif action == 'LIST_DOCUMENTS':
+    elif action == 'LIST_DOCUMENTS_IN_INDEX':
         try:
             docs = document_manager.list_of_documents(index_id)
             return {"Success": True, "Documents": docs}
         except Exception as e:
             return {"Success": False, "Error": str(e)}       
-    elif action == 'QUERY':
+    elif action == 'SEARCH':
         try:
             results = document_manager.retrieve(query, index_id, top_n)
             return {"Success": True, "Results": results}
@@ -171,7 +172,7 @@ def _document_manager(
 
 
 
-document_manager_functions = [_document_manager]
+document_manager_functions = [ _document_index ]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_document_manager_functions():

@@ -495,9 +495,9 @@ def make_session(
                 logger.info('Bot implementation not specified, and no available LLM found. Please set LLM key in Streamlit.')
 
         if assistant_implementation:
-            logger.warning(f"Using {actual_llm} for bot {bot_id}")
+            logger.info(f"Using {actual_llm} for bot {bot_id}")
         else:
-            logger.warning(f"No suitable LLM found for bot {bot_id}")
+            logger.info(f"No suitable LLM found for bot {bot_id}")
 
         # Updating an existing bot's preferred_llm
         bot_llms[bot_id] = {"current_llm": actual_llm, "preferred_llm": bot_config["bot_implementation"]}
@@ -604,19 +604,7 @@ Always respond to greetings and pleasantries like 'hi' etc, unless specifically 
     except Exception as e:
         logger.info("Session creation exception: ", e)
         raise (e)
-    if os.getenv("BOT_BE_PROACTIVE", "FALSE").lower() == "true" and slack_adapter_local:
-        if not slack_adapter_local.channel_id:
-            logger.warn("not adding initial task - slack_adapter_local channel_id is null")
-        if not os.getenv("BOT_OS_MANAGER_NAME"):
-            logger.warn("not adding initial task - BOT_OS_MANAGER_NAME not set.")
-        else:
-            session._add_reminder(
-                f"Send a daily DM on slack to {os.getenv('BOT_OS_MANAGER_NAME')}, to see if there are any tasks for you to work on. Make some suggestions based on your role, tools and expertise. Respond to this only with !NO_RESPONSE and then mark the task complete.",
-                due_date_delta="1 minute",
-                is_recurring=True,
-                frequency="daily",
-                thread_id=session.create_thread(slack_adapter_local),
-            )
+   
     api_app_id = bot_config[
         "api_app_id"
     ]  # Adjust based on actual field name in bots_config

@@ -342,9 +342,11 @@ class GitFileManager:
             action = action.lower()
 
 
-
             if action == "list_files":
                 path = kwargs.get("path")
+                if path and path.startswith('/'):
+                    path = path[1:]
+
                 files = self.list_files(path)
                 return {"success": True, "files": files, "git_base_path_on_server_disk": self.repo_path}
 

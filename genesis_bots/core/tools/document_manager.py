@@ -15,44 +15,67 @@ from genesis_bots.core.bot_os_tools2 import (
 
 class DocumentManager(object):
     _instance = None
+    _initialized = False  # Add initialization flag
+    
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(DocumentManager, cls).__new__(cls)
         return cls._instance
 
     def __init__(self):
+        if self._initialized:  # Skip if already initialized
+            return
+            
         self.storage_path = os.path.join(os.getcwd(), 'bot_git','storage')
         try:
-            storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
+            self.storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
         except Exception as e:
-            storage_context = StorageContext.from_defaults()
-            storage_context.persist(self.storage_path)
-        self.storage_context = storage_context
+            self.storage_context = StorageContext.from_defaults()
+            self.storage_context.persist(self.storage_path)
+            
+        self._index_cache = {}  # Add index cache
+        self._initialized = True
 
-    def list_of_indices(self):        
+    def list_of_indices(self):
+        # First check if we have any cached indices
+        if self._index_cache:
+            return list(self._index_cache.keys())
+        
+        # If cache is empty, load from storage and populate cache
         indices = load_indices_from_storage(self.storage_context)
+        for index in indices:
+            self._index_cache[index.index_id] = index
         return [index.index_id for index in indices]
     
     def list_of_documents(self, index_id):
-        index = load_index_from_storage(self.storage_context, index_id)
+        index = self.load_index(index_id)
         docs = set()
         for doc_id, doc_val in index.ref_doc_info.items():
             docs.add(doc_val.metadata['file_path'])
         return docs
     
-    def create_index(self):
-        index = VectorStoreIndex([], storage_context=self.storage_context)
+    def create_index(self, index_id=None):
+        index = VectorStoreIndex([], storage_context=self.storage_context, index_id=index_id)
         self.storage_context.persist(self.storage_path)
+        # Update cache with new index
+        self._index_cache[index.index_id] = index
         return index.index_id
     
     def delete_index(self, index_id):
-        index = load_index_from_storage(self.storage_context, index_id)
-        # Delete an index is not implemented in llama_index
+        index = self.load_index(index_id)
+        index.delete(index_id)
+        self.storage_context.persist(self.storage_path)
+        # Remove from cache
+        if index_id in self._index_cache:
+            del self._index_cache[index_id]
+        return True
 
     def load_index(self, index_id):
-        index = load_index_from_storage(self.storage_context, index_id)        
-        return index
-    
+        # Cache the loaded index
+        if index_id not in self._index_cache:
+            self._index_cache[index_id] = load_index_from_storage(self.storage_context, index_id)
+        return self._index_cache[index_id]
+
     def add_document(self, index_id, datapath):
 
 
@@ -112,7 +135,8 @@ document_manager_tools = ToolFuncGroup(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     top_n="Top N documents to retrieve",
-    index_id="The index id to perform the action on",
+    index_id="The unique identifier of the index",
+    index_name="The name of the index",
     filepath="The file path on local server disk of the document to add, if from local git repo, prefix with BOT_GIT:",
     query="The query to retrieve the documents",
     _group_tags_=[document_manager_tools],
@@ -123,6 +147,7 @@ def _document_index(
     thread_id: str = '',
     top_n : int = 10,
     index_id: str = '',
+    index_name: str = '',
     filepath: str = '',
     query: str = '',
 
@@ -130,17 +155,21 @@ def _document_index(
     """
     Tool to manage document indicies such as adding documents, creating indices, listing indices, deleting indices, listing documents, and querying indicies for matching documents.
     """
+    if not index_id and not index_name:
+        return {"Success": False, "Error": "Either index_id or index_name must be provided"}
+    if index_name:
+        return {"Success": False, "Error": "Working with index names is not yet implemented. Please use index_id instead."}
     datapath = filepath 
     if action == 'ADD_DOCUMENTS':
         try:
-            document_manager.add_documents(index_id, datapath)
+            document_manager.add_document(index_id, datapath)
             return {"Success": True, "Message": "Document added successfully"}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
     elif action == 'CREATE_INDEX':
         try:
-            index_id = document_manager.create_index()
-            return {"Success": True, "Index ID": index_id}
+            index_id = document_manager.create_index(index_id if index_id else None)
+            return {"Success": True, "index_id": index_id}
         except Exception as e:
             return {"Success": False, "Error": str(e)}
     elif action == 'LIST_INDICES':

@@ -788,8 +788,7 @@ class SchemaExplorer:
                 # Force crawl if this is an immediate harvest request
                 if dataset_filter:
                     crawl_flag = True
-                crawl_flag = True # temp
-                print('temp temp')
+
                 cur_time = datetime.now()
                 if crawl_flag:
                     harvesting_databases.append(database)

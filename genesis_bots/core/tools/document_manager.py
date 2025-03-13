@@ -21,24 +21,28 @@ class DocumentManager(object):
         return cls._instance
 
     def __init__(self):
-        self.storage_path = "tmp/storage"
+        self.storage_path = os.path.join(os.getcwd(), 'bot_git','storage')
+        try:
+            storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
+        except Exception as e:
+            storage_context = StorageContext.from_defaults()
+            storage_context.persist(self.storage_path)
+        self.storage_context = storage_context
 
-    def list_of_indices(self):
-        storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
-        indices = load_indices_from_storage(storage_context)
+    def list_of_indices(self):        
+        indices = load_indices_from_storage(self.storage_context)
         return [index.index_id for index in indices]
     
     def list_of_documents(self, index_id):
-        storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
-        index = load_index_from_storage(storage_context, index_id)
+        index = load_index_from_storage(self.storage_context, index_id)
         docs = set()
         for doc_id, doc_val in index.ref_doc_info.items():
             docs.add(doc_val.metadata['file_path'])
         return docs
     
     def create_index(self):
-        index = VectorStoreIndex.from_documents([])
-        index.storage_context.persist(self.storage_path)
+        index = VectorStoreIndex([], storage_context=self.storage_context)
+        self.storage_context.persist(self.storage_path)
         return index.index_id
     
     def delete_index(self, index_id):
@@ -46,16 +50,20 @@ class DocumentManager(object):
         index = load_index_from_storage(storage_context, index_id)
 
     def load_index(self, index_id):
-        storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
-        index = load_index_from_storage(storage_context, index_id)        
+        index = load_index_from_storage(self.storage_context, index_id)        
         return index
     
-    def add_document(self, index_id, filepath):
-        new_documents = SimpleDirectoryReader(input_files=[filepath]).load_data()
+    def add_document(self, index_id, datapath):
+        if os.path.isfile(datapath):
+            new_documents = SimpleDirectoryReader(input_files=[datapath]).load_data()
+        elif os.path.isdir(datapath):
+            new_documents = SimpleDirectoryReader(input_dir=datapath).load_data()
+        else:
+            raise Exception("Invalid path")
         index = self.load_index(index_id)
         for doc in new_documents:
             index.insert(doc)
-        index.storage_context.persist(self.storage_path)
+        self.storage_context.persist(self.storage_path)
 
     def retrieve(self, query, index_id, top_n=3):
         index = self.load_index(index_id)
@@ -102,7 +110,7 @@ def _document_manager(
     thread_id: str = '',
     top_n : int = 10,
     index_id: str = '',
-    filepath: str = '',
+    datapath: str = '',
     query: str = '',
 
 ) -> dict:
@@ -115,7 +123,7 @@ def _document_manager(
         thread_id (str): The thread id to perform the action on
         top_n (int): Top N documents to retrieve
         index_id (str): The index id to perform the action on
-        filepath (str): The path of the document to add
+        datapath (str): The path of the document to add (either a file or a directory)
         query (str): The query to retrieve the documents
 
     Returns:
@@ -124,7 +132,7 @@ def _document_manager(
     
     if action == 'ADD_DOCUMENT':
         try:
-            document_manager.add_document(index_id, filepath)
+            document_manager.add_document(index_id, datapath)
             return {"Success": True, "Message": "Document added successfully"}
         except Exception as e:
             return {"Success": False, "Error": str(e)}

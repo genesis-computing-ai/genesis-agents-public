@@ -116,20 +116,42 @@ class GenesisAPI:
                 raise ValueError(res["message"])
 
 
-        def write(self, file_path, content, commit_message=None, bot_id=None, adtl_info_out=None):
+        def write(self, file_path, content, commit_message=None, bot_id=None, adtl_info=None):
+            """
+            Write content to a file in git.
+            
+            Args:
+                file_path (str): Path where to write the file in git
+                content (str): Content to write
+                commit_message (str, optional): Git commit message
+                bot_id (str, optional): Bot ID to use for the operation
+                adtl_info (dict, optional): Additional information about the content (e.g. {"is_base64": True})
+            
+            Returns:
+                bool: True if successful
+                
+            Raises:
+                ValueError: If the write operation fails
+            """
             bot_id = bot_id or "Eve" # remove once it becomes redundant
-            res = self.server_proxy.run_genesis_tool(tool_name="git_action",
-                                                     params={"action": "write_file",
-                                                             "file_path": file_path,
-                                                             "content": content,
-                                                             "commit_message": commit_message},
-                                                     bot_id=bot_id)
+            params = {
+                "action": "write_file",
+                "file_path": file_path,
+                "content": content,
+                "commit_message": commit_message
+            }
+            
+            # Add any additional info to params
+            if adtl_info:
+                params.update(adtl_info)
+            
+            res = self.server_proxy.run_genesis_tool(
+                tool_name="git_action",
+                params=params,
+                bot_id=bot_id
+            )
             res = canonicalize_json_result_dict(res)
             is_success = res.pop("success", False)
-            if adtl_info_out is not None:
-                assert isinstance(adtl_info_out, dict), (
-                    f"adtl_info_out must be a dict or None. Got: {type(adtl_info_out)}")
-                adtl_info_out.update(res)
             if is_success:
                 return True
             else:

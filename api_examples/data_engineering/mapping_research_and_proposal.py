@@ -8,6 +8,7 @@ import os
 import time
 import sys
 from contextlib import contextmanager
+import base64
 
 eve_bot_id = 'Eve'
 genesis_api_client = None
@@ -120,11 +121,23 @@ def put_git_file(client, local_file, git_file_path, file_name, bot_id):
         bool: True if successful, False if failed
     """
     try:
-        # Read local file
-        with open(local_file, 'r') as f:
-            content = f.read()
+        # Try reading as text first
+        try:
+            with open(local_file, 'r') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # If text read fails, read as binary and encode as base64
+            with open(local_file, 'rb') as f:
+                binary_content = f.read()
+                content = base64.b64encode(binary_content).decode('utf-8')
+                print(f"Reading {local_file} as binary file and encoding as base64")
             
-        res = client.gitfiles.write(f"{git_file_path}{file_name}", content, bot_id=bot_id)
+        res = client.gitfiles.write(
+            f"{git_file_path}{file_name}", 
+            content,
+            bot_id=bot_id,
+            adtl_info={"is_base64": isinstance(content, bytes)}
+        )
         return res
         
     except Exception as e:
@@ -1187,7 +1200,8 @@ def initialize_system(
     bot_id=None,
     pm_bot_id=None, 
     genesis_db='GENESIS_BOTS',
-    reset_all=False,
+    reset_project=False,
+    index_files=False,
     req_max=-1,
     project_id="deng_requirements_mapping",
     past_projects_dir=None,
@@ -1198,7 +1212,7 @@ def initialize_system(
     requirements_file_name=None,
     requirements_table_name=None,
     root_folder=None,
-    input_files_dir=None
+    project_config=None
 ):
     """
     Initialize the requirements table in Snowflake if it doesn't exist.
@@ -1259,7 +1273,14 @@ def initialize_system(
             print(f"\033[31mError checking harvest control data: {e}\033[0m")
             raise e
 
-    if not reset_all:
+    if index_files:
+        # Initialize additional document indices if configured in project_config
+        if project_config and 'document_indices' in project_config:
+            print("Found document_indices in project config, initializing additional indices...")
+            indices = initialize_document_indices(client, pm_bot_id, project_id, project_config)
+            print(f"Created additional indices: {indices}")
+
+    if not reset_project:
         check_query = f"SELECT COUNT(*) FROM {genesis_db}.{pm_bot_id.upper().replace('-','_')}_WORKSPACE.{project_id.upper().replace('-','_')}_REQUIREMENTS"
         res = run_snowflake_query(client, check_query, bot_id)
         if isinstance(res, list) and len(res) > 0:
@@ -1289,6 +1310,7 @@ def initialize_system(
     index_id = initialize_document_index(client, pm_bot_id, project_id)
 
     push_knowledge_files_to_git_and_index(client, eve_bot_id, past_projects_dir, past_projects_git_path, index_id)
+
 
     #index_input_files(client, pm_bot_id, project_id, input_files_dir)
     #push_knowledge_files_to_git(client, eve_bot_id, os.path.join('api_examples/data_engineering', 'knowledge/eval_answers'), "data_engineering/eval_answers/")
@@ -1378,6 +1400,8 @@ def initialize_system(
     print("Adding todos...")
     add_requirements_todos(client, requirements, pm_bot_id, project_id=project_id, max_todos=req_max, root_folder=root_folder)
     add_data_connector_todos(client, data_connector_bot_id, project_id=data_connector_project_id)
+
+
 
     return gsheet_location['file_url'], index_id
 
@@ -1516,39 +1540,36 @@ def main():
     try:
         with open(os.path.join(root_folder, 'deng_project_config.json'), 'r') as f:
             deng_project_config = json.loads(f.read())
-    except:
+    except Exception as e:
+        print(f"Project config not loaded from {root_folder}/deng_project_config.json {e}")
         pass
-
-
 
 
     if not args.todo_id:
         # If a specific todo_id is provided, filter the todos to only include this one
     
         load_bots = False
-        print("!!!! Skipping bot loading, using existing bots")
+        reset_project = True
+        index_files = True
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
         else:
-            print("Skipping bot loading, using existing bots")
+            print("!!! Skipping bot loading, using existing bots")
 
         # Initialize requirements table if not exists 
-
-        reset_all = True
         req_max = -1
     else:
-
-        reset_all = False
+        reset_project = False
+        index_files = False
         req_max = -1
-    
-    input_files_dir = None
 
     gsheet_location, index_id = initialize_system(
         client=client,
         pm_bot_id=pm_bot_id,
         genesis_db=args.genesis_db,
-        reset_all=reset_all,
+        reset_project=reset_project,
+        index_files=index_files,
         req_max=req_max,
         past_projects_dir=past_projects_dir,
         past_projects_git_path=past_projects_git_path,
@@ -1559,7 +1580,7 @@ def main():
         requirements_file_name=requirements_file_name,
         requirements_table_name=requirements_table_name,
         root_folder=root_folder,
-        input_files_dir=input_files_dir
+        project_config = deng_project_config
     )
     todos = get_todos(client, project_id, pm_bot_id, todo_id=args.todo_id) 
 
@@ -1781,6 +1802,114 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
 
         # Update todo status to complete
         update_todo_status(client=client, todo_id=todo['todo_id'], new_status='ON_HOLD', bot_id=pm_bot_id)
+
+def initialize_document_indices(client, bot_id, project_id, project_config):
+    """
+    Initialize multiple document indices based on configuration and populate them with files.
+    
+    Args:
+        client: Genesis API client instance
+        bot_id: Bot ID to use for operations
+        project_id: Project ID
+        deng_project_config: Project configuration containing document_indices
+        
+    Returns:
+        dict: Mapping of index names to their IDs
+    """
+    if not project_config or 'document_indices' not in project_config:
+        print("No document indices configured in project config")
+        return {}
+
+    indices = {}
+    
+    for index_config in project_config['document_indices']:
+        index_name = index_config['index_name']
+        path_to_files = index_config['path_to_files']
+        
+        # Create index name with project prefix
+        full_index_name = f"{index_name}"
+        
+        try:
+            # Check if index exists
+            result = client.run_genesis_tool(
+                tool_name="document_index",
+                params={
+                    "action": "CREATE_INDEX",
+                    "index_name": full_index_name,
+                    "bot_id": bot_id
+                },
+                bot_id=bot_id
+            )
+            
+            if 'Error' in result and result['Error'] == 'Index with the same name already exists':
+                print(f"Document index {full_index_name} already exists, removing")
+                client.run_genesis_tool(
+                    tool_name="document_index",
+                    params={
+                        "action": "DELETE_INDEX",
+                        "index_name": full_index_name,
+                        "bot_id": bot_id
+                    },
+                    bot_id=bot_id
+                )
+                # Recreate the index
+                client.run_genesis_tool(
+                    tool_name="document_index",
+                    params={
+                        "action": "CREATE_INDEX",
+                        "index_name": full_index_name,
+                        "bot_id": bot_id
+                    },
+                    bot_id=bot_id
+                )
+            
+            print(f"Created document index: {full_index_name}")
+            
+            # Walk through directory and add files
+            for root, dirs, files in os.walk(path_to_files):
+                for file in files:
+                    local_path = os.path.join(root, file)
+                    git_path = os.path.join(project_id, "input_files", index_name, file)
+                    
+                    # Skip hidden files
+                    if file.startswith('.'):
+                        continue
+                    # Put file in git
+                    put_git_file(
+                        client=client,
+                        local_file=local_path,
+                        git_file_path=os.path.dirname(git_path) + '/',
+                        file_name=file,
+                        bot_id=bot_id
+                    )
+                    
+                    # Add to index
+                    client.run_genesis_tool(
+                        tool_name="document_index",
+                        params={
+                            "action": "ADD_DOCUMENTS",
+                            "index_name": full_index_name,
+                            "filepath": f"BOT_GIT:{git_path}"
+                        },
+                        bot_id=bot_id
+                    )
+                    print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {git_path}')
+            
+            indices[index_name] = full_index_name
+            
+        except Exception as e:
+            print(f"Error creating/populating index {full_index_name}: {e}")
+            continue
+    
+    # Save indices mapping to temp file for later use
+    temp_dir = os.path.join(os.getcwd(), 'tmp')
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file = os.path.join(temp_dir, f'{project_id}_indices.json')
+    with open(temp_file, 'w') as f:
+        json.dump(indices, f)
+    print(f"Saved document indices mapping to {temp_file}")
+    
+    return indices
 
 if __name__ == "__main__":
     main()

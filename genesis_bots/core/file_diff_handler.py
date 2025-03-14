@@ -120,15 +120,30 @@ class GitFileManager:
         with open(full_path, 'r') as f:
             return f.read()
 
-    def write_file(self, file_path: str, content: str, commit_message: str = None) -> Dict:
+    def write_file(self, file_path: str, content: str, commit_message: str = None, **adtl_info) -> Dict:
         """Write content to a file and optionally commit changes"""
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(os.path.join(self.repo_path, file_path)), exist_ok=True)
 
-            # Write the file
-            with open(os.path.join(self.repo_path, file_path), 'w') as f:
-                f.write(content)
+            # Check if content is base64 encoded
+            is_base64 = False
+            if isinstance(content, str):
+                try:
+                    import base64
+                    # Try to decode base64 if the is_base64 flag is in the content
+                    decoded_content = base64.b64decode(content)
+                    is_base64 = True
+                except:
+                    is_base64 = False
+
+            # Write the file in appropriate mode
+            if is_base64:
+                with open(os.path.join(self.repo_path, file_path), 'wb') as f:
+                    f.write(decoded_content)
+            else:
+                with open(os.path.join(self.repo_path, file_path), 'w') as f:
+                    f.write(content)
 
             # Add to git
             self.repo.index.add([file_path])
@@ -369,10 +384,23 @@ class GitFileManager:
                 # Check if file_path starts with / and return error if it does
                 if kwargs["file_path"].startswith('/'):
                     return {"success": False, "error": "Please provide a relative file path without leading /"}
+                
+                # Extract the standard parameters
+                file_path = kwargs["file_path"]
+                content = kwargs["content"]
+                commit_message = kwargs.get("commit_message")
+                
+                # Pass through any additional parameters that aren't standard
+                adtl_info = {k: v for k, v in kwargs.items() 
+                             if k not in ["file_path", "content", "commit_message", 
+                                         "file_content", "new_content"]}
+                
+                # Pass through any additional parameters
                 return self.write_file(
-                    kwargs["file_path"],
-                    kwargs["content"],
-                    kwargs.get("commit_message")
+                    file_path,
+                    content,
+                    commit_message,
+                    **adtl_info  # Pass any additional parameters
                 )
 
             elif action == "generate_diff":

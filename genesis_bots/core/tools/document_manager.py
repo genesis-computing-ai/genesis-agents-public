@@ -39,19 +39,22 @@ class DocumentManager(object):
         self._initialized = True
 
     def get_index_id(self, index_name: str):
-        query = f'SELECT * FROM {self.db_adapter.index_manager_table_name} WHERE index_name = "{index_name}"'
+        query = f"SELECT * FROM {self.db_adapter.index_manager_table_name} WHERE index_name = '{index_name}'"
         result = self.db_adapter.run_query(query)
         if result:
             return result[0]['INDEX_ID']
         return ''
     
     def store_index_id(self, index_name: str, index_id: str, bot_id: str):
+        # Format timestamp in YYYY-MM-DD HH:MI:SS format without timezone
+        timestamp = self.db_adapter.get_current_time_with_timezone().split()[0:2]
+        timestamp = ' '.join(timestamp)  # Join date and time parts without timezone
         self.db_adapter.run_insert(self.db_adapter.index_manager_table_name, 
                                    **{'index_name': index_name, 'index_id': index_id, 'bot_id': bot_id, 
-                                    'timestamp': self.db_adapter.get_current_time_with_timezone()})
+                                    'timestamp': timestamp})
 
     def delete_index_id(self, index_id: str):
-        query = f'DELETE FROM {self.db_adapter.index_manager_table_name} WHERE index_id = "{index_id}"'
+        query = f"DELETE FROM {self.db_adapter.index_manager_table_name} WHERE index_id = '{index_id}'"
         self.db_adapter.run_query(query)
 
     def list_of_indices(self):
@@ -69,7 +72,7 @@ class DocumentManager(object):
     def rename_index(self, index_name, new_index_name):
         if not self.get_index_id(index_name):
             raise Exception("Index does not exist")
-        query = f'UPDATE {self.db_adapter.index_manager_table_name} SET index_name = "{new_index_name}" WHERE index_name = "{index_name}"'
+        query = f"UPDATE {self.db_adapter.index_manager_table_name} SET index_name = '{new_index_name}' WHERE index_name = '{index_name}'"
         self.db_adapter.run_query(query)
     
     def create_index(self, index_name: str, bot_id: str):        

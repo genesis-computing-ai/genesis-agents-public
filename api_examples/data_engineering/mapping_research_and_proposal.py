@@ -1174,7 +1174,8 @@ def initialize_system(
     data_connector_project_id="deng_data_connector",
     requirements_file_name=None,
     requirements_table_name=None,
-    root_folder=None
+    root_folder=None,
+    input_files_dir=None
 ):
     """
     Initialize the requirements table in Snowflake if it doesn't exist.
@@ -1261,9 +1262,10 @@ def initialize_system(
     # initialize projects
     initialize_project(client, pm_bot_id, project_id) # requirements mapping project
     initialize_project(client, data_connector_bot_id, data_connector_project_id, project_name=f"DEng: {data_connector_project_id}", project_description="Project for connecting source system tables to Snowflake tables via Iceberg")
-    index_id = initialize_document_index(client, pm_bot_id, project_id)
+    
     push_knowledge_files_to_git_and_index(client, eve_bot_id, past_projects_dir, past_projects_git_path, index_id)
 
+    index_input_files(client, pm_bot_id, project_id, input_files_dir)
     #push_knowledge_files_to_git(client, eve_bot_id, os.path.join('api_examples/data_engineering', 'knowledge/eval_answers'), "data_engineering/eval_answers/")
 
     # Check if the schema exists, if not, create it
@@ -1492,6 +1494,9 @@ def main():
     except:
         pass
 
+
+
+
     if not args.todo_id:
         # If a specific todo_id is provided, filter the todos to only include this one
     
@@ -1526,7 +1531,8 @@ def main():
         data_connector_project_id=data_connector_project_id,
         requirements_file_name=requirements_file_name,
         requirements_table_name=requirements_table_name,
-        root_folder=root_folder
+        root_folder=root_folder,
+        input_files_dir=input_files_dir
     )
     todos = get_todos(client, project_id, pm_bot_id, todo_id=args.todo_id) 
 

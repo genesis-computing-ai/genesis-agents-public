@@ -608,7 +608,7 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
         research_prompt += f'''
         Then, search the {index_id} document index for related information from past projects. 
         Get it by calling:
-        document_index(action='SEARCH', index_id='{index_id}', query='<put query here>')
+        document_index(action='SEARCH', index_name='{index_id}', query='<put query here>')
         Try a variety of queries on topics related to the requirement for this field, to learn as much as you can from past projects.
 
         If one or more of the past project files seems particularly relevent, you can read the entire file about the past project with:
@@ -920,7 +920,7 @@ def push_knowledge_files_to_git_and_index(client, bot_id, past_projects_dir, pas
             tool_name="document_index",
             params={
                 "action": "ADD_DOCUMENTS",
-                "index_id": index_id, 
+                "index_name": index_id, 
                 "filepath": f"BOT_GIT:{past_projects_git_path}/{os.path.basename(local_path)}"
             },
             bot_id=bot_id
@@ -1001,11 +1001,34 @@ def initialize_document_index(client, bot_id, project_id):
             tool_name="document_index",
             params={
                 "action": "CREATE_INDEX",
-                "index_name": f"{project_id}_past_projects"
+                "index_name": f"{project_id}_past_projects",
+                "bot_id": bot_id
             },
             bot_id=bot_id
         )
-        index_id = result['index_id']
+        if 'Error' in result and result['Error'] == 'Index with the same name already exists':
+            print(f"Document index {project_id}_past_projects already exists, removing")
+            client.run_genesis_tool(
+                tool_name="document_index",
+                params={
+                    "action": "DELETE_INDEX",
+                    "index_name": f"{project_id}_past_projects",
+                    "bot_id": bot_id
+                },
+                bot_id=bot_id
+            )
+            print(f"Deleted existing document index {project_id}_past_projects")
+            result = client.run_genesis_tool(
+            tool_name="document_index",
+            params={
+                "action": "CREATE_INDEX",
+                "index_name": f"{project_id}_past_projects",
+                "bot_id": bot_id
+            },
+            bot_id=bot_id
+           )
+            
+        index_id = f"{project_id}_past_projects"
         print(f"Created document index: {index_id}")
         # Save the index ID for later use
         # Save index ID to temp file for later use
@@ -1263,9 +1286,11 @@ def initialize_system(
     initialize_project(client, pm_bot_id, project_id) # requirements mapping project
     initialize_project(client, data_connector_bot_id, data_connector_project_id, project_name=f"DEng: {data_connector_project_id}", project_description="Project for connecting source system tables to Snowflake tables via Iceberg")
     
+    index_id = initialize_document_index(client, pm_bot_id, project_id)
+
     push_knowledge_files_to_git_and_index(client, eve_bot_id, past_projects_dir, past_projects_git_path, index_id)
 
-    index_input_files(client, pm_bot_id, project_id, input_files_dir)
+    #index_input_files(client, pm_bot_id, project_id, input_files_dir)
     #push_knowledge_files_to_git(client, eve_bot_id, os.path.join('api_examples/data_engineering', 'knowledge/eval_answers'), "data_engineering/eval_answers/")
 
     # Check if the schema exists, if not, create it
@@ -1354,7 +1379,7 @@ def initialize_system(
     add_requirements_todos(client, requirements, pm_bot_id, project_id=project_id, max_todos=req_max, root_folder=root_folder)
     add_data_connector_todos(client, data_connector_bot_id, project_id=data_connector_project_id)
 
-    return gsheet_location['file_url']
+    return gsheet_location['file_url'], index_id
 
 
 def update_todo_status(client, todo_id, new_status, bot_id, work_description=None, work_results=None):
@@ -1510,13 +1535,15 @@ def main():
 
         # Initialize requirements table if not exists 
 
-        reset_all = False
+        reset_all = True
         req_max = -1
     else:
 
         reset_all = False
         req_max = -1
     
+    input_files_dir = None
+
     gsheet_location, index_id = initialize_system(
         client=client,
         pm_bot_id=pm_bot_id,

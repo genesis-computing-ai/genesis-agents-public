@@ -170,6 +170,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         self.ngrok_tokens_table_name = self.genbot_internal_project_and_schema + "." + "NGROK_TOKENS"
         self.cust_db_connections_table_name = self.genbot_internal_project_and_schema + "." + "CUST_DB_CONNECTIONS"
         self.images_table_name = self.app_share_schema + "." + "IMAGES"
+        self.index_manager_table_name = self.genbot_internal_project_and_schema + "." + "INDEX_MANAGER"
 
     def ensure_table_exists(self):
         return ensure_table_exists(self)

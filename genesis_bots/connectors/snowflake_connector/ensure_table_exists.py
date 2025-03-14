@@ -1401,6 +1401,18 @@ def ensure_table_exists(self):
     """
     _create_table_if_not_exist('USER_BOT', user_bot_table_ddl)
 
+    
+    index_manager_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.index_manager_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        bot_id STRING NOT NULL,
+        index_name STRING NOT NULL UNIQUE,
+        index_id STRING NOT NULL UNIQUE,
+        bot_access STRING
+    );
+    """
+    _create_table_if_not_exist('INDEX_MANAGER', index_manager_table_ddl)
+
     # TEST_MANAGER
     # ------------------
     # Create test_manager table if it doesn't exist

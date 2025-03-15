@@ -306,11 +306,11 @@ document_index_tools = ToolFuncGroup(
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
-    top_n="Top N documents to retrieve",
+    top_n="Top N documents to retrieve (default 10)",
     index_name="The name of the index. On search leave empty to search all indicies",
     new_index_name="The name of the index to be renamed to",
     filepath="The file path on local server disk of the document to add, if from local git repo, prefix with BOT_GIT:",
-    query="The query to retrieve the documents",
+    query="The seaerch query (SEARCH) or question to answer (ASK)",
     _group_tags_=[document_index_tools],
 )
 def _document_index(
@@ -325,7 +325,10 @@ def _document_index(
 
 ) -> dict:
     """
-    Tool to manage document indicies such as adding documents, creating indices, listing indices, deleting indices, listing documents, and querying indicies for matching documents.
+    Tool to manage document indicies such as adding documents, creating indices, listing indices, deleting indices, listing documents in indicies.
+    There are two ways to search:
+     SEARCH - returns more raw results based on a search term
+     ASK - returns a synthesized answer to a question with footnotes
     """
     datapath = filepath 
     if action == 'ADD_DOCUMENTS':

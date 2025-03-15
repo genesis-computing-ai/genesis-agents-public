@@ -126,22 +126,19 @@ class GitFileManager:
             # Ensure directory exists
             os.makedirs(os.path.dirname(os.path.join(self.repo_path, file_path)), exist_ok=True)
 
-            # Check if content is base64 encoded
-            is_base64 = False
-            if isinstance(content, str):
+            # Only decode base64 if explicitly told to do so
+            is_base64 = adtl_info.get('is_base64', False)
+            if is_base64:
                 try:
                     import base64
-                    # Try to decode base64 if the is_base64 flag is in the content
                     decoded_content = base64.b64decode(content)
-                    is_base64 = True
-                except:
-                    is_base64 = False
-
-            # Write the file in appropriate mode
-            if is_base64:
-                with open(os.path.join(self.repo_path, file_path), 'wb') as f:
-                    f.write(decoded_content)
+                    # Write binary content
+                    with open(os.path.join(self.repo_path, file_path), 'wb') as f:
+                        f.write(decoded_content)
+                except Exception as e:
+                    return {"success": False, "error": f"Failed to decode base64 content: {str(e)}"}
             else:
+                # Write text content
                 with open(os.path.join(self.repo_path, file_path), 'w') as f:
                     f.write(content)
 

@@ -57,3 +57,4 @@ pymupdf
 llama-index
 pypdf
 sentence-transformers
+xlrd

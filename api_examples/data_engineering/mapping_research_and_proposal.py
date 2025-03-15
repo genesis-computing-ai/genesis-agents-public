@@ -123,6 +123,7 @@ def put_git_file(client, local_file, git_file_path, file_name, bot_id):
     try:
         # Try reading as text first
         try:
+            is_binary = False
             with open(local_file, 'r') as f:
                 content = f.read()
         except UnicodeDecodeError:
@@ -131,12 +132,13 @@ def put_git_file(client, local_file, git_file_path, file_name, bot_id):
                 binary_content = f.read()
                 content = base64.b64encode(binary_content).decode('utf-8')
                 print(f"Reading {local_file} as binary file and encoding as base64")
+                is_binary = True
             
         res = client.gitfiles.write(
             f"{git_file_path}{file_name}", 
             content,
             bot_id=bot_id,
-            adtl_info={"is_base64": isinstance(content, bytes)}
+            adtl_info={"is_base64": is_binary}
         )
         return res
         
@@ -1549,7 +1551,7 @@ def main():
         # If a specific todo_id is provided, filter the todos to only include this one
     
         load_bots = False
-        reset_project = True
+        reset_project = False
         index_files = True
         if load_bots:
             # make the runner_id overrideable
@@ -1866,8 +1868,10 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
             print(f"Created document index: {full_index_name}")
             
             # Walk through directory and add files
+            i = 0
             for root, dirs, files in os.walk(path_to_files):
                 for file in files:
+                    i += 1
                     local_path = os.path.join(root, file)
                     git_path = os.path.join(project_id, "input_files", index_name, file)
                     
@@ -1880,20 +1884,42 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
                         local_file=local_path,
                         git_file_path=os.path.dirname(git_path) + '/',
                         file_name=file,
-                        bot_id=bot_id
+                        bot_id=bot_id,
+
                     )
                     
                     # Add to index
-                    client.run_genesis_tool(
-                        tool_name="document_index",
-                        params={
+                    if i % 100 == 0:
+                        save_index = True
+                    else:
+                        save_index = False
+                    resp = client.run_genesis_tool(
+                            tool_name="document_index",
+                            params={
                             "action": "ADD_DOCUMENTS",
                             "index_name": full_index_name,
-                            "filepath": f"BOT_GIT:{git_path}"
+                            "filepath": f"BOT_GIT:{git_path}",
+                            "immediate_write": save_index
                         },
                         bot_id=bot_id
                     )
-                    print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {git_path}')
+                    if resp['Success'] == True:
+                        print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {git_path} (#{i}, persisted={save_index})')
+                    else:
+                        print(f'\033[31mError indexing file {local_path} in {full_index_name}: {resp["Error"]}\033[0m')
+                        a = input('Error indexing, press return to continue...')
+                    if save_index:
+                        resp = client.run_genesis_tool(
+                            tool_name="document_index",
+                            params={
+                            "action": "SAVE_INDEX",
+                            "index_name": full_index_name,
+                            "filepath": None,
+                            "immediate_write": True
+                    },
+                    bot_id=bot_id
+                )
+                print(f'saved index {full_index_name} to persistent storage')
             
             indices[index_name] = full_index_name
             

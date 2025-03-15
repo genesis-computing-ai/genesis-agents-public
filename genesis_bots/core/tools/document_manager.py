@@ -123,8 +123,12 @@ class DocumentManager(object):
             self._index_cache[index_id] = load_index_from_storage(self.storage_context, index_id)
         return self._index_cache[index_id]
 
-    def add_document(self, index_name, datapath):
+    def add_document(self, index_name, datapath, immediate_write=True):
         index = self.load_index(index_name)
+
+        if datapath is None and immediate_write:
+            self.storage_context.persist(self.storage_path)
+            return True
 
         if datapath.startswith('BOT_GIT:'):
             repo_path = os.getenv('GIT_PATH', os.path.join(os.getcwd(), 'bot_git'))
@@ -146,7 +150,8 @@ class DocumentManager(object):
         
         for doc in new_documents:
             index.insert(doc)
-        self.storage_context.persist(self.storage_path)
+        if immediate_write:
+            self.storage_context.persist(self.storage_path)
 
     def retrieve(self, query, index_name, top_n=3):
         index = self.load_index(index_name)
@@ -199,6 +204,7 @@ def _document_index(
     new_index_name: str = '',
     filepath: str = '',
     query: str = '',
+    immediate_write: bool = True,
 
 ) -> dict:
     """
@@ -206,11 +212,17 @@ def _document_index(
     """
     datapath = filepath 
     if action == 'ADD_DOCUMENTS':
-        try:
-            document_manager.add_document(index_name, datapath)
-            return {"Success": True, "Message": "Document added successfully"}
-        except Exception as e:
-            return {"Success": False, "Error": str(e)}
+            try:
+                document_manager.add_document(index_name, datapath, immediate_write=immediate_write)
+                return {"Success": True, "Message": "Document added successfully"}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
+    elif action == 'SAVE_INDEX':
+            try:
+                document_manager.add_document(index_name, None, immediate_write=True)
+                return {"Success": True, "Message": "Document store persisted to storage"}
+            except Exception as e:
+                return {"Success": False, "Error": str(e)}
     elif action == 'CREATE_INDEX':
         try:
             if not index_name or not bot_id:

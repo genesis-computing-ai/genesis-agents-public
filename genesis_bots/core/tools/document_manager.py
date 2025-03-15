@@ -192,7 +192,7 @@ class DocumentManager(object):
         if index_name:
             index = self.load_index(index_name)
             retriever = index.as_retriever(similarity_top_k=top_n)
-            all_results retriever.retrieve(query)
+            all_results = retriever.retrieve(query)
             simplified_results = []
             for result in all_results:
                 simplified_results.append({

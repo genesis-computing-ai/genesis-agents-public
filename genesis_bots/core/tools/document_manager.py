@@ -1,9 +1,14 @@
 from genesis_bots.core.logging_config import logger
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import StorageContext, load_index_from_storage, load_indices_from_storage, ComposableGraph
 from textwrap import dedent
 import os
 from genesis_bots.connectors import get_global_db_connector
+from llama_index.core import Settings
+from llama_index.vector_stores.chroma import ChromaVectorStore
+
+import chromadb
 
 
 from genesis_bots.core.bot_os_tools2 import (
@@ -28,15 +33,33 @@ class DocumentManager(object):
         if self._initialized:  # Skip if already initialized
             return
         self.db_adapter = db_adapter
-        self.storage_path = os.path.join(os.getcwd(), 'bot_git','storage')
-        try:
-            self.storage_context = StorageContext.from_defaults(persist_dir=self.storage_path)
-        except Exception as e:
-            self.storage_context = StorageContext.from_defaults()
-            self.storage_context.persist(self.storage_path)
-            
+        
+        # Initialize ChromaDB client
+        self.storage_path = os.path.join(os.getenv('GIT_PATH', os.path.join(os.getcwd(), 'bot_git')), 'storage')
+
+        self.chroma_client = chromadb.PersistentClient(path=self.storage_path)
+        
+        # Create or get the collection for storing embeddings
+        self.collection = self.chroma_client.get_or_create_collection(
+            name="document_store",
+            metadata={"hnsw:space": "cosine"}
+        )
+        
+        # Create vector store
+        self.vector_store = ChromaVectorStore(
+            chroma_collection=self.collection
+        )
+        
+        # Create storage context with ChromaDB
+        self.storage_context = StorageContext.from_defaults(
+            vector_store=self.vector_store
+        )
+        
         self._index_cache = {}  # Add index cache
         self._initialized = True
+
+        # Set the default embedding model to large
+        Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-large")
 
     def get_index_id(self, index_name: str):
         query = f"SELECT * FROM {self.db_adapter.index_manager_table_name} WHERE index_name = '{index_name}'"
@@ -79,40 +102,44 @@ class DocumentManager(object):
         if self.get_index_id(index_name):
             raise Exception("Index with the same name already exists")
 
-        index = VectorStoreIndex([], storage_context=self.storage_context)
-        self.storage_context.persist(self.storage_path)
+        embed_model = OpenAIEmbedding(model="text-embedding-3-large")
+        Settings.embed_model = embed_model
+        
+        # Create filtered vector store for this index
+        filtered_vector_store = ChromaVectorStore(
+            chroma_collection=self.collection,
+            metadata_filters={"index_name": index_name}
+        )
+        
+        storage_context = StorageContext.from_defaults(
+            vector_store=filtered_vector_store
+        )
+        
+        index = VectorStoreIndex(
+            [], 
+            storage_context=storage_context,
+            embed_model=embed_model
+        )
+        
         # Update cache with new index
         self._index_cache[index.index_id] = index
         self.store_index_id(index_name, index.index_id, bot_id)
         return index.index_id
     
     def delete_index(self, index_name):
-        # Get all node IDs associated with this index before deletion
         index = self.load_index(index_name)
         index_id = index.index_id
-        all_nodes = index.ref_doc_info.keys()
         
-        # Delete from storage context
-        if hasattr(self.storage_context, 'index_store'):
-            self.storage_context.index_store.delete_index_struct(index_id)
-        
-        # Delete from vector store - both the index-specific and default store
-        if hasattr(self.storage_context, 'vector_store'):
-            # Delete from index-specific store
-            self.storage_context.vector_store.delete(index_id)
-            # Delete all nodes from default store
-            for node_id in all_nodes:
-                self.storage_context.vector_store.delete(node_id)
-        
-        # Remove from cache
+        # Delete from vector store
         if index_id in self._index_cache:
             del self._index_cache[index_id]
-
-        self.delete_index_id(index_id)
         
-        # Persist the changes
-        self.storage_context.persist(self.storage_path)            
-
+        # Delete from ChromaDB collection using filter
+        self.collection.delete(
+            where={"index_id": index_id}
+        )
+        
+        self.delete_index_id(index_id)
 
     def load_index(self, index_name):
         index_id = self.get_index_id(index_name)
@@ -120,14 +147,22 @@ class DocumentManager(object):
             raise Exception("Index does not exist")
         # Cache the loaded index
         if index_id not in self._index_cache:
-            self._index_cache[index_id] = load_index_from_storage(self.storage_context, index_id)
+            filtered_vector_store = ChromaVectorStore(
+                chroma_collection=self.collection,
+                filter={"index_id": index_id}
+            )
+            storage_context = StorageContext.from_defaults(vector_store=filtered_vector_store)
+            self._index_cache[index_id] = VectorStoreIndex(
+                [], 
+                storage_context=storage_context,
+                embed_model=OpenAIEmbedding(model="text-embedding-3-large")
+            )
         return self._index_cache[index_id]
 
-    def add_document(self, index_name, datapath, immediate_write=True):
+    def add_document(self, index_name, datapath):
         index = self.load_index(index_name)
 
-        if datapath is None and immediate_write:
-            self.storage_context.persist(self.storage_path)
+        if datapath is None:
             return True
 
         if datapath.startswith('BOT_GIT:'):
@@ -150,14 +185,22 @@ class DocumentManager(object):
         
         for doc in new_documents:
             index.insert(doc)
-        if immediate_write:
-            self.storage_context.persist(self.storage_path)
+        
+        return True  # ChromaDB persists automatically
 
     def retrieve(self, query, index_name=None, top_n=3):
         if index_name:
             index = self.load_index(index_name)
             retriever = index.as_retriever(similarity_top_k=top_n)
-            return retriever.retrieve(query)
+            all_results retriever.retrieve(query)
+            simplified_results = []
+            for result in all_results:
+                simplified_results.append({
+                    'score': result.score,
+                    'text': result.text,
+                    'metadata': result.metadata
+                })
+            return simplified_results
         else:
             # Search across all indices and combine results
             all_results = []
@@ -170,7 +213,18 @@ class DocumentManager(object):
                 except Exception as e:
                     print(f"Error retrieving from index {idx_name}: {e}")
                     continue
-            return all_results
+            # Sort all results by score and take top_n
+            sorted_results = sorted(all_results, key=lambda x: x.score, reverse=True)
+            all_results = sorted_results[:top_n]
+            # Convert to simple array of score/text/metadata
+            simplified_results = []
+            for result in all_results:
+                simplified_results.append({
+                    'score': result.score,
+                    'text': result.text,
+                    'metadata': result.metadata
+                })
+            return simplified_results
     
     def retrieve_all_indices(self, query, top_n=3):
         """
@@ -206,10 +260,13 @@ class DocumentManager(object):
                 index_summaries=summaries
             )
 
-            retriever = index.as_retriever(similarity_top_k=top_n)
-            return retriever.retrieve(query)
+      #      retriever = index.as_retriever(similarity_top_k=top_n)
+       #     return retriever.retrieve(query)
             # Create query engine and execute query
-            query_engine = graph.as_query_engine()
+            query_engine = graph.as_query_engine(
+                response_mode="compact",
+                llm_kwargs={"model": "o3-mini"}  # or any other OpenAI model
+            )
             response = query_engine.query(query)
 
             return response
@@ -264,8 +321,7 @@ def _document_index(
     index_name: str = '',
     new_index_name: str = '',
     filepath: str = '',
-    query: str = '',
-    immediate_write: bool = True,
+    query: str = ''
 
 ) -> dict:
     """
@@ -274,14 +330,8 @@ def _document_index(
     datapath = filepath 
     if action == 'ADD_DOCUMENTS':
             try:
-                document_manager.add_document(index_name, datapath, immediate_write=immediate_write)
+                document_manager.add_document(index_name, datapath)
                 return {"Success": True, "Message": "Document added successfully"}
-            except Exception as e:
-                return {"Success": False, "Error": str(e)}
-    elif action == 'SAVE_INDEX':
-            try:
-                document_manager.add_document(index_name, None, immediate_write=True)
-                return {"Success": True, "Message": "Document store persisted to storage"}
             except Exception as e:
                 return {"Success": False, "Error": str(e)}
     elif action == 'CREATE_INDEX':

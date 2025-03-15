@@ -1552,7 +1552,7 @@ def main():
     
         load_bots = False
         reset_project = False
-        index_files = False
+        index_files = True
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
@@ -1889,37 +1889,21 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
                     )
                     
                     # Add to index
-                    if i % 100 == 0:
-                        save_index = True
-                    else:
-                        save_index = False
+
                     resp = client.run_genesis_tool(
                             tool_name="document_index",
                             params={
                             "action": "ADD_DOCUMENTS",
                             "index_name": full_index_name,
                             "filepath": f"BOT_GIT:{git_path}",
-                            "immediate_write": save_index
                         },
                         bot_id=bot_id
                     )
                     if resp['Success'] == True:
-                        print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {git_path} (#{i}, persisted={save_index})')
+                        print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {git_path} (#{i})')
                     else:
                         print(f'\033[31mError indexing file {local_path} in {full_index_name}: {resp["Error"]}\033[0m')
                         a = input('Error indexing, press return to continue...')
-                    if save_index:
-                        resp = client.run_genesis_tool(
-                            tool_name="document_index",
-                            params={
-                            "action": "SAVE_INDEX",
-                            "index_name": full_index_name,
-                            "filepath": None,
-                            "immediate_write": True
-                    },
-                    bot_id=bot_id
-                )
-                print(f'saved index {full_index_name} to persistent storage')
             
             indices[index_name] = full_index_name
             

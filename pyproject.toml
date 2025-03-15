@@ -71,6 +71,14 @@ dependencies = [
     "PyGithub",
     "dbt-core",
     "dbt-snowflake",
+    "pymupdf",
+    "llama-index",
+    "pypdf",
+    "sentence-transformers",
+    "xlrd",
+    "chromadb",
+    "llama-index[chromadb]",
+    "llama-index-vector-stores-chroma",
     # Additional dependencies not in requirements.txt
     "ngrok"
 ]

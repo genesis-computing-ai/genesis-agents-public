@@ -58,3 +58,6 @@ llama-index
 pypdf
 sentence-transformers
 xlrd
+chromadb
+llama-index[chromadb]
+llama-index-vector-stores-chroma

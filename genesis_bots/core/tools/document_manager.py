@@ -162,7 +162,7 @@ db_adapter = get_global_db_connector()
 document_manager = DocumentManager(db_adapter)
 
 
-document_manager_tools = ToolFuncGroup(
+document_index_tools = ToolFuncGroup(
     name="document_index_tools",
     description="Tools to manage document indexes such as adding documents, creating indices, listing indices, deleting indices, listing documents, and searching documents.",
     lifetime="PERSISTENT"
@@ -193,7 +193,7 @@ document_manager_tools = ToolFuncGroup(
     new_index_name="The name of the index to be renamed to",
     filepath="The file path on local server disk of the document to add, if from local git repo, prefix with BOT_GIT:",
     query="The query to retrieve the documents",
-    _group_tags_=[document_manager_tools],
+    _group_tags_=[document_index_tools],
 )
 def _document_index(
     action: str,

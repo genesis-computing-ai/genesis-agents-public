@@ -44,7 +44,7 @@ def pdf_parser(filepath: str) -> dict:
         response = requests.get(filepath)
         if response.status_code == 200:
             # save the file to a temporary location
-            temp_file_path = os.path.join("/tmp", os.path.basename(filepath))
+            temp_file_path = os.path.join("tmp", os.path.basename(filepath))
             with open(temp_file_path, "wb") as f:
                 f.write(response.content)
             filepath = temp_file_path

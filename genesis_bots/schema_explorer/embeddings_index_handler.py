@@ -142,23 +142,23 @@ def create_annoy_index(embeddings, n_trees=10):
     logger.info(f"Embedding norms min/max/mean: {min(norms):.3f}/{max(norms):.3f}/{np.mean(norms):.3f}")
 
     if any(abs(n - 1.0) > 0.01 for n in norms):
-        logger.warning("Some embeddings are not normalized!")
+        logger.info("Some embeddings are not normalized!")
         # Normalize embeddings
         embeddings = [np.array(emb)/(1e-5+np.linalg.norm(emb)) for emb in embeddings]
 
     index = AnnoyIndex(dimension, 'angular')
     import random
     try:
-        print('starting i..')
+        logger.info('starting i..')
         with tqdm(total=len(embeddings), desc="Indexing embeddings") as pbar:
             for i, embedding in enumerate(embeddings):
               #  logger.info(i)
                 try:
                     index.add_item(i, embedding)
                 except Exception as e:
-                    print('embedding ',i,' failed, exception: ',e,' skipping...')
+                    logger.info('embedding ',i,' failed, exception: ',e,' skipping...')
                 pbar.update(1)
-            print('index build real')
+            logger.info('index build real')
             index.build(n_trees)
     except Exception as e:
         logger.info('indexing exception: ',e)

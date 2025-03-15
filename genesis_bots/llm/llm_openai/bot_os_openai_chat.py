@@ -601,6 +601,13 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     function_name_pretty = f"{function_name_pretty}: {db_connector}"
             except:
                 pass
+        try:
+            func_args_dict = json.loads(func_args)
+            if 'action' in func_args_dict:
+                action = func_args_dict['action'].capitalize()
+                function_name_pretty = f"{function_name_pretty}: {action}"
+        except:
+            pass
 
         if output_stream.endswith('\n'):
             output_stream += "\n"

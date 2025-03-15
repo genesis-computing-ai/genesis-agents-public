@@ -1552,7 +1552,7 @@ def main():
     
         load_bots = False
         reset_project = False
-        index_files = True
+        index_files = False
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server

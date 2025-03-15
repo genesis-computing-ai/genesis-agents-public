@@ -33,6 +33,7 @@ bug: adding document manaeger tool via eve, showed in list, but session didnt ha
 record a demo of data eng
 x add an option to add document to index without persist, then a persist option later 
 make sure uploading binary files like pictures to git still works
+add search across all indicies, add ask against one index
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

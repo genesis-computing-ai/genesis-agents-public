@@ -1,6 +1,6 @@
 from genesis_bots.core.logging_config import logger
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from llama_index.core import StorageContext, load_index_from_storage, load_indices_from_storage
+from llama_index.core import StorageContext, load_index_from_storage, load_indices_from_storage, ComposableGraph
 from textwrap import dedent
 import os
 from genesis_bots.connectors import get_global_db_connector
@@ -153,10 +153,70 @@ class DocumentManager(object):
         if immediate_write:
             self.storage_context.persist(self.storage_path)
 
-    def retrieve(self, query, index_name, top_n=3):
-        index = self.load_index(index_name)
-        retriever = index.as_retriever(similarity_top_k=top_n)
-        return retriever.retrieve(query)
+    def retrieve(self, query, index_name=None, top_n=3):
+        if index_name:
+            index = self.load_index(index_name)
+            retriever = index.as_retriever(similarity_top_k=top_n)
+            return retriever.retrieve(query)
+        else:
+            # Search across all indices and combine results
+            all_results = []
+            for idx_name in self.list_of_indices():
+                try:
+                    index = self.load_index(idx_name)
+                    retriever = index.as_retriever(similarity_top_k=top_n)
+                    results = retriever.retrieve(query)
+                    all_results.extend(results)
+                except Exception as e:
+                    print(f"Error retrieving from index {idx_name}: {e}")
+                    continue
+            return all_results
+    
+    def retrieve_all_indices(self, query, top_n=3):
+        """
+        Search across all indices using a composable graph to combine results.
+        
+        Args:
+            query (str): The search query
+            top_n (int): Number of top results to return per index
+            
+        Returns:
+            Response from querying across all indices
+        """
+        try:
+            # Get list of all indices
+            indices = []
+            summaries = []
+            for index_name in self.list_of_indices():
+                try:
+                    index = self.load_index(index_name)
+                    indices.append(index)
+                    summaries.append(f"Index: {index_name}")
+                except Exception as e:
+                    print(f"Error loading index {index_name}: {e}")
+                    continue
+
+            if not indices:
+                return []
+
+            # Create composable graph from all indices
+            graph = ComposableGraph.from_indices(
+                VectorStoreIndex,
+                indices,
+                index_summaries=summaries
+            )
+
+            retriever = index.as_retriever(similarity_top_k=top_n)
+            return retriever.retrieve(query)
+            # Create query engine and execute query
+            query_engine = graph.as_query_engine()
+            response = query_engine.query(query)
+
+            return response
+
+        except Exception as e:
+            print(f"Error querying across indices: {e}")
+            return []
 
 db_adapter = get_global_db_connector()
 document_manager = DocumentManager(db_adapter)
@@ -171,7 +231,7 @@ document_manager_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="List of Actions can be done with document manager", 
+        description="List of Actions can be done with document manager. QUERY searches one or all indexes and returns results, ASK allows you to ask a question across all indices and returns an answer based on the context of all indices", 
         required=True,
         llm_type_desc=dict(
             type="string",
@@ -183,13 +243,14 @@ document_manager_tools = ToolFuncGroup(
                 "LIST_DOCUMENTS_IN_INDEX",
                 "SEARCH",
                 "RENAME_INDEX",
+                "ASK"
             ],
         ),
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     top_n="Top N documents to retrieve",
-    index_name="The name of the index",
+    index_name="The name of the index. On search leave empty to search all indicies",
     new_index_name="The name of the index to be renamed to",
     filepath="The file path on local server disk of the document to add, if from local git repo, prefix with BOT_GIT:",
     query="The query to retrieve the documents",
@@ -262,6 +323,12 @@ def _document_index(
     elif action == 'SEARCH':
         try:
             results = document_manager.retrieve(query, index_name, top_n)
+            return {"Success": True, "Results": results}
+        except Exception as e:
+            return {"Success": False, "Error": str(e)}
+    elif action == 'ASK':
+        try:
+            results = document_manager.retrieve_all_indices(query, top_n)
             return {"Success": True, "Results": results}
         except Exception as e:
             return {"Success": False, "Error": str(e)}

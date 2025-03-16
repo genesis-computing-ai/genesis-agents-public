@@ -85,8 +85,8 @@ class DocumentManager(object):
         result = self.db_adapter.run_query(query)
         return [item['INDEX_NAME'] for item in result]
     
-    def list_of_documents(self, index_name=None, path_filter=None, query=None):        
-        logger.info(f"Listing documents. Index name: {index_name}, Path filter: {path_filter}, Query: {query}")
+    def list_of_documents(self, index_name=None, path_filter=None, query=None, show_files_only=False):        
+        logger.info(f"Listing documents. Index name: {index_name}, Path filter: {path_filter}, Query: {query}, Files only: {show_files_only}")
         
         # If no index specified, get all indices first
         if not index_name:
@@ -95,68 +95,114 @@ class DocumentManager(object):
         else:
             indices = [index_name]
         
-        # Use a dictionary to deduplicate by path and track counts per index
-        unique_docs = {}  # path -> {path, index}
-        docs_per_index = {}  # index -> count
+        # Use dictionaries to track unique docs and subdirectories
+        unique_docs = {}  # path -> {path, index, content}
+        subdirs = {}  # subdir -> {path, index, is_subdir}
+        docs_per_index = {}  # index -> count of unique documents
         
         for idx in indices:
-            docs_per_index[idx] = 0
-            # Query with index name
+            # Get unique document paths for accurate counting
+            unique_paths = set()
             where_clause = {"index_name": idx}
-            results = self.collection.get(
-                where=where_clause
-            )
             
-            # Only log the count of results, not the full results
-            result_count = len(results.get('metadatas', [])) if results and isinstance(results, dict) else 0
-            logger.info(f"Found {result_count} documents in index {idx}")
+            results = self.collection.get(
+                where=where_clause,
+                include=['metadatas']  # First just get metadata for counting
+            )
             
             if results and isinstance(results, dict) and results.get('metadatas'):
                 for metadata in results['metadatas']:
                     if metadata:
-                        # Prefer original_path if available, fall back to file_path
                         doc_path = metadata.get('original_path') or metadata.get('file_path')
                         if doc_path:
-                            # Apply both path_filter and query filter if provided
-                            path_match = path_filter is None or path_filter in doc_path
-                            query_match = query is None or query.lower() in doc_path.lower()
-                            if path_match and query_match:
-                                unique_docs[doc_path] = {
-                                    "path": doc_path,
-                                    "index": idx
-                                }
-                                docs_per_index[idx] += 1
+                            unique_paths.add(doc_path)
+            
+            docs_per_index[idx] = len(unique_paths)
+            logger.info(f"Index {idx} has {len(unique_paths)} unique documents")
+            
+            # Now process the documents for display
+            results = self.collection.get(
+                where=where_clause,
+                include=['documents', 'metadatas']
+            )
+            
+            if not results or not isinstance(results, dict) or not results.get('metadatas'):
+                continue
+            
+            processed_paths = set()  # Track which paths we've already processed
+            
+            for i, metadata in enumerate(results['metadatas']):
+                if not metadata:
+                    continue
+                    
+                doc_path = metadata.get('original_path') or metadata.get('file_path')
+                if not doc_path or doc_path in processed_paths:
+                    continue
+                    
+                processed_paths.add(doc_path)
+                
+                # Apply filters
+                path_match = path_filter is None or path_filter in doc_path
+                query_match = query is None or query.lower() in doc_path.lower()
+                
+                if not path_match or not query_match:
+                    continue
+                    
+                # Extract directory path
+                if 'BOT_GIT:' in doc_path:
+                    base_path = doc_path.split('BOT_GIT:')[1]
+                else:
+                    base_path = doc_path
+                    
+                dir_parts = base_path.split('/')
+                current_level = len(path_filter.split('/')) if path_filter else 1
+                
+                # Handle subdirectories
+                if not show_files_only and len(dir_parts) > 1:
+                    subdir = dir_parts[0]
+                    if 'BOT_GIT:' not in subdir:
+                        subdir = f"BOT_GIT:{subdir}"
+                    subdirs[subdir] = {
+                        "path": subdir,
+                        "index": idx,
+                        "is_subdir": True
+                    }
+                
+                # Add the document
+                content = results['documents'][i] if results.get('documents') and i < len(results['documents']) else ""
+                unique_docs[doc_path] = {
+                    "path": doc_path,
+                    "index": idx,
+                    "is_subdir": False,
+                    "content": content
+                }
         
-        # Convert dictionary values to list
-        docs = list(unique_docs.values())
-        total_docs = len(docs)
-        logger.info(f"Found {total_docs} unique documents after filtering")
+        # Combine results
+        if show_files_only:
+            combined_results = list(unique_docs.values())
+        else:
+            combined_results = list(subdirs.values()) + list(unique_docs.values())
         
-        # If we have more than 50 documents
+        total_docs = len(combined_results)
+        
+        # If we have more than 50 results
         if total_docs > 50:
-            remaining_docs = total_docs - 50
-            message = f"Showing first 50 of {total_docs} documents. {remaining_docs} more documents exist."
-            
-            # Add index suggestions if no index specified and multiple indices exist
-            if not index_name and len(indices) > 1:
+            remaining = total_docs - 50
+            message = f"Showing first 50 of {total_docs} items. {remaining} more items exist."
+            if not index_name:
                 index_counts = [f"{idx} ({count} docs)" for idx, count in docs_per_index.items()]
-                message += f"\nTry filtering by one of these indices: {', '.join(index_counts)}"
-            
-            if path_filter or query:
-                message += "\nYou can also try refining your path_filter or query to narrow down results."
-            else:
-                message += "\nYou can also use path_filter or query to narrow down results."
-            
+                message += f"\nAvailable indices: {', '.join(index_counts)}"
             return {
-                "documents": docs[:50],  # List of dicts with path and index
+                "documents": combined_results[:50],
                 "total_count": total_docs,
                 "message": message,
-                "available_indices": docs_per_index  # Include counts per index in response
+                "available_indices": docs_per_index
             }
         
         return {
-            "documents": docs,  # List of dicts with path and index
-            "total_count": total_docs
+            "documents": combined_results,
+            "total_count": total_docs,
+            "available_indices": docs_per_index
         }
     
     def rename_index(self, index_name, new_index_name):
@@ -445,7 +491,7 @@ document_index_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="List of Actions can be done with document manager. QUERY searches one or all indexes and returns results, ASK allows you to ask a question across all indices and returns an answer based on the context of all indices", 
+        description="List of Actions can be done with document manager", 
         required=True,
         llm_type_desc=dict(
             type="string",
@@ -465,11 +511,12 @@ document_index_tools = ToolFuncGroup(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     top_n="Top N documents to retrieve (default 10)",
-    index_name="The name of the index. Leave empty for all indices",
+    index_name="Optional name of the index. Leave empty to list documents from all indices",
     new_index_name="The name of the index to be renamed to",
-    filepath="The file path on local server disk of the document to ADD or DELETE, if from local git repo, prefix with BOT_GIT:",
-    query="The search query (SEARCH) or question to answer (ASK), or text to filter documents by (LIST_DOCUMENTS)",
+    filepath="The file path on local server disk of the document to add, if from local git repo, prefix with BOT_GIT:",
+    query="Optional text to filter documents by in LIST_DOCUMENTS, or search query for SEARCH, or question for ASK",
     path_filter="Optional filter to only show documents containing this path string",
+    show_files_only="If True, only show files in the current directory level, not subdirectories",
     _group_tags_=[document_index_tools],
 )
 def _document_index(
@@ -481,7 +528,8 @@ def _document_index(
     new_index_name: str = '',
     filepath: str = '',
     query: str = '',
-    path_filter: str = None
+    path_filter: str = None,
+    show_files_only: bool = False
 ) -> dict:
     """
     Tool to manage document indicies such as adding documents, creating indices, listing indices, deleting indices, listing documents in indicies.
@@ -537,7 +585,7 @@ def _document_index(
             return {"Success": False, "Error": str(e)}
     elif action == 'LIST_DOCUMENTS':
         try:
-            result = document_manager.list_of_documents(index_name, path_filter, query)
+            result = document_manager.list_of_documents(index_name, path_filter, query, show_files_only)
             response = {
                 "Success": True,
                 "Documents": result["documents"],  # Contains list of dicts with path and index

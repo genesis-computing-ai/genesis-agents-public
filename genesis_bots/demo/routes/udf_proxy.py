@@ -238,6 +238,19 @@ def get_metadata():
                 no_history=True
 
             ))}
+        elif metadata_type.startswith('get_todo_details '):
+            todo_id = metadata_type.split('get_todo_details ')[1].strip()
+            
+            todo_details = project_manager.manage_todos(
+                action="GET_TODO_DETAILS",
+                bot_id=None,  # Not needed for getting todo details
+                todo_id=todo_id
+            )
+            
+            if todo_details and todo_details.get("success"):
+                result = {"Success": True, "Data": json.dumps(todo_details["todo"])}
+            else:
+                result = {"Success": False, "Error": todo_details.get("error", "Todo not found")}
         elif metadata_type.startswith('get_todo_history '):
             todo_id = metadata_type.split('get_todo_history ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_todo_history(

@@ -463,14 +463,15 @@ Here is the correct answer to compare against:
 Please evaluate the mapping proposal results against the correct answer for this field.
 
 Compare the following aspects:
-1. Is the Primary mapping fully correct?
+1. Is the Primary mapping correct?
 2. Are the Primary option identified source tables/columns correct?
 3. Is the Primary option transformation logic correct?
 
 If the Primary option is not fully correct, check the Secondary option, if one is provided, and perform the same analysis on that option.
+Note that the correct answer may contain extra commentary, and references to specific CTEs.  It is not required that the mapping proposal
+incorporate these elements exactly, but that it gets the correct source table(s) and transformation logic.
 
-Provide a detailed analysis of any discrepancies found and identify
-likely sources of errors in the process.
+Provide a detailed analysis of any discrepancies found and identify likely sources of errors in the process.
 
 {hint}
 
@@ -621,22 +622,28 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
 '''
 
         research_prompt += f'''
-        Then, search the {index_id} document index for related information from past projects. 
-        Get it by calling:
-        document_index(action='SEARCH', index_name='{index_id}', query='<put query here>')
-        Try a variety of queries on topics related to the requirement for this field, to learn as much as you can from past projects.
+        Then, you will search the document index for related information from past projects and other sources indexed in the document index.
 
-        If one or more of the past project files seems particularly relevent, you can read the entire file about the past project with:
+        To do that, think up at least 3 of each of the following:
+        a) Search queries that would be usefull to find results for in the past projects
+        b) Some specific questions that you'd like the answer to from the documents or past projects
+
+        Then use the document_index tool's SEARCH and ASK actions respectively to search and ask questions.  Use top_n of at least 10.
+        Your goal is to find supportable details from the documents that you can reference in your report, that may later be important to determine a correct mapping for this field in the project at hand.
+        
+        Try to run at least 3 searches, and ask at least 3 questions.
+
+        If one or more of the file you learn about seems particularly relevent, you can read the entire file with:
         git_action(action='read_file',file_path='{paths["base_git_path"]}<past project file name>')
 
-        It is important to search and fully analyze BOTH the data explorer results to find Schema information, and ALSO the past project, and to discuss BOTH in your report.
-        When discussing past project in your report, describe their sources and transforms independently, don't say things like 'in the same way as described above', referring to the other project, even if you have to repeat things.
+        It is important to search and fully analyze BOTH the data explorer results to find Schema information, and results of your document search and question/answers, and to discuss BOTH in your report.
+        When discussing document-found details in your report, describe their sources and transforms independently, don't say things like 'in the same way as described above', referring to the other project, even if you have to repeat things.
 
         When you're done, be sure to save your detailed results in git using the git_action function at {paths["base_git_path"]}{paths["source_research_file"]}
         Be sure to put a full copy of the contents of your research into that git location, not just a reference to "what you did above."
-        Make sure your report contains the results of both your data exploration, and your analysis of **all** past projects.
+        Make sure your report contains the results of both your data exploration, and your analysis you performed with the document_index tool (mention the searches you did, what you learned, the questions you asked, any insightful answers, and the sources mentioned to back up those results).
 
-        *** MAKE YOUR REPORT EXTREMELY DETAILED, WITH FULL DDL OF MULTIPLE POTENTIAL SOURCE TABLES (NOTING WHAT CONNECTION_ID EACH RESIDES IN), AND FULL PAST PROJECT EXAMPLES OF SIMILAR FIELDS (SOURCING AND TRANSFORMS) ***
+        *** MAKE YOUR REPORT EXTREMELY DETAILED, WITH FULL DDL OF MULTIPLE POTENTIAL SOURCE TABLES (NOTING WHAT CONNECTION_ID EACH RESIDES IN), AND DETAILS FROM DOCUMENTS OR PAST PROJECTS SIMILAR FIELDS (SOURCING AND TRANSFORMS) ***
         *** THE READER OF THIS REPORT WILL NOT HAVE ACCESS TO ANY OTHER RESOURCES AND IT WILL NEED TO PROPOSE MAPPINGS BASED SOLELY ON YOUR REPORT ***
 
         This is being run by an automated process, so do not repeat these instructions back to me, simply proceed to execute them without asking for further approval.
@@ -1551,8 +1558,8 @@ def main():
         # If a specific todo_id is provided, filter the todos to only include this one
     
         load_bots = False
-        reset_project = False
-        index_files = True
+        reset_project = True
+        index_files = False
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server

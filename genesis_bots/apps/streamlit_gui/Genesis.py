@@ -363,6 +363,7 @@ if st.session_state.data:
     pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
     pages.add_page('configuration', 'Configuration', 'configuration', 'configuration')
     pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')
+    pages.add_page('todo_details', 'Todo Details', 'todo_details', 'todo_details')
     if st.session_state.data_source == "snowflake": pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
     pages.add_page('setup_slack', 'Setup Slack Connection', 'setup_slack', 'setup_slack')
     if st.session_state.NativeMode: pages.add_page('config_wh', 'Setup Custom Warehouse', 'config_wh', 'config_wh')

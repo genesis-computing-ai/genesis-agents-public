@@ -31,17 +31,13 @@ def file_viewer():
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="back-button">', unsafe_allow_html=True)
-    if st.button("← Back to Projects", key="back_from_file_viewer"):
+    if st.button("← Back to Todo Details", key="back_from_file_viewer"):
         # Restore previous state
-        st.session_state["selected_page_id"] = "bot_projects"
-        st.session_state["radio"] = "Bot Projects"
+        st.session_state["selected_page_id"] = "todo_details"
+        st.session_state["radio"] = "Todo Details"
         st.session_state['hide_chat_elements'] = False
         
-        # Restore bot project state
-        if "previous_bot" in st.session_state:
-            st.session_state.current_bot = st.session_state["previous_bot"]
-        if "previous_project" in st.session_state:
-            st.session_state.selected_project = st.session_state["previous_project"]
+        # Restore todo details state
         if "previous_todo_id" in st.session_state:
             todo_id = st.session_state["previous_todo_id"]
             st.session_state[f"history_{todo_id}"] = True  # Restore history expander state

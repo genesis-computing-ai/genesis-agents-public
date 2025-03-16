@@ -227,15 +227,15 @@ class ProjectManager:
                         "assigned_to_bot_id": todo[4],
                         "requested_by_user": todo[5],
                         "what_to_do": todo[6],
-                        "created_at": todo[7],
-                        "updated_at": todo[8],
+                        "created_at": todo[7].isoformat() if todo[7] else None,
+                        "updated_at": todo[8].isoformat() if todo[8] else None,
                         "dependencies": self._get_todo_dependencies(cursor, todo_id),
                         "history": [
                             {
                                 "action_taken": h[0],
                                 "action_by_bot_id": h[1],
                                 "action_details": h[2],
-                                "action_timestamp": h[3]
+                                "action_timestamp": h[3].isoformat() if h[3] else None
                             } for h in history
                         ]
                     }

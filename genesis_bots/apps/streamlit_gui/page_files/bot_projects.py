@@ -4,6 +4,7 @@ from utils import get_bot_details, get_metadata, set_metadata
 from urllib.parse import quote
 from page_files.chat_page import ChatMessage, set_initial_chat_sesssion_data
 import os
+import pandas as pd
 
 def bot_projects():
     # Custom CSS for back button
@@ -198,174 +199,88 @@ def bot_projects():
                 if todos and todos.get('todos'):
                     st.markdown("**Project Todo Status:**")
 
-                    # Create rows of 3 todos each
+                    # Create a dataframe for the grid display
                     todos_list = todos['todos']
-                    for i in range(0, len(todos_list), 3):
-                        cols = st.columns(3)
-                        for j in range(3):
-                            if i + j < len(todos_list):
-                                todo = todos_list[i + j]
-                                with cols[j]:
-                                    status_emoji = "✅" if todo.get('current_status') == 'COMPLETED' else ("🏃" if todo.get('current_status') == 'IN_PROGRESS' else ("🛑" if todo.get('current_status') == 'ERROR' else "⏳"))
-                                    st.markdown(f"""
-                                    <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
-                                        <h4>{status_emoji} {todo.get('todo_name', 'No name')}</h4>
-                                        <p><i>Status: {todo.get('current_status', 'N/A')} | Created: {todo.get('created_at', 'N/A')} | Assigned: {todo.get('assigned_to_bot_id', 'N/A')}</i></p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                    todo_data = []
+                    for todo in todos_list:
+                        status_emoji = "✅" if todo.get('current_status') == 'COMPLETED' else ("🏃" if todo.get('current_status') == 'IN_PROGRESS' else ("🛑" if todo.get('current_status') == 'ERROR' else "⏳"))
+                        todo_data.append({
+                            'Status': status_emoji,
+                            'Title': todo.get('todo_name', 'No name'),
+                            'Current Status': todo.get('current_status', 'N/A'),
+                            'Created': todo.get('created_at', 'N/A'),
+                            'Assigned To': todo.get('assigned_to_bot_id', 'N/A'),
+                            'Actions': todo.get('todo_id')  # We'll use this to create action buttons
+                        })
+                    
+                    df = pd.DataFrame(todo_data)
+                    
+                    # Display the grid
+                    for idx, row in df.iterrows():
+                        col1, col2, col3, col4, col5 = st.columns([0.5, 2, 1, 1, 2])
+                        
+                        with col1:
+                            st.markdown(f"<h3 style='margin: 0; padding: 0;'>{row['Status']}</h3>", unsafe_allow_html=True)
+                        with col2:
+                            st.markdown(f"<p style='margin: 0; padding: 0;'><b>{row['Title']}</b></p>", unsafe_allow_html=True)
+                        with col3:
+                            st.markdown(f"<p style='margin: 0; padding: 0;'>{row['Current Status']}</p>", unsafe_allow_html=True)
+                        with col4:
+                            if st.button("🔨 Work!", key=f"work_button_{row['Actions']}", use_container_width=True):
+                                try:
+                                    new_thread_id = str(uuid.uuid4())
+                                    st.session_state.current_bot = selected_bot
+                                    st.session_state.current_thread_id = new_thread_id
+                                    new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
+                                    st.session_state.current_session = new_session
 
-                                    # Create three columns for the buttons
-                                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                                    if "active_sessions" not in st.session_state:
+                                        st.session_state.active_sessions = []
+                                    if new_session not in st.session_state.active_sessions:
+                                        st.session_state.active_sessions.append(new_session)
 
-                                    # Work on this now button
-                                    with btn_col1:
-                                        if st.button("🔨 Work!", key=f"work_button_{todo.get('todo_id')}", use_container_width=True):
-                                            try:
-                                                new_thread_id = str(uuid.uuid4())
-                                                st.session_state.current_bot = selected_bot
-                                                st.session_state.current_thread_id = new_thread_id
-                                                new_session = f"🤖 {st.session_state.current_bot} ({new_thread_id[:8]})"
-                                                st.session_state.current_session = new_session
+                                    st.session_state[f"messages_{new_thread_id}"] = []
 
-                                                if "active_sessions" not in st.session_state:
-                                                    st.session_state.active_sessions = []
-                                                if new_session not in st.session_state.active_sessions:
-                                                    st.session_state.active_sessions.append(new_session)
+                                    initial_message = f"Perform work on the following todo:\ntodo id: {row['Actions']}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record_todo_work (include ALL the work you performed), and update the status of the todo to completed if applicable. The user is watching you do this work, so explain what you are doing and what tool calls you are making."
+                                    set_initial_chat_sesssion_data(
+                                        bot_name=selected_bot,
+                                        initial_prompt=initial_message,
+                                        initial_message=None
+                                    )
 
-                                                st.session_state[f"messages_{new_thread_id}"] = []
+                                    st.session_state.active_chat_started = True
+                                    st.session_state["radio"] = "Chat with Bots"
 
-                                                from page_files.chat_page import set_initial_chat_sesssion_data
-                                                initial_message = f"Perform work on the following todo:\ntodo id: {todo.get('todo_id')}\nWhat to do: {todo.get('what_to_do')}\n\nOnce you have performed the work, log your work on the todo with record_todo_work (include ALL the work you performed), and update the status of the todo to completed if applicable. The user is watching you do this work, so explain what you are doing and what tool calls you are making."
-                                                set_initial_chat_sesssion_data(
-                                                    bot_name=selected_bot,
-                                                    initial_prompt=initial_message,
-                                                    initial_message=None
-                                                )
-
-                                                st.session_state.active_chat_started = True
-                                                st.session_state["radio"] = "Chat with Bots"
-
-                                                st.rerun()
-                                            except Exception as e:
-                                                st.error(f"Failed to create chat session: {str(e)}")
-
-                                    # Add Hint button
-                                    with btn_col2:
-                                        if st.button("💡 Hint", key=f"hint_button_{todo.get('todo_id')}", use_container_width=True):
-                                            try:
-                                                project_id = selected_project_data['project_id']
-                                                todo_id = todo.get('todo_id')
-                                                with st.form(key=f"hint_form_{todo_id}"):
-                                                    hint = st.text_area("Enter hint:", key=f"hint_text_{todo_id}")
-                                                    if st.form_submit_button("Submit Hint"):
-                                                        result = set_metadata(f"add_todo_hint {project_id} {todo_id} {hint}")
-                                                        if result.get("success", False):
-                                                            st.success("Hint added successfully!")
-                                                            st.rerun()
-                                                        else:
-                                                            st.error(f"Failed to add hint: {result.get('Message', 'Unknown error')}")
-                                            except Exception as e:
-                                                st.error(f"Error adding hint: {e}")
-
-                                    # Delete button
-                                    with btn_col3:
-                                        if st.button("❌", key=f"delete_button_{todo.get('todo_id')}", use_container_width=True):
-                                            try:
-                                                todo_id = todo.get('todo_id')
-                                                selected_bot_id = next((bot["bot_id"] for bot in bot_details if bot["bot_name"] == selected_bot), None)
-                                                result = get_metadata(f"delete_todo {selected_bot_id} {todo_id}")
-                                                if result.get("Success", False) or result.get("success", False) == True:
-                                                    st.success("Todo deleted successfully!")
-                                                    st.rerun()
-                                                else:
-                                                    st.error(f"Failed to delete todo: {result.get('Message', 'Unknown error')}")
-                                            except Exception as e:
-                                                st.error(f"Error deleting todo: {e}")
-
-                                    # Details with expansion option
-                                    details = todo.get('what_to_do', 'No details')
-                                    with st.expander("Show Details"):
-                                        st.markdown(f"<p>Todo ID: {todo.get('todo_id', 'N/A')}</p>", unsafe_allow_html=True)
-                                        st.markdown(f"<p>{details}</p>", unsafe_allow_html=True)
-
-                                    # History expander
-                                    if True:
-                                        with st.expander("View History"):
-                                            history = get_metadata(f"get_todo_history {todo.get('todo_id')}")
-                                            history_entries = history.get('history', [])
-                                            if not history_entries:
-                                                st.markdown("No history entries available.")
-                                            else:
-                                                for idx, entry in enumerate(history_entries):
-                                                    if not isinstance(entry, dict):
-                                                        continue
-
-                                                    # Process all text fields for file paths
-                                                    history_text = {
-                                                        'action_taken': entry.get('action_taken', 'N/A'),
-                                                        'action_details': entry.get('action_details', 'N/A'),
-                                                        'work_description': entry.get('work_description', 'N/A'),
-                                                        'thread_id': entry.get('thread_id', 'N/A')
-                                                    }
-
-                                                    # Convert file paths to links in all fields
-                                                    for key, text in history_text.items():
-
-                                                        if isinstance(text, str) and 'tmp/' in text:
-                                                            import re
-                                                            pattern = r'tmp/[^\s)]*\.txt'
-                                                            matches = re.finditer(pattern, text)
-                                                            for match in matches:
-                                                                file_path = match.group(0)
-                                                                # Button to navigate to file viewer
-                                                                if st.button(f"💻 See Detailed Work Log", key=f"view_file_{file_path}"):
-                                                                    # Store current state
-                                                                    st.session_state["previous_bot"] = selected_bot
-                                                                    st.session_state["previous_project"] = selected_project
-                                                                    st.session_state["previous_todo_id"] = todo.get('todo_id')
-                                                                    st.session_state["previous_history_open"] = True
-                                                                    st.session_state[f"history_{todo.get('todo_id')}"] = True  # Store history expander state
-                                                                    # Navigate to file viewer
-                                                                    st.session_state["selected_page_id"] = "file_viewer"
-                                                                    st.session_state["radio"] = "File Viewer"
-                                                                    st.session_state["file_path_to_view"] = file_path
-                                                                    st.session_state['hide_chat_elements'] = True
-                                                                    st.rerun()
-
-                                                                history_text[key] = text.replace(
-                                                                    file_path,
-                                                                    f"[View work log above]"
-                                                                )
-                                                    # Add button for thread ID if it exists and isn't 'N/A'
-                                                    
-
-                                                    st.markdown(
-                                                        f"<small>"
-                                                        f"Action: {history_text['action_taken']}<br>"
-                                                        f"Time: {entry.get('action_timestamp', 'N/A')}<br>"
-                                                        f"Current Status: {entry.get('current_status', 'N/A')}<br>"
-                                                        f"Thread ID: {entry.get('thread_id', 'N/A')}<br>"
-                                                        f"Details: {history_text['action_details']}<br>"
-                                                        f"Work Description: {history_text['work_description']}<br>"
-                                                      
-                                                        f"</small>",
-                                                        unsafe_allow_html=True
-                                                    )
-                                                    if history_text['thread_id'] and history_text['thread_id'] != 'N/A':
-                                                        if st.button(f"🧵 View Thread", key=f"view_thread_{history_text['thread_id']}_{idx}_{todo.get('todo_id')}"):
-                                                            # Store current state
-                                                            st.session_state["previous_bot"] = selected_bot
-                                                            st.session_state["previous_project"] = selected_project
-                                                            st.session_state["previous_todo_id"] = todo.get('todo_id')
-                                                            st.session_state["previous_history_open"] = True
-                                                            st.session_state[f"history_{todo.get('todo_id')}"] = True  # Store history expander state
-                                                            # Navigate to file viewer
-                                                            st.session_state["selected_page_id"] = "file_viewer"
-                                                            st.session_state["radio"] = "File Viewer"
-                                                            st.session_state["file_path_to_view"] = f"Thread:{history_text['thread_id']}"
-                                                            st.session_state['hide_chat_elements'] = True
-                                                            st.rerun()
-                    st.markdown("---")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Failed to create chat session: {str(e)}")
+                        with col5:
+                            btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
+                            with btn_col1:
+                                if st.button("📋", key=f"details_{row['Actions']}", help="View Details"):
+                                    st.session_state["selected_page_id"] = "todo_details"
+                                    st.session_state["selected_todo_id"] = row['Actions']
+                                    st.session_state["radio"] = "Todo Details"
+                                    st.rerun()
+                            with btn_col2:
+                                if st.button("💡", key=f"hint_{row['Actions']}", help="Add Hint"):
+                                    # Add hint functionality here
+                                    pass
+                            with btn_col3:
+                                if st.button("❌", key=f"delete_{row['Actions']}", help="Delete Todo"):
+                                    try:
+                                        todo_id = row['Actions']
+                                        selected_bot_id = next((bot["bot_id"] for bot in bot_details if bot["bot_name"] == selected_bot), None)
+                                        result = get_metadata(f"delete_todo {selected_bot_id} {todo_id}")
+                                        if result.get("Success", False) or result.get("success", False) == True:
+                                            st.success("Todo deleted successfully!")
+                                            st.rerun()
+                                        else:
+                                            st.error(f"Failed to delete todo: {result.get('Message', 'Unknown error')}")
+                                    except Exception as e:
+                                        st.error(f"Error deleting todo: {e}")
+                        
+                        st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
         else:
             st.info("No projects available.")
     except Exception as e:

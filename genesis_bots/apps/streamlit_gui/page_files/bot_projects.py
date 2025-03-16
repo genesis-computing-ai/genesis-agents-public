@@ -286,3 +286,107 @@ def bot_projects():
     except Exception as e:
         st.error(f"Error getting bot details: {e}")
         return
+
+async def perform_source_research_v2(todo_id, field_name, requirements):
+    messages = []
+    
+    # Step 1: State requirements and get confirmation
+    messages.append({
+        "role": "user",
+        "content": f"I need you to help research the source data for mapping field: {field_name}. Here are the requirements:\n{requirements}\n\nPlease repeat back the requirements and confirm you understand what needs to be mapped."
+    })
+    
+    # Step 2: Get search term proposals
+    messages.append({
+        "role": "user",
+        "content": "Based on these requirements, please propose 3 or more relevant search terms that could help find source data for this mapping. Just list the terms - we'll use them in the next steps."
+    })
+    
+    # Steps 3-5: Run data_explorer searches one at a time
+    messages.append({
+        "role": "user",
+        "content": "Let's explore the first search term you proposed using data_explorer(). Run the search and briefly describe what you found."
+    })
+    
+    messages.append({
+        "role": "user",
+        "content": "Now let's try the second search term with data_explorer(). Run it and give me a brief summary of the results."
+    })
+    
+    messages.append({
+        "role": "user",
+        "content": "Let's explore your third search term (or more if you think additional searches would be valuable) with data_explorer(). Run the search and summarize what you found."
+    })
+    
+    # Step 6: Get document search terms
+    messages.append({
+        "role": "user",
+        "content": "Now, propose three search terms we should use with document_index() to find relevant documentation about this field. Just list the terms - don't run the searches yet."
+    })
+    
+    # Steps 7-9: Run document searches one at a time
+    messages.append({
+        "role": "user",
+        "content": "Let's run your first document search term using document_index(Action='Search'). What did you find?"
+    })
+    
+    messages.append({
+        "role": "user",
+        "content": "Now run your second document search term using document_index(Action='Search'). What did you find?"
+    })
+    
+    messages.append({
+        "role": "user",
+        "content": "Let's try your third document search term using document_index(Action='Search'). What did you find?"
+    })
+    
+    # Step 10: Get questions for document_index
+    messages.append({
+        "role": "user",
+        "content": "Based on what we've found so far, please write 3 specific questions we should ask using document_index(Action='Ask'). Just list the questions - don't ask them yet."
+    })
+    
+    # Steps 11-13: Ask the questions one at a time
+    messages.append({
+        "role": "user",
+        "content": "Let's ask your first question using document_index(Action='Ask'). What response did you get?"
+    })
+    
+    messages.append({
+        "role": "user",
+        "content": "Now let's ask your second question using document_index(Action='Ask'). What did you learn?"
+    })
+    
+    messages.append({
+        "role": "user",
+        "content": "Let's ask your third question using document_index(Action='Ask'). What was the response?"
+    })
+    
+    # Step 14: Request final report
+    messages.append({
+        "role": "user",
+        "content": f"""Please write a detailed report summarizing all the research we've done for mapping {field_name}. Include:
+        1. Full DDL of potential source tables
+        2. Relevant examples from the documentation
+        3. Key findings from our data exploration
+        4. Any important context from the document Q&A
+        
+        Save this report to Git in the path: 'mapping_research/{field_name}_source_research.md'
+        Make sure to use proper markdown formatting."""
+    })
+    
+    # Step 15: Verify git save and retry if needed
+    messages.append({
+        "role": "user",
+        "content": "Please verify that the report was saved to Git. If it wasn't saved successfully, please try saving it again."
+    })
+
+    # Send all messages in sequence
+    for message in messages:
+        await record_todo_work(todo_id, f"Sending message: {message['content'][:100]}...")
+        # Here you would add your actual message sending logic
+        # For example:
+        # response = await send_message_to_bot(message)
+        # await process_response(response)
+        
+    return "Research completed"

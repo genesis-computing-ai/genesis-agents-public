@@ -604,7 +604,9 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         try:
             func_args_dict = json.loads(func_args)
             if 'action' in func_args_dict:
-                action = func_args_dict['action'].capitalize()
+                action = func_args_dict['action']
+                # Convert underscore separated action to camel case
+                action = ''.join(word.capitalize() for word in action.split('_'))
                 function_name_pretty = f"{function_name_pretty}: {action}"
         except:
             pass

@@ -106,6 +106,33 @@ def check_git_file(client, paths, file_name, bot_id):
 
     return res or False
  
+def put_content_into_git_file(client, content, git_file_path, file_name, bot_id):
+    """
+    Write content directly to a git file.
+    
+    Args:
+        client: Genesis API client instance
+        content (str): Content to write to git file
+        git_file_path (str): Git directory path to write to
+        file_name (str): Name of file to create in git
+        bot_id (str): Bot ID to use for git operations
+        
+    Returns:
+        bool: True if successful, False if failed
+    """
+    try:
+        res = client.gitfiles.write(
+            f"{git_file_path}{file_name}",
+            content,
+            bot_id=bot_id
+        )
+        return res
+        
+    except Exception as e:
+        print(f"Error putting content to git: {str(e)}")
+        return False
+
+ 
 def put_git_file(client, local_file, git_file_path, file_name, bot_id):
     """
     Read a local file and write its contents to git.
@@ -245,7 +272,9 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 status = %(status)s,
                 which_mapping_correct = %(which_mapping_correct)s,
                 primary_issues = %(primary_issues)s,
-                secondary_issues = %(secondary_issues)s
+                secondary_issues = %(secondary_issues)s,
+                questions = %(questions)s,
+                proposal_made = %(proposal_made)s
             WHERE physical_column_name = %(physical_column_name)s
         """
 
@@ -317,7 +346,7 @@ def update_single_gsheet_cell(client, g_file_id, cell_location, value, pm_bot_id
         raise e
 
 
-def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_location, pm_bot_id, source_research_content, mapping_proposal_content, which_mapping_correct, primary_issues, secondary_issues):
+def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_location, pm_bot_id, source_research_content, mapping_proposal_content, which_mapping_correct, primary_issues, secondary_issues, questions, proposal_made, confidence_output):
     """
     Update Google Sheet with mapping information from PM summary.
 
@@ -404,7 +433,10 @@ def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_loc
             {'column': 'WHICH_MAPPING_CORRECT', 'value': which_mapping_correct},
             {'column': 'PRIMARY_ISSUES', 'value': primary_issues},
             {'column': 'SECONDARY_ISSUES', 'value': secondary_issues},
-            {'column': 'STATUS', 'value': 'READY_FOR_REVIEW'}
+            {'column': 'STATUS', 'value': 'READY_FOR_REVIEW'},
+            {'column': 'QUESTIONS', 'value': questions},
+            {'column': 'PROPOSAL_MADE', 'value': proposal_made},
+            {'column': 'CONFIDENCE_OUTPUT', 'value': confidence_output}
         ]
 
         # Loop through fields and update each one
@@ -609,7 +641,7 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
 
         hint = deng_project_config.get('source_research_hint', '') if deng_project_config else ''
 
-        research_prompt = f'''{message_prefix}Here are requirements for a target field I want you to work on: {requirement}\n
+        research_prompt = f'''{message_prefix} Here are requirements for a target field I want you to work on: {requirement}\n
         Save the results in git at: {paths["base_git_path"]}{paths["source_research_file"]}\n
 
         First explore the available data for the field that may be useful using data_explorer function.
@@ -622,13 +654,14 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
 '''
 
         research_prompt += f'''
-        Then, you will search the document index for related information from past projects and other sources indexed in the document index.
-
+        Then, you will search the document index using _document_index(action='SEARCH', query='<search query>') and _document_index(action='ASK', query='<question>') for related information from past projects and other sources indexed in the document index.
+        Use _document_index() NOT cortex_search() !!
+        
         To do that, think up at least 3 of each of the following:
         a) Search queries that would be usefull to find results for in the past projects
         b) Some specific questions that you'd like the answer to from the documents or past projects
 
-        Then use the document_index tool's SEARCH and ASK actions respectively to search and ask questions.  Use top_n of at least 10.
+        Then use the _document_index() tool's SEARCH and ASK actions respectively to search and ask questions.  Use top_n of at least 10.
         Your goal is to find supportable details from the documents that you can reference in your report, that may later be important to determine a correct mapping for this field in the project at hand.
         
         Try to run at least 3 searches, and ask at least 3 questions.
@@ -703,6 +736,207 @@ def perform_source_research_new(client, requirement, paths, bot_id, pm_bot_id=No
         raise e
 
 #  HINT: When past projects conflict on how to map this field, consider favoring the loan_lending_project.txt project as it is a closer analogue for this project at hand as the Primary option.
+
+def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=None, project_id=None, deng_project_config=None, index_id=None):
+    """Execute source research step and validate results."""
+    try:
+        print("\033[34mExecuting source research...\033[0m")
+
+        thread = str(uuid.uuid4())
+        hint = deng_project_config.get('source_research_hint', '') if deng_project_config else ''
+
+        # Step 1: State requirements and have bot repeat them
+        initial_prompt = f'''{message_prefix} Here are requirements for a target field I want you to work on: {requirement}
+        \nThe table and column described will be in a future table you are helping to figure out how to create. 
+        Please repeat back to me your understanding of what field we are researching and what its requirements are.
+        This is being run by an automated process, so do not repeat these instructions back to me.'''
+        
+        response = call_genesis_bot(client, bot_id, initial_prompt, thread=thread)
+
+        # Step 2: Get search term proposals
+        search_prompt = f'''{message_prefix} Based on these requirements, propose 3 or more relevant search terms that could be useful to use to search the existing system table metadata to find relevant source data for the mapping that needs to be created.
+        Format your response as a numbered list.'''
+        
+        response = call_genesis_bot(client, bot_id, search_prompt, thread=thread)
+
+        # Steps 3-5: Run data explorer searches one at a time
+        for i in range(3):
+            if i == 0:
+                explorer_prompt = f'''{message_prefix} As you perform the rest of your work, you may find these hints to be of use: {hint}\n\nNow, please use data_explorer to search using search term #{i+1} from your list above. 
+                Provide a brief explanation of what you found and whether it seems relevant.'''
+            else:
+                explorer_prompt = f'''{message_prefix} Now, please use data_explorer to search using search term #{i+1} from your list above. 
+                Provide a brief explanation of what you found and whether it seems relevant.'''
+            
+            response = call_genesis_bot(client, bot_id, explorer_prompt, thread=thread)
+
+        # Step 6: Get document search terms
+        doc_search_prompt = f'''{message_prefix} Please propose three search terms to use with document_index() to find relevant sections of documents about sourcing or mapping this column.
+        Format your response as a numbered list, but do not execute the searches yet.'''
+        
+        response = call_genesis_bot(client, bot_id, doc_search_prompt, thread=thread)
+
+        # Steps 7-9: Run document searches one at a time
+        for i in range(3):
+            doc_search_exec_prompt = f'''{message_prefix} Please execute document_index(action='SEARCH') using search term #{i+1} from your list above.
+            Use top_n of at least 10 and explain what relevant information you found.'''
+            
+            response = call_genesis_bot(client, bot_id, doc_search_exec_prompt, thread=thread)
+
+        # Step 10: Get questions for document index
+        questions_prompt = f'''{message_prefix} Please write up 3 specific questions to ask using document_index(action='ASK') that would help us understand this field, where it comes from, and any other relevant details.
+        Format your response as a numbered list, but do not execute the questions yet.'''
+        
+        response = call_genesis_bot(client, bot_id, questions_prompt, thread=thread)
+
+        # Steps 11-13: Run document questions one at a time
+        for i in range(3):
+            question_exec_prompt = f'''{message_prefix} Please execute document_index(action='ASK') using question #{i+1} from your list above.
+            Explain what relevant information you learned from the response.'''
+            
+            response = call_genesis_bot(client, bot_id, question_exec_prompt, thread=thread)
+
+        # Step 14: Write final report
+        report_prompt = f'''{message_prefix} Based on all the searches and research above, please write up a full and detailed report that the next bot can use to propose a mapping and transform.
+
+        Include:
+        - Full DDL of all potential source tables you discovered (noting which connection_id each is in)
+        - Relevant examples from the documents that would be helpful for this field
+        - A detailed analysis of what you learned from both the data exploration and document research
+        
+        Save your complete report using git_action at: {paths["base_git_path"]}{paths["source_research_file"]}'''
+        
+        response = call_genesis_bot(client, bot_id, report_prompt, thread=thread)
+
+        # Step 15: Verify git save and retry if needed
+        try:
+            contents = check_git_file(client, paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
+        except Exception as e:
+            print(f"Error checking git file: {e}, prompting the bot to try again...")
+            contents = None
+
+        if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
+            retry_prompt = f'''{message_prefix} I don't see your complete report saved at {paths["base_git_path"]}{paths["source_research_file"]} in git.
+            Please save your full report again using the git_action function.'''
+            
+            response = call_genesis_bot(client, bot_id, retry_prompt, thread=thread)
+            try:
+                contents = check_git_file(client, paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
+            except Exception as e:
+                print(f"Error checking git file after retry: {e}")
+                contents = None
+                
+            if not contents or len(contents) < 100 or isinstance(contents, dict) and 'error' in contents and 'File not found' in contents['error']:
+                raise Exception('Source research file not found or contains only placeholder')
+        
+        print_file_contents("SOURCE RESEARCH",
+                           f"{paths['base_git_path']}{paths['source_research_file']}",
+                           contents)
+
+        # Step 16: Evaluate mapping confidence
+        confidence_prompt = f'''{message_prefix} Based on the source research report above, please evaluate if we have enough information to define an exact source and transform for this field with 100% confidence.
+
+        Remember, the requirement states: {requirement['PHYSICAL_COLUMN_NAME']} is defined as: {requirement['COLUMN_DESCRIPTION']}
+
+        Return TRUE only if:
+        1. You have clear requirements and evidence from schema research and/or past projects on how to proceed
+        2. You are 100% confident in how to map this field
+        3. You have either:
+           - An extremely clearly stated requirement that you know exactly how to fullfil based available data identified in source research
+           - An exactly matching example from a directly related past project, or
+           - A specific document mention of how to perform this mapping for this data
+        4. Note: If your requirement is clear and simple, and you have a clear path forward based on the data identified in source research, then you can return TRUE even if you don't have an exact match from a past project or document, or if past projects conflict or express greater complexity on how to map this field.
+
+        Return FALSE if one or more of the following are true:
+        - You are not 100% confident in how to map this field to fulfil the requirements
+        - There is not enough detail in the requirements
+        - There is no exactly matching example from a related project
+        - There is no specific document guidance for this mapping
+        - There may be multiple ways to map this field based on the evidence, and you'd like some questions answered before proposing a mapping
+
+        Respond with only TRUE or FALSE.'''
+
+        response = call_genesis_bot(client, bot_id, confidence_prompt, thread=thread)
+
+        # Extract just TRUE/FALSE from response
+        confidence = 'TRUE' in response.upper() and not 'FALSE' in response.upper()
+
+        questions = None
+        if not confidence:
+            # Get explanation for lack of confidence
+            explain_prompt = f'''{message_prefix} Please explain why you are not confident enough to propose a mapping for this field. 
+            Reference specific gaps or uncertainties in the available information.'''
+            
+            explanation = call_genesis_bot(client, bot_id, explain_prompt, thread=thread)
+
+            # Get clarifying questions
+            questions_prompt = f'''{message_prefix} What are up to 5 questions you would want to ask a business stakeholder to help clarify the areas of uncertainty? Restate the name of the field in your questions.'''
+            
+            questions = call_genesis_bot(client, bot_id, questions_prompt, thread=thread)
+
+            # Save confidence report
+            confidence_report = f'''CONFIDENCE: FALSE
+
+EXPLANATION:
+{explanation}
+
+CLARIFYING QUESTIONS:
+{questions}'''
+
+            put_content_into_git_file(client, confidence_report, paths["base_git_path"], paths["confidence_report_file"], bot_id)
+            mapping_proposal = "Not confident enough to propose a mapping."
+            put_content_into_git_file(client, mapping_proposal, paths["base_git_path"], paths["mapping_proposal_file"], bot_id)
+
+        else:
+            # Get detailed mapping proposal
+            proposal_prompt = f'''{message_prefix} Please write a detailed mapping proposal document that includes:
+
+1. The proposed source(s) including:
+   - Database connection ID
+   - Fully qualified table names
+   - Specific source fields
+
+2. Any required transformations or business logic
+
+3. Detailed justification for your mapping proposal with specific references to:
+   - Source schema research
+   - Document research
+   - Past project examples
+
+Please be thorough and specific in your proposal.'''
+
+            mapping_proposal = call_genesis_bot(client, bot_id, proposal_prompt, thread=thread)
+
+            # Save confidence report with proposal
+            confidence_report = f'''CONFIDENCE: TRUE
+
+MAPPING PROPOSAL:
+{mapping_proposal}'''
+
+            put_content_into_git_file(client, mapping_proposal, paths["base_git_path"], paths["mapping_proposal_file"], bot_id)
+            confidence_report = "Confident mapping, see mapping proposal for details."
+
+        return {
+            'success': True,
+            'contents': {
+                'source_research': check_git_file(client, paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id),
+                'proposal_made': mapping_proposal != "Not confident enough to propose a mapping.",
+                'questions': questions,
+                'mapping_proposal': mapping_proposal,
+                'confidence_report': confidence_report
+            },
+            'git_file_paths': {
+                'source_research': f"{paths['base_git_path']}{paths['source_research_file']}",
+                'mapping_proposal': f"{paths['base_git_path']}{paths['mapping_proposal_file']}",
+                'confidence_report': f"{paths['base_git_path']}{paths['confidence_report_file']}"
+            },
+            'thread': thread
+        }
+
+    except Exception as e:
+        raise e
+
+
 
 def perform_mapping_proposal_new(client, requirement, paths, bot_id, pm_bot_id=None, project_id=None, deng_project_config=None):
     f"""{message_prefix}Execute mapping proposal step and validate results."""
@@ -1364,7 +1598,9 @@ def initialize_system(
         WHICH_MAPPING_CORRECT VARCHAR(10),
         PRIMARY_ISSUES VARCHAR(16777216),
         SECONDARY_ISSUES VARCHAR(16777216),
-        CORRECT_ANSWER_FOR_EVAL VARCHAR(16777216)
+        CORRECT_ANSWER_FOR_EVAL VARCHAR(16777216),
+        PROPOSAL_MADE VARCHAR(16777216),
+        QUESTIONS VARCHAR(16777216)
         );   """
     run_snowflake_query(client, create_query, bot_id)
     
@@ -1558,8 +1794,8 @@ def main():
         # If a specific todo_id is provided, filter the todos to only include this one
     
         load_bots = False
-        reset_project = True
-        index_files = False
+        reset_project = False
+        index_files = True
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
@@ -1569,8 +1805,8 @@ def main():
         # Initialize requirements table if not exists 
         req_max = -1
     else:
-        reset_project = False
-        index_files = False
+        reset_project = False  # do not change 
+        index_files = False # do not change
         req_max = -1
 
     gsheet_location, index_id = initialize_system(
@@ -1647,89 +1883,73 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
 
         # create and tag the git project assets for this requirement
 
-        source_research_results = perform_source_research_new(client, filtered_requirement, paths, source_research_bot_id, pm_bot_id=pm_bot_id, project_id=project_id, deng_project_config=deng_project_config, index_id=index_id)
-        #source_research_results = {
-        #    'success': True,
-        #    'contents': 'source research contents',
-        #    'git_file_path': 'source_research_file.txt',
-        #    'thread': 'source_research_thread'
-        #}
+        source_research_results = perform_source_research_v2(client, filtered_requirement, paths, source_research_bot_id, pm_bot_id=pm_bot_id, project_id=project_id, deng_project_config=deng_project_config, index_id=index_id)
 
-    
-        if source_research_results.get('success'):  
-            source_research = source_research_results['contents']
-            git_file_path = source_research_results['git_file_path']
+        if source_research_results.get('success'):
+            source_research = source_research_results['contents']['source_research']
+            source_research_path = source_research_results['git_file_paths']['source_research']
             source_research_thread = source_research_results['thread']
-            # add ability to tag the threads in message log that the work was done by          
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed source research for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {source_research_thread}", bot_id=pm_bot_id, results=source_research, thread_id=source_research_thread)     
 
-        mapping_proposal_results = perform_mapping_proposal_new(client, filtered_requirement, paths, mapping_proposer_bot_id, pm_bot_id=pm_bot_id, project_id=project_id, deng_project_config=deng_project_config)
-        #mapping_proposal_results = {
-        #    'success': True,
-        #    'contents': 'mapping proposal contents',
-        #    'git_file_path': 'mapping_proposal_file.txt',
-        #    'thread': 'mapping_proposal_thread'
-        #}
+            # These steps are now handled in perform_source_research_v2
+            mapping_proposal = source_research_results['contents']['mapping_proposal']
+            mapping_proposal_path = source_research_results['git_file_paths']['mapping_proposal']
+            mapping_proposal_thread = source_research_results['thread']
+            confidence_report = source_research_results['contents']['confidence_report']
 
-        if mapping_proposal_results.get('success'):
-            mapping_proposal = mapping_proposal_results['contents']
-            git_file_path = mapping_proposal_results['git_file_path'] 
-            mapping_proposal_thread = mapping_proposal_results['thread']
+            summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
+            summary = summary_results['summary']
 
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed mapping proposal for column: {requirement['PHYSICAL_COLUMN_NAME']}, results in: {git_file_path}, via thread: {mapping_proposal_thread}", bot_id=pm_bot_id, results=mapping_proposal, thread_id=mapping_proposal_thread)     
-
-        if not skip_confidence:
-            confidence_report = perform_confidence_analysis_new(client, filtered_requirement, paths, confidence_analyst_bot_id, deng_project_config=deng_project_config)
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed confidence analysis for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=confidence_report)     
-
-        summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
-        summary = summary_results['summary']
-        record_work(client=client, todo_id=todo['todo_id'], description=f"Completed PM summary for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {summary_results['thread']}", bot_id=pm_bot_id, results=summary_results, thread_id=summary_results['thread'])     
+            proposal_made = source_research_results['contents']['proposal_made']
+            questions = source_research_results['contents']['questions']
     
-        # Get the full content of each file from git
-        source_research_content = source_research
-        mapping_proposal_content = mapping_proposal
-        
-        confidence_output_content = 'bypassed currently while we improve this bot'
-        # Evaluate results
-        if requirement['CORRECT_ANSWER_FOR_EVAL']:
-            evaluation, eval_json, thread = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation, thread_id=thread)     
+            # Get the full content of each file from git
+            source_research_content = source_research
+            mapping_proposal_content = mapping_proposal        
+
+            # Evaluate results
+            if requirement['CORRECT_ANSWER_FOR_EVAL'] and proposal_made:
+                evaluation, eval_json, thread = evaluate_results(client, filtered_requirement=filtered_requirement, pm_bot_id=pm_bot_id, mapping_proposal_content=mapping_proposal_content, correct_answer_for_eval=requirement['CORRECT_ANSWER_FOR_EVAL'])
+                record_work(client=client, todo_id=todo['todo_id'], description=f"Completed evaluation for column: {requirement['PHYSICAL_COLUMN_NAME']}, via thread: {thread}", bot_id=pm_bot_id, results=evaluation, thread_id=thread)     
+            else:
+                evaluation = None
+                eval_json = None
+            
+            # Prepare fields for database update
+            db_fields = {
+                'proposal_made': proposal_made,
+                'upstream_table': summary['UPSTREAM_TABLE'],
+                'upstream_column': summary['UPSTREAM_COLUMN'],
+                'upstream_db_connection': summary['UPSTREAM_DB_CONNECTION'],
+                'source_research': source_research_content,
+                'mapping_proposal': mapping_proposal_content,
+                'confidence_output': confidence_report,
+                'confidence_score': summary['CONFIDENCE_SCORE'],
+                'confidence_summary': summary['CONFIDENCE_SUMMARY'],
+                'pm_bot_comments': summary['PM_BOT_COMMENTS'],
+                'transformation_logic': summary['TRANSFORMATION_LOGIC'],
+                'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
+                'primary_issues': eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
+                'secondary_issues': eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
+                'status': 'READY_FOR_REVIEW',
+                'questions': questions,
+                'proposal_made': proposal_made
+            }
+
+            # Save results of work to database
+            save_pm_summary_to_requirements(
+                requirement['PHYSICAL_COLUMN_NAME'],
+                db_fields,
+                requirements_table_name
+            )
+            print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id)     
+
+            # if correct, ready for review, otherwise needs help
+            # Update todo status to complete
+            update_todo_status(client=client, todo_id=todo['todo_id'], new_status='COMPLETED', bot_id=pm_bot_id)
+
         else:
-            evaluation = None
-            eval_json = None
-        
-        # Prepare fields for database update
-        db_fields = {
-            'upstream_table': summary['UPSTREAM_TABLE'],
-            'upstream_column': summary['UPSTREAM_COLUMN'],
-            'upstream_db_connection': summary['UPSTREAM_DB_CONNECTION'],
-            'source_research': source_research_content,
-            'mapping_proposal': mapping_proposal_content,
-            'confidence_output': confidence_output_content,
-            'confidence_score': summary['CONFIDENCE_SCORE'],
-            'confidence_summary': summary['CONFIDENCE_SUMMARY'],
-            'pm_bot_comments': summary['PM_BOT_COMMENTS'],
-            'transformation_logic': summary['TRANSFORMATION_LOGIC'],
-            'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
-            'primary_issues': eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
-            'secondary_issues': eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
-            'status': 'READY_FOR_REVIEW'
-        }
-
-        # Save results of work to database
-        save_pm_summary_to_requirements(
-            requirement['PHYSICAL_COLUMN_NAME'],
-            db_fields,
-            requirements_table_name
-        )
-        print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
-        record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id)     
-
-        # if correct, ready for review, otherwise needs help
-        # Update todo status to complete
-        update_todo_status(client=client, todo_id=todo['todo_id'], new_status='COMPLETED', bot_id=pm_bot_id)
-
+            raise('Error performing source research')
         # Update the Google Sheet with mapping results
 
         try:
@@ -1744,7 +1964,10 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
                     mapping_proposal_content=mapping_proposal_content,
                     which_mapping_correct=eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
                     primary_issues=eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
-                    secondary_issues=eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else ''
+                    secondary_issues=eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
+                    questions=questions,
+                    proposal_made=proposal_made,
+                    confidence_output=confidence_report
                 )
                 print(f"\033[32mSuccessfully updated Google Sheet for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
                 record_work(
@@ -1815,6 +2038,7 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
 def initialize_document_indices(client, bot_id, project_id, project_config):
     """
     Initialize multiple document indices based on configuration and populate them with files.
+    Preserves subdirectory structure when saving to git and indexing.
     
     Args:
         client: Genesis API client instance
@@ -1879,35 +2103,48 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
             for root, dirs, files in os.walk(path_to_files):
                 for file in files:
                     i += 1
-                    local_path = os.path.join(root, file)
-                    git_path = os.path.join(project_id, "input_files", index_name, file)
-                    
                     # Skip hidden files
                     if file.startswith('.'):
                         continue
-                    # Put file in git
+
+                    local_path = os.path.join(root, file)
+                    
+                    # Preserve subdirectory structure relative to path_to_files
+                    rel_path = os.path.relpath(root, path_to_files)
+                    if rel_path == '.':
+                        rel_path = ''
+                        
+                    # Construct git path preserving subdirectories
+                    git_path = os.path.join(
+                        project_id,
+                        "input_files",
+                        index_name,
+                        rel_path
+                    ).replace('\\', '/')  # Ensure forward slashes for git paths
+                    
+                    # Put file in git, preserving directory structure
                     put_git_file(
                         client=client,
                         local_file=local_path,
-                        git_file_path=os.path.dirname(git_path) + '/',
+                        git_file_path=git_path + '/',
                         file_name=file,
                         bot_id=bot_id,
-
                     )
                     
-                    # Add to index
-
+                    # Add to index with full path
+                    full_git_path = f"{git_path}/{file}".replace('//', '/')
                     resp = client.run_genesis_tool(
-                            tool_name="document_index",
-                            params={
+                        tool_name="document_index",
+                        params={
                             "action": "ADD_DOCUMENTS",
                             "index_name": full_index_name,
-                            "filepath": f"BOT_GIT:{git_path}",
+                            "filepath": f"BOT_GIT:{full_git_path}",
                         },
                         bot_id=bot_id
                     )
+                    
                     if resp['Success'] == True:
-                        print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {git_path} (#{i})')
+                        print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {full_git_path} (#{i})')
                     else:
                         print(f'\033[31mError indexing file {local_path} in {full_index_name}: {resp["Error"]}\033[0m')
                         a = input('Error indexing, press return to continue...')

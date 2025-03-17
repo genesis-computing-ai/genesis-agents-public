@@ -26,10 +26,10 @@ project_manager_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+        description="Action to perform (CREATE, UPDATE, GET_TODO_DETAILS, CHANGE_STATUS, LIST)",
         required=True,
         llm_type_desc=dict(
-            type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+            type="string", enum=["CREATE", "UPDATE", "GET_TODO_DETAILS", "CHANGE_STATUS", "LIST"]
         ),
     ),
     todo_id=ToolFuncParamDescriptor(
@@ -156,8 +156,8 @@ def manage_projects(
 @gc_tool(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     todo_id="ID of the todo item to record work for",
-    work_description="Detailed description of the work performed or progress made",
-    work_results="Optional results, output, or findings from the work performed",
+    work_description="Detailed description of ALL the work performed or progress made since your last call to this function",
+    work_results="Optional results, output, or findings from all the work performed since your last call to this function",
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -405,6 +405,7 @@ def create_todos_bulk(
         )
         results.append(result)
     return results
+
 
 
 project_manager_functions: List[Callable[..., Any]] = [

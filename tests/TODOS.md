@@ -2,6 +2,43 @@
 GENESIS BOT TODOS
 =================
 
+gxs mapping quality (try in new system as a project, using same bots)
+DBT-make project_name requried on all calls to make it thread safe for multiple bots at the same time to use it, or make it per thread
+DBT- see if stdout can be captured and returned instead of the debug logs ?
+Databricks connector times out, needs reconnect logic
+profile name is mixe up with project naem and they need to be the same nwo
+Why didnt the run work 
+Show g-sheets comment read and response.
+autonomy loop
+test with fresh schema
+lazy load history of todos
+fix return to correct project back to projects page
+Alation import for GXS from CSV file into harvester (supplement harvester info with this alation notes stuff)
+Redo past projects for GXS and redo eval answers (principal rollover ROLLOVER_PRIN_OUTSTANDING_AMT is off for example)
+x HCLS - cant find report-year, month, etc?
+GXS list
+check put file to stage for Slack uploaded files
+test harvester with catalog supplement change on sqlite metadata, test inserting new, and test updating
+--
+gxs Reprocess history
+gxs Reprocess the correct answers
+Option for mappper to say it not sure threshold 
+Second pass bot to check that
+Maybe some more past projects 
+New version 
+x Alation load file, hook into the harvester
+doc alation loader
+--- 
+bug: adding document manaeger tool via eve, showed in list, but session didnt have it until restart
+record a demo of data eng
+x add an option to add document to index without persist, then a persist option later 
+make sure uploading binary files like pictures to git still works
+add search across all indicies, add ask against one index
+chroma db
+filter result fields too verbose
+paths returned in search results should be relative to BOT_GIT: so bots can find them later and read them
+make bot_git limit the number of results returned and allow for filtering
+add a simpler way to see if a named file is in the index 
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

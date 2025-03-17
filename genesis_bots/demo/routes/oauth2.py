@@ -1,4 +1,4 @@
-from flask import Blueprint, request, session, redirect, url_for
+from flask import Blueprint, request, session, redirect, url_for, render_template
 import os
 from google_auth_oauthlib.flow import Flow
 import google.oauth2.credentials
@@ -20,7 +20,7 @@ oauth_routes = Blueprint('oauth_routes', __name__)
 @oauth_routes.get("/endpoint_check")
 def endpoint_check():
     logger.info("Endpoint check successful!")
-    return "Endpoint check successful!"
+    return render_template("templates/index.html")
 
 @oauth_routes.get("/google_drive_login")
 def google_drive_login():

@@ -3,6 +3,7 @@ venv*
 .venv/*
 .env*
 .secrets/*
+.keys/*
 
 # Python cache
 *.pyc

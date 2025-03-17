@@ -26,6 +26,17 @@ from   genesis_bots.core.logging_config \
 
 def one_time_db_fixes(self):
    
+    # Add Catalog Supplmentary information
+    cursor = self.client.cursor()
+    add_supplement_query1 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ADD COLUMN catalog_supplement VARCHAR(2000)"""
+    add_supplement_query2 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ADD COLUMN catalog_supplement_loaded VARCHAR(20)"""
+    try:
+        cursor.execute(add_supplement_query1)
+        cursor.execute(add_supplement_query2)
+    except Exception as e:
+        pass
+    cursor.close()
+
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bots_table_check_query)
@@ -1390,6 +1401,18 @@ def ensure_table_exists(self):
     """
     _create_table_if_not_exist('USER_BOT', user_bot_table_ddl)
 
+    
+    index_manager_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.index_manager_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        bot_id STRING NOT NULL,
+        index_name STRING NOT NULL UNIQUE,
+        index_id STRING NOT NULL UNIQUE,
+        bot_access STRING
+    );
+    """
+    _create_table_if_not_exist('INDEX_MANAGER', index_manager_table_ddl)
+
     # TEST_MANAGER
     # ------------------
     # Create test_manager table if it doesn't exist
@@ -1478,7 +1501,9 @@ def ensure_table_exists(self):
                 crawl_status STRING NOT NULL,
                 role_used_for_crawl STRING NOT NULL,
                 embedding ARRAY,
-                embedding_native ARRAY
+                embedding_native ARRAY,
+                catalog_supplement STRING NOT NULL,
+                catalog_supplement_loaded STRING NOT NULL
             );
             """
             cursor.execute(metadata_table_ddl)

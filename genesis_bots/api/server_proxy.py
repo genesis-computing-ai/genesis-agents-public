@@ -43,7 +43,6 @@ class GenesisServerProxyBase(ABC):
         self._client_tool_func_map: Dict[str, callable] = {} # maps function names to the tool functions (callable)
         self._client_tool_func_to_bots_map: Dict[str, Dict[str, set]] = {} # # maps function names to teh set of bots to which  was assigned
         self._is_connected = False
-        self.genesis_app = None
 
 
     @abstractmethod

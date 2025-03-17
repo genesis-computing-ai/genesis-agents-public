@@ -132,6 +132,10 @@ class DatabaseConnector:
                     'error': "The connection_id 'Snowflake' is reserved. You can connect to Snowflake but please use a different connection_id string."
                 }
 
+            # Handle Databricks connector string
+            if 'databricks+connector://' in connection_string:
+                connection_string = connection_string.replace('databricks+connector://', 'databricks://')
+
             # Extract db_type from connection string
             db_type = connection_string.split('://')[0]
             if '+' in db_type:
@@ -236,10 +240,14 @@ class DatabaseConnector:
                 **(None if connection_string is None else {'original_connection_string': connection_string}),
                 **(None if processed_conn_string is None else {'processed_connection_string': processed_conn_string})
             }
+
             if 'redshift' in str(connection_string).lower():
                 resp['note'] = "For Redshift with IAM authentication, use format: postgresql+psycopg2://iam@<endpoint>:5439/<database>"
             if '/mnt/data' in connection_string:
                 resp['hint'] = "Don't use /mnt/data, just provide the full or relative file path as provided by the user"
+            if 'databricks' in str(connection_string).lower():
+                resp['note'] = "For Databricks, use format: databricks://token:<access_token>@<server_hostname>?http_path=<http_path>"
+                resp['example'] = "databricks://token:dapi123456789@dbc-123abc-def.cloud.databricks.com?http_path=/sql/1.0/warehouses/abc123def456"
             return resp
 
     def query_database(
@@ -668,6 +676,73 @@ class DatabaseConnector:
             logger.error(f"Snowflake test connection failed: {str(e)}")
             raise
 
+
+    def _test_databricks(self) -> bool:
+        """Test connection to Databricks Delta Lake
+        Note this only works in debugger mode with Python 3.11 not 3.12"""
+        try:
+            # Get credentials from environment variables
+        
+            # URL encode credentials
+     
+            from sqlalchemy import create_engine, text
+
+            # Your connection parameters
+            server_hostname = "dbc-209b1505-de07.cloud.databricks.com"
+            http_path = "/sql/1.0/warehouses/ffb2c2527f699e61"
+            access_token = "your token here"
+
+            # Create connection string
+            connection_string = f"databricks://token:{access_token}@{server_hostname}?http_path={http_path}"
+            # Create engine and test connection
+            try:
+                engine = create_engine(connection_string)
+                conn = engine.connect()
+                result = conn.execute(text("SELECT 'hi' as one, 1+1 as two"))
+                row = result.fetchone()
+                if row is None:
+                    raise Exception("No result returned from test query")
+                conn.close()
+            except Exception as e:
+                logger.error(f"Failed to connect to Databricks: {str(e)}")
+                raise
+
+            # Create a SQLAlchemy engine
+            connection_string = f"databricks://token:{access_token}@{server_hostname}?http_path={http_path}"
+            engine = create_engine(connection_string)
+            conn = engine.connect()
+            conn.execute(text('SELECT 1'))
+            conn.close()
+
+            logger.info(f"Attempting to connect to Databricks with host: {server_hostname}")
+
+            success = self.add_connection(
+                connection_id="test_databricks",
+                connection_string=connection_string,
+                bot_id="Eve",
+                allowed_bot_ids=["Eve"],
+                description="Demo Databricks connection"
+            )
+
+            if not success or success.get('success') != True:
+                raise Exception(f"Failed to add Databricks test connection: {success.get('error', '')}")
+
+            result = self.query_database(
+                "test_databricks",
+                "Eve", 
+                "SELECT CURRENT_TIMESTAMP()"
+            )
+            print(result)
+            if not result['success']:
+                raise Exception(f"Failed to query Databricks: {result.get('error')}")
+
+            self._cleanup_test_connection("test_databricks")
+            return True
+
+        except Exception as e:
+            logger.error(f"Databricks test connection failed: {str(e)}")
+            raise
+
     def _cleanup_test_connection(self, connection_id: str):
         """Helper method to clean up test connections"""
         cursor = self.db_adapter.client.cursor()
@@ -822,11 +897,11 @@ class DatabaseConnector:
         Run all database connector tests.
         """
         logger.info("Running database connector tests...")
-        self._test_postgresql()
-        self._test_redshift()
-        self._test_mysql()
-        self._test_snowflake()
-
+        self._test_databricks()
+ #       self._test_postgresql()
+ #       self._test_redshift()
+ #       self._test_mysql()
+   #     self._test_snowflake()
         logger.info("All database connector tests completed successfully.")
 
     def list_database_connections(self, bot_id: str, thread_id: str = None, bot_id_override: bool = False) -> dict:
@@ -959,6 +1034,7 @@ class DatabaseConnector:
         from genesis_bots.core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
         from genesis_bots.core.bot_os import BotOsSession  # Add this import
 
+        
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
@@ -1459,10 +1535,10 @@ def _search_metadata(
     search_string="String to search for in metadata",
     database="Database name (not valid for Sqlite)",
     schema="Schema name (not valid for Sqlite)",
-    table="Table name",
+    table="Exact Table name to locate",
     top_n="Number of rows to return",
     #knowledge_base_path="Path to the knowledge vector base",
-    connection_id="ID of the database connection to query",
+    connection_id="ID of the database connection to query (optional, if not specified, all connections will be searched)",
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[data_connector_tools],

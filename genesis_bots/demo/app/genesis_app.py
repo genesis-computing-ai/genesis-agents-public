@@ -484,7 +484,7 @@ class GenesisApp:
 
     def start_all(self):
         """
-        Modified start_all to include harvester initialization
+        Modified start_all to include autonomy initialization
         """
         self.generate_index_file()
         self.set_internal_project_and_schema()
@@ -494,7 +494,8 @@ class GenesisApp:
         self.run_ngrok()
         self.create_app_sessions()
         self.start_server()
-        self.start_harvester()  # Add harvester startup
+        self.start_harvester()
+    #   self.start_autonomy()
 
 
     def trigger_immediate_harvest(self, database_name=None, source_name=None):
@@ -538,6 +539,52 @@ class GenesisApp:
 
         finally:
             self.harvester_running = False
+
+
+    def start_autonomy(self):
+        """
+        Initializes and starts the autonomy process that manages autonomous bot behaviors.
+        """
+        from genesis_bots.core.autonomy.bot_os_autonomy import BotAutonomy
+        
+        logger.info('Starting autonomy component...')
+
+        if os.getenv('AUTONOMY_ENABLED', 'TRUE').upper() != 'TRUE':
+            logger.info('Autonomy disabled via AUTONOMY_ENABLED environment variable')
+            return
+
+        # Initialize autonomy manager
+        self.autonomy_manager = BotAutonomy(
+            db_adapter=self.db_adapter,
+            llm_api_key_struct=self.llm_api_key_struct
+        )
+        
+        # Flag to track if autonomy is currently running
+        self.autonomy_running = False
+
+        def autonomy_job():
+            if self.autonomy_running:
+                logger.info("Previous autonomy job still running, skipping this run")
+                return
+
+            try:
+                self.autonomy_running = True
+                self.autonomy_manager.process_autonomous_actions()
+            except Exception as e:
+                logger.error(f"Error in autonomy job: {e}")
+            finally:
+                self.autonomy_running = False
+
+        # Schedule runs every 15 seconds with no initial delay
+        self.scheduler.add_job(
+            autonomy_job,
+            'interval',
+            seconds=15,
+            id='autonomy_job',
+            replace_existing=True,
+            next_run_time=datetime.now()
+        )
+        logger.info("Autonomy scheduled to run every 15 seconds")
 
 
 # singleton instance of app.

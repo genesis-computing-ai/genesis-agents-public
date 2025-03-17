@@ -35,8 +35,8 @@ dependencies = [
     "flask==3.0.3",
     "google-cloud-bigquery",
     "mistralai",
-    "openai",
-    "pandas==2.2.2",
+    "openai>=1.66.0",
+    "pandas==2.1.4",  # <2.2 required for databricks connector
     "pyarrow==17.0.0",
     "pytest",
     "pyyaml==6.0.1",
@@ -69,6 +69,16 @@ dependencies = [
     "spider-client",
     "openpyxl",
     "PyGithub",
+    "dbt-core",
+    "dbt-snowflake",
+    "pymupdf",
+    "llama-index",
+    "pypdf",
+    "sentence-transformers",
+    "xlrd",
+    "chromadb",
+    "llama-index[chromadb]",
+    "llama-index-vector-stores-chroma",
     # Additional dependencies not in requirements.txt
     "ngrok"
 ]

@@ -192,7 +192,7 @@ class SchemaExplorer:
             j = ""
         return j
 
-    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None, dataset=None, matching_connection=None, object_type='TABLE'):
+    def store_table_memory(self, database, schema, table, summary=None, ddl=None, ddl_short=None, sample_data=None, dataset=None, matching_connection=None, object_type='TABLE', catalog_supplement=None):
         """
         Generates a document including the DDL statement and a natural language description for a table.
         :param schema: The schema name.
@@ -223,7 +223,7 @@ class SchemaExplorer:
                 #sample_data_str = sample_data_str.replace("\n", " ")  # Replace newlines with spaces
 
             #logger.info('sample data string: ',sample_data_str)
-            self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str, dataset=dataset, matching_connection=matching_connection)
+            self.store_table_summary(database, schema, table, ddl=ddl, ddl_short=ddl_short,summary=summary, sample_data=sample_data_str, dataset=dataset, matching_connection=matching_connection, catalog_supplement=catalog_supplement)
 
         except Exception as e:
             logger.info(f"Harvester Error for an object: {e}")
@@ -300,7 +300,7 @@ class SchemaExplorer:
         return result_value
 
 
-    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash="", dataset=None, matching_connection=None):
+    def store_table_summary(self, database, schema, table, ddl, ddl_short="", summary="", sample_data="", memory_uuid="", ddl_hash="", dataset=None, matching_connection=None, catalog_supplement=None):
         """
         Stores a document including the DDL and summary for a table in the memory system.
         :param schema: The schema name.
@@ -337,7 +337,8 @@ class SchemaExplorer:
                                                 embedding=embedding,
                                                 memory_uuid=memory_uuid,
                                                 ddl_hash=ddl_hash,
-                                                matching_connection=matching_connection)
+                                                matching_connection=matching_connection,
+                                                catalog_supplement=catalog_supplement)
 
             logger.info(f"Stored summary for an object in Harvest Results.")
 
@@ -621,19 +622,19 @@ class SchemaExplorer:
             logger.info(f"error - {e}")
             return []
 
-    def update_initial_crawl_flag(self, database_name, crawl_flag):
+    def update_initial_crawl_flag(self, source_name, database_name, crawl_flag):
 
         if self.db_connector.source_name == 'Snowflake':
             query = f"""
                 update {self.db_connector.harvest_control_table_name}
                 set initial_crawl_complete = {crawl_flag}
-                where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}';"""
+                where source_name = '{source_name}' and database_name = '{database_name}';"""
             update_query = self.db_connector.run_query(query)
         elif self.db_connector.source_name == 'Sqlite':
             query = f"""
                 update {self.db_connector.harvest_control_table_name}
                 set initial_crawl_complete = {crawl_flag}
-                where source_name = '{self.db_connector.source_name}' and database_name = '{database_name}';"""
+                where source_name = '{source_name}' and database_name = '{database_name}';"""
             cursor = self.db_connector.client.cursor()
             cursor.execute(query)
             self.db_connector.client.commit()
@@ -778,7 +779,7 @@ class SchemaExplorer:
                 crawl_flag = False
                 if (database["initial_crawl_complete"] == False):
                     crawl_flag = True
-                    self.update_initial_crawl_flag(database["database_name"], True)
+                    self.update_initial_crawl_flag(database["source_name"], database["database_name"], True)
                 else:
                     if (database["refresh_interval"] > 0):
                         if (self.run_number % database["refresh_interval"] == 0):
@@ -867,7 +868,7 @@ class SchemaExplorer:
                         col_num = 0
                         if 'columns' in result_tables and result_tables['columns']:
                             for i, col in enumerate(result_tables['columns']):
-                                if col.lower() == 'name':
+                                if col.lower() == 'name' or col.lower() == 'tablename':
                                     col_num = i
                                     break
                         if isinstance(result_tables, dict) and result_tables.get('success'):
@@ -894,7 +895,7 @@ class SchemaExplorer:
                         col_num = 0
                         if 'columns' in result_views and result_views['columns']:
                             for i, col in enumerate(result_views['columns']):
-                                if col.lower() == 'name':
+                                if col.lower() == 'name' or col.lower() == 'tablename' or col.lower() == 'viewname':
                                     col_num = i
                                     break
                         if isinstance(result_views, dict) and result_views.get('success'):
@@ -931,9 +932,22 @@ class SchemaExplorer:
                 WHERE source_name = '{dataset['source_name']}'
                 AND database_name= '{db}' and schema_name = '{sch}';"""
 
+            # Query to find tables with unloaded catalog supplements
+            catalog_supplement_query = f"""
+            SELECT qualified_table_name, catalog_supplement, summary, ddl_short
+            FROM {self.db_connector.metadata_table_name}
+            WHERE source_name = '{dataset['source_name']}'
+            AND database_name = '{db}' 
+            AND schema_name = '{sch}'
+            AND catalog_supplement IS NOT NULL 
+            AND catalog_supplement != ''
+            AND (catalog_supplement_loaded IS NULL OR catalog_supplement_loaded = 'FALSE');
+            """
+
             try:
                 existing_tables_info = self.db_connector.run_query(check_query, max_rows=1000, max_rows_override=True)
                 existing_tables_info = [{k.upper(): v for k, v in table.items()} for table in existing_tables_info]
+                catalog_supplement_needed = self.db_connector.run_query(catalog_supplement_query, max_rows=1000, max_rows_override=True)
                 table_names_field = 'QUALIFIED_TABLE_NAME'
                 existing_tables_set = {info[table_names_field] for info in existing_tables_info}
                 
@@ -982,9 +996,12 @@ class SchemaExplorer:
                 needs_updating = [table['QUALIFIED_TABLE_NAME'] for table in existing_tables_info if table["NEEDS_FULL"]]
                 needs_embedding = [(table['QUALIFIED_TABLE_NAME'], table['TABLE_NAME']) for table in existing_tables_info if table["NEEDS_EMBEDDING"]]
                 
+                list_of_catalog_supplement_needed = []
+                if catalog_supplement_needed:
+                    list_of_catalog_supplement_needed = [row['QUALIFIED_TABLE_NAME'] for row in catalog_supplement_needed]
                 for obj in potential_objects:
                     qualified_name = f'"{db}"."{sch}"."{obj["table_name"]}"'
-                    if qualified_name in needs_updating:
+                    if qualified_name in needs_updating or qualified_name in list_of_catalog_supplement_needed:
                         current_ddl = self.alt_get_ddl(
                             table_name=qualified_name, 
                             dataset=dataset, 
@@ -992,14 +1009,29 @@ class SchemaExplorer:
                             object_type=obj['object_type']
                         )
                         current_ddl_hash = self.db_connector.sha256_hash_hex_string(current_ddl)
+                        # Get catalog supplement info if this table needs it
+                        catalog_supplement = None
+                        summary = None
+                        ddl_short = None
+                        if qualified_name in list_of_catalog_supplement_needed:
+                            for row in catalog_supplement_needed:
+                                if row['QUALIFIED_TABLE_NAME'] == qualified_name:
+                                    catalog_supplement = row['CATALOG_SUPPLEMENT']
+                                    summary = row['SUMMARY']
+                                    ddl_short = row['DDL_SHORT']
+                                    break
                         new_table = {
                             "qualified_table_name": qualified_name, 
                             "ddl_hash": current_ddl_hash, 
                             "ddl": current_ddl, 
                             "dataset": dataset, 
                             "matching_connection": matching_connection,
-                            "object_type": obj['object_type']
+                            "object_type": obj['object_type'],
+                            "catalog_supplement": catalog_supplement,
+                            "summary": summary,
+                            "ddl_short": ddl_short
                         }
+
                         non_indexed_tables.append(new_table)
 
                 for table_info in needs_embedding:
@@ -1060,10 +1092,19 @@ class SchemaExplorer:
                         # Proceed with generating the summary
                         columns = self.get_table_columns(dataset, table)
 
-                        prompt = self.generate_table_summary_prompt(database, schema, table, columns)
-                        summary = self.generate_summary(prompt)
+                        summary = row.get('summary', None)
+                        ddl_short = row.get('ddl_short', None)
+                        if not summary:
+                            prompt = self.generate_table_summary_prompt(database, schema, table, columns)
+                            summary = self.generate_summary(prompt)
                         ddl = row.get('ddl',None)
-                        ddl_short = self.get_ddl_short(ddl)
+                        if not ddl_short:
+                            ddl_short = self.get_ddl_short(ddl)
+
+                        catalog_supplement = row.get('catalog_supplement', None)
+                        if catalog_supplement:
+                            ddl_short += f"\nSupplemental information from the Data Catalog: {catalog_supplement}"
+                            summary += f"\nSupplemental information from the Data Catalog: {catalog_supplement}"
                         logger.info('Storing summary for new object')
                         self.store_table_memory(
                             database, 
@@ -1074,7 +1115,8 @@ class SchemaExplorer:
                             ddl_short=ddl_short, 
                             dataset=dataset, 
                             matching_connection=matching_connection,
-                            object_type=object_type  # Pass through the object type
+                            object_type=object_type ,
+                            catalog_supplement=catalog_supplement
                         )
                         
                         if qualified_table_name:

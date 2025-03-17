@@ -39,6 +39,7 @@ from   genesis_bots.demo.routes.slack \
 
 from genesis_bots.connectors.data_connector import DatabaseConnector
 from genesis_bots.core.tools.project_manager import project_manager
+from genesis_bots.core.tools.document_manager import document_manager
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -234,13 +235,31 @@ def get_metadata():
             project_id = metadata_type.split('list_todos ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_project_todos(
                 bot_id=None,  # Not needed for listing todos
-                project_id=project_id
+                project_id=project_id,
+                no_history=True
+
             ))}
-        elif metadata_type.startswith('list_todo_history '):
-            todo_id = metadata_type.split('list_todo_history ')[1].strip()
+        elif metadata_type.startswith('get_todo_details '):
+            todo_id = metadata_type.split('get_todo_details ')[1].strip()
+            
+            todo_details = project_manager.manage_todos(
+                action="GET_TODO_DETAILS",
+                bot_id=None,  # Not needed for getting todo details
+                todo_id=todo_id
+            )
+            
+            if todo_details and todo_details.get("success"):
+                result = {"Success": True, "Data": json.dumps(todo_details["todo"])}
+            else:
+                result = {"Success": False, "Error": todo_details.get("error", "Todo not found")}
+        elif metadata_type.startswith('get_todo_history '):
+            todo_id = metadata_type.split('get_todo_history ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_todo_history(
                 todo_id=todo_id
             ))}
+        elif metadata_type.startswith('get_thread '):
+            thread_id = metadata_type.split('get_thread ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(genesis_app.db_adapter.read_thread_messages(thread_id))}
         elif metadata_type.startswith('list_project_artifacts '):
             project_id = metadata_type.split('list_project_artifacts ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.manage_project_assets(
@@ -320,13 +339,55 @@ def get_metadata():
                 result = {"Success": True, "Metadata": m}
             except Exception as e:
                 result = {"Success": False, "Error": e}
-        else:
-            raise ValueError(
-                "Invalid metadata_type provided."
+        elif metadata_type.startswith('delete_todo '):
+            # Split on first 2 spaces to get PROJECT_ID and TODO_ID
+            parts = metadata_type.split(' ', 2)
+            if len(parts) < 3:
+                raise ValueError("delete_todo requires BOT_ID TODO_ID")
+            
+            _, bot_id, todo_id = parts
+            
+            # Call project manager to delete todo
+            result = project_manager.manage_todos(
+                action="DELETE",
+                bot_id=bot_id,
+                todo_id=todo_id
             )
+        elif metadata_type.startswith('index_manager '):
+            args = metadata_type.split(' ')[1:]
+            action = args[0]
+            if action == 'LIST_INDICES':
+                res = document_manager.list_of_indices()
+            elif action == 'LIST_DOCUMENTS_IN_INDEX':
+                index_name = args[1]
+                res = document_manager.list_of_documents(index_name)
+            elif action == 'ADD_DOCUMENT':
+                index_name = args[1]
+                document_path = args[2]
+                res = document_manager.add_document(index_name, document_path)       
+            elif action == 'DELETE_DOCUMENT':
+                index_name = args[1]
+                document_path = args[2]
+                res = document_manager.delete_document(index_name, document_path)                
+            elif action == 'SEARCH':
+                index_name = args[1]
+                query = ' '.join(args[2:])
+                res = document_manager.retrieve(query, index_name, top_n=1)
+            elif action == 'ASK':
+                query = ' '.join(args[1:])
+                res = document_manager.retrieve_all_indices(query, top_n=1)
+            elif action == 'DELETE_INDEX':
+                index_name = args[1]
+                res = document_manager.delete_index(index_name)
+            result = {"Success": True, "Data": json.dumps(res)}
+        else:
+            raise ValueError("Invalid metadata_type provided.")
 
-        if result["Success"]:
-            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+        if result.get("Success", False) == True or result.get("success", False) == True:
+            if "Data" in result:
+                output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+            else:
+                output_rows = [[input_rows[0][0], result]]
         else:
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 

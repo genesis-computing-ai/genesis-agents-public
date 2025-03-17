@@ -212,7 +212,7 @@ def execute_function(
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
 
-            if func_name == '_delegate_work':
+            if func_name == '_delegate_work' or func_name == 'run_program':
                 s_arguments["status_update_callback"] = status_update_callback
                 s_arguments["session_id"] = session_id
                 s_arguments["input_metadata"] = input_metadata

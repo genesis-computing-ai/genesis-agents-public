@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='projects.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='projects.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="left-column">
+            <div id='logo'>
+                <img src="http://localhost:8501/media/4d465ae1619cad8ef5279ea3b8d118de15d7edfd4a011bce87b32e3c.png" alt="Image">
+            </div>
+            <p id='new-chat-button'>⚡  New Chat</p>
+            <select id="dropdown">
+                {% for bot in bots %}
+                <option value="{{ bot['bot_id'] }}">{{ bot['bot_id'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="right-column">
+            <h3 id="back_to_chat" onclick="window.location.href='http://localhost:8501';" style="cursor: pointer;">← Back to Chat</h3>
+            <div id="selector">
+                <div class="select-wrapper">
+                    <div class='dropdown-label'>
+                    Select a bot:
+                    </div>
+                    <select id = 'select-bot'>
+                        {% for bot in bots %}
+                            <option value="{{ bot['bot_id'] }}">{{ bot['bot_id'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="select-wrapper">
+                    <div class='dropdown-label'>
+                    Filter by project:
+                    </div>
+                    <select id = 'select-project'>
+                        <option value="Select a bot first"></option>
+                    </select>
+                </div>
+            </div>
+
+        <div>
+            <div id='spinner' class='spinner'></div>
+            <div id='todo-table-wrapper'>
+                <h2>Todo List:</h2>
+                <table class="todo-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Todo Id</th>
+                            <th>Todo Name</th>
+                            <th>Todo Status</th>
+                            <th>What To Do</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+</html>

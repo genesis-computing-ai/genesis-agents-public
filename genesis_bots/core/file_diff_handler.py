@@ -48,12 +48,68 @@ class GitFileManager:
         except Exception as e:
             raise Exception(f"Failed to initialize git repository: {str(e)}")
 
-    def list_files(self, path: str = None) -> List[str]:
-        """List all tracked files in the repository or specific path"""
+    def list_files(self, path: str = None) -> Dict:
+        """List all tracked files in the repository or specific path
+        
+        For large directories (>50 files total):
+        - Lists only immediate files/directories in current path
+        - Shows count of files under each subdirectory
+        
+        For very large directories (>100 files in current path):
+        - Shows only first 100 files
+        - Includes total count of remaining files
+        """
+        # Get all tracked files
+        all_files = [str(item[0]) for item in self.repo.index.entries.keys()]
+        
+        # Filter by path if provided
         if path:
-            full_path = os.path.join(self.repo_path, path)
-            return [str(item[0]) for item in self.repo.index.entries.keys() if str(item[0]).startswith(path)]
-        return [str(item[0]) for item in self.repo.index.entries.keys()]
+            all_files = [f for f in all_files if f.startswith(path)]
+            base_path = path
+        else:
+            base_path = ""
+
+        # Get immediate files/dirs in current path
+        current_level_files = []
+        subdirs = {}
+        
+        for file in all_files:
+            rel_path = file[len(base_path):].lstrip('/')
+            parts = rel_path.split('/')
+            
+            if len(parts) == 1:  # File in current directory
+                current_level_files.append(file)
+            else:  # File in subdirectory
+                subdir = parts[0]
+                if subdir not in subdirs:
+                    subdirs[subdir] = 0
+                subdirs[subdir] += 1
+
+        # Prepare result
+        result = {
+            "success": True,
+            "total_files": len(all_files),
+            "base_path": base_path or "root",
+            "full_path": os.path.join(self.repo_path, base_path) if base_path else self.repo_path
+        }
+
+        # Handle large directories
+        if len(all_files) > 50:
+            result["files"] = current_level_files
+            result["subdirectories"] = {
+                dir_name: f"{count} files" for dir_name, count in subdirs.items()
+            }
+            result["note"] = f"Only showing immediate files/directories in {result['base_path']} due to large file count"
+        else:
+            result["files"] = all_files
+
+        # Handle very large current directories
+        if len(current_level_files) > 100:
+            remaining = len(current_level_files) - 100
+            result["files"] = current_level_files[:100]
+            result["note"] = f"Showing first 100 files in {result['base_path']}. {remaining} more files exist"
+
+        return result
 
     def read_file(self, file_path: str) -> str:
         """Read contents of a file from the repository"""
@@ -64,15 +120,27 @@ class GitFileManager:
         with open(full_path, 'r') as f:
             return f.read()
 
-    def write_file(self, file_path: str, content: str, commit_message: str = None) -> Dict:
+    def write_file(self, file_path: str, content: str, commit_message: str = None, **adtl_info) -> Dict:
         """Write content to a file and optionally commit changes"""
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(os.path.join(self.repo_path, file_path)), exist_ok=True)
 
-            # Write the file
-            with open(os.path.join(self.repo_path, file_path), 'w') as f:
-                f.write(content)
+            # Only decode base64 if explicitly told to do so
+            is_base64 = adtl_info.get('is_base64', False)
+            if is_base64:
+                try:
+                    import base64
+                    decoded_content = base64.b64decode(content)
+                    # Write binary content
+                    with open(os.path.join(self.repo_path, file_path), 'wb') as f:
+                        f.write(decoded_content)
+                except Exception as e:
+                    return {"success": False, "error": f"Failed to decode base64 content: {str(e)}"}
+            else:
+                # Write text content
+                with open(os.path.join(self.repo_path, file_path), 'w') as f:
+                    f.write(content)
 
             # Add to git
             self.repo.index.add([file_path])
@@ -261,6 +329,34 @@ class GitFileManager:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def remove_file(self, file_path: str, commit_message: str = None) -> Dict:
+        """Remove a file from the repository"""
+        try:
+            full_path = os.path.join(self.repo_path, file_path)
+            if not os.path.exists(full_path):
+                return {"success": False, "error": f"File not found: {file_path}"}
+
+            # Remove file from filesystem
+            os.remove(full_path)
+
+            # Remove from git
+            self.repo.index.remove([file_path])
+
+            # Prepare response
+            result = {
+                "success": True,
+                "message": f"File {file_path} removed successfully"
+            }
+
+            # Commit if message provided
+            if commit_message:
+                self.commit_changes(commit_message)
+                result["message"] += " and changes committed"
+
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def git_action(self, action: str, **kwargs) -> Dict:
         """
         Unified interface for all git operations.
@@ -277,6 +373,7 @@ class GitFileManager:
             - switch_branch: Switch to branch (requires: branch_name)
             - get_branch: Get current branch name
             - get_status: Get file status (optional: file_path)
+            - remove_file: Remove a file from the repository (requires: file_path; optional: commit_message)
         
         Returns:
             Dict containing operation result and any relevant data
@@ -286,11 +383,13 @@ class GitFileManager:
             action = action.lower()
 
 
-
             if action == "list_files":
                 path = kwargs.get("path")
+                if path and path.startswith('/'):
+                    path = path[1:]
+
                 files = self.list_files(path)
-                return {"success": True, "files": files}
+                return {"success": True, "files": files, "git_base_path_on_server_disk": self.repo_path}
 
             elif action == "read_file":
                 if "file_path" not in kwargs:
@@ -311,10 +410,23 @@ class GitFileManager:
                 # Check if file_path starts with / and return error if it does
                 if kwargs["file_path"].startswith('/'):
                     return {"success": False, "error": "Please provide a relative file path without leading /"}
+                
+                # Extract the standard parameters
+                file_path = kwargs["file_path"]
+                content = kwargs["content"]
+                commit_message = kwargs.get("commit_message")
+                
+                # Pass through any additional parameters that aren't standard
+                adtl_info = {k: v for k, v in kwargs.items() 
+                             if k not in ["file_path", "content", "commit_message", 
+                                         "file_content", "new_content"]}
+                
+                # Pass through any additional parameters
                 return self.write_file(
-                    kwargs["file_path"],
-                    kwargs["content"],
-                    kwargs.get("commit_message")
+                    file_path,
+                    content,
+                    commit_message,
+                    **adtl_info  # Pass any additional parameters
                 )
 
             elif action == "generate_diff":
@@ -368,6 +480,14 @@ class GitFileManager:
             elif action == "get_status":
                 status = self.get_file_status(kwargs.get("file_path"))
                 return status
+
+            elif action == "remove_file":
+                if "file_path" not in kwargs:
+                    return {"success": False, "error": "file_path is required"}
+                return self.remove_file(
+                    kwargs["file_path"],
+                    kwargs.get("commit_message")
+                )
 
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}

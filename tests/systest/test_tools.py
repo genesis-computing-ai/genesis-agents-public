@@ -39,6 +39,7 @@ from genesis_bots.core.tools.send_email import send_email
 from api_examples.cli_chat import get_available_bots
 from genesis_bots.core.tools.google_drive import google_drive
 from genesis_bots.core.tools.pdf_tools import pdf_parser
+from genesis_bots.core.tools.document_manager import _document_index
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -288,7 +289,7 @@ class TestTools(unittest.TestCase):
 
         response = git_action(action='list_files', thread_id=thread_id, bot_id=bot_id)
         self.assertTrue(response['success'])
-        self.assertTrue('test.txt' in response['files'])
+        self.assertTrue('test.txt' in response['files']['files'])
 
     def test_web_acces_tools(self):
         bot_id = self.eve_id
@@ -353,6 +354,27 @@ class TestTools(unittest.TestCase):
         response = pdf_parser(filepath)
         self.assertTrue(response['Success'], response)
 
+    def test_document_index(self):
+        bot_id = self.eve_id
+        response = _document_index(action='CREATE_INDEX', bot_id=bot_id, index_name='Test Index')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='LIST_INDICES')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='RENAME_INDEX',  index_name='Test Index', new_index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
+
+        with open('test_document.txt', 'w') as f:
+            f.write(''''
+            The transformer is a deep learning architecture that was developed by researchers at Google and is based on the multi-head attention mechanism, which was proposed in the 2017 paper "Attention Is All You Need".[1] Text is converted to numerical representations called tokens, and each token is converted into a vector via lookup from a word embedding table.[1] At each layer, each token is then contextualized within the scope of the context window with other (unmasked) tokens via a parallel multi-head attention mechanism, allowing the signal for key tokens to be amplified and less important tokens to be diminished.
+            ''')
+
+        response = _document_index(action='ADD_DOCUMENTS', filepath='test_document.txt', index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='LIST_DOCUMENTS_IN_INDEX', index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
 
     @classmethod
     def tearDownClass(cls):
@@ -364,6 +386,7 @@ class TestTools(unittest.TestCase):
                 query = f'DROP TABLE IF EXISTS {cls.db_adapter.schema}.{table} CASCADE;'
                 cls.db_adapter.run_query(query)
         cls.client.shutdown()
+        
 
 
     # Returns True if the string is in upper case.

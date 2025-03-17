@@ -173,6 +173,9 @@ class DocumentManager(object):
                 unique_docs[doc_path] = {
                     "path": doc_path,
                     "index": idx,
+                    "file_name": metadata.get('file_name'),
+                    "file_type": metadata.get('file_type'),
+                    "file_size": metadata.get('file_size'),
                     "is_subdir": False,
                     "content": content
                 }

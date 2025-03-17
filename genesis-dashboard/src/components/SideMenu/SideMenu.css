@@ -1,5 +1,5 @@
 .side-menu {
-  width: 260px;
+  width: 264px;
   height: 800px;
   background-color: #3f3f3f;
   border-right: 1px solid #404040;
@@ -27,12 +27,12 @@
 
 .tab-button {
   flex: 1;
-  padding: 12px;
+  padding: 10px 8px;
   background: none;
   border: none;
   color: #b3b3b3;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   transition: background-color 0.2s;
 }
 

@@ -83,11 +83,18 @@ const SideMenu: React.FC<SideMenuProps> = ({ onConfigPageChange, currentConfigPa
                         />
                     </div>
                 );
-            case "help":
+            case "dbs":
                 return (
                     <div className="tab-section">
-                        <h3>Help</h3>
-                        <div>Help Content</div>
+                        <h3>DBs</h3>
+                        <div>Database Content</div>
+                    </div>
+                );
+            case "support":
+                return (
+                    <div className="tab-section">
+                        <h3>Support</h3>
+                        <div>Support Content</div>
                     </div>
                 );
             default:
@@ -112,9 +119,14 @@ const SideMenu: React.FC<SideMenuProps> = ({ onConfigPageChange, currentConfigPa
             content: <TabContent tabId="config" />,
         },
         {
-            id: "help",
-            label: "Help",
-            content: <TabContent tabId="help" />,
+            id: "dbs",
+            label: "DBs",
+            content: <TabContent tabId="dbs" />,
+        },
+        {
+            id: "support",
+            label: "Support",
+            content: <TabContent tabId="support" />,
         },
     ];
 

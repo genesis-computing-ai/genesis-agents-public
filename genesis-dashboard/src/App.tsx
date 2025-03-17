@@ -1,17 +1,3 @@
-<<<<<<< Updated upstream
-import React from 'react';
-import './App.css';
-// import Projects from './components/Projects';
-import Settings from './components/Settings/Settings';
-
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-            <div className="App">
-              <Settings />
-            </div>
-=======
 import React, { useState, useEffect } from 'react';
 import './App.css';
 // import Projects from './components/Projects';
@@ -58,8 +44,8 @@ function App() {
       <header className="App-header">
         <div className='page-wrapper'>
           <div id='left-side-wrapper'>
-            <SideMenu 
-              onConfigPageChange={handleConfigPageChange} 
+            <SideMenu
+              onConfigPageChange={handleConfigPageChange}
               currentConfigPage={currentPage}
               onTabChange={handleTabChange}
               activeTab={activeTab}
@@ -69,7 +55,6 @@ function App() {
             <Config currentPage={currentPage} activeTab={activeTab} />
           </div>
         </div>
->>>>>>> Stashed changes
       </header>
     </div>
   );

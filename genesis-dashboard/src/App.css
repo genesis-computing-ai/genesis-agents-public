@@ -6,19 +6,13 @@ html, body {
 }
 
 .App {
-<<<<<<< Updated upstream
-  min-height: 100vh;
-=======
   height: 100vh;
   width: 100vw;
->>>>>>> Stashed changes
   background-color: #3f3f3f;
   text-align: center;
   color: #b3b3b3;
 }
 
-<<<<<<< Updated upstream
-=======
 .App-header {
   display: flex;
   flex-direction: column;
@@ -26,7 +20,6 @@ html, body {
   width: 100%;
 }
 
->>>>>>> Stashed changes
 .App-link {
   color: #61dafb;
 }
@@ -44,12 +37,6 @@ html, body {
 .container {
     display: flex;
 }
-<<<<<<< Updated upstream
-.left-column {
-    width: 25%;
-    padding: 10px;
-    background-color: white
-=======
 
 .page-wrapper {
   display: flex;
@@ -73,7 +60,6 @@ html, body {
     width: 25%;
     padding: 10px;
     background-color: #3f3f3f;
->>>>>>> Stashed changes
 }
 .right-column {
     width: 75%;
@@ -482,10 +468,6 @@ ul.settings-menu li.headline {
   cursor: default;
   overflow: hidden;
   padding-top: 20px;
-<<<<<<< Updated upstream
-  padding-left: 18px;
-=======
->>>>>>> Stashed changes
   padding-bottom: 20px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
@@ -611,8 +593,6 @@ ul.settings-menu li.menu-item.active a:before {
     min-height: 100vh;
     width: 100%;
     padding: 20px;
-<<<<<<< Updated upstream
-=======
 }
 
 /* Config Menu Styles */
@@ -747,5 +727,4 @@ h4 {
   font: Source Sans Pro, sans-serif;
   line-height: 1.6;
   text-align: left !important;
->>>>>>> Stashed changes
 }

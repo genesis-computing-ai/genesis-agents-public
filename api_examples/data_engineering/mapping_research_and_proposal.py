@@ -175,7 +175,7 @@ def put_git_file(client, local_file, git_file_path, file_name, bot_id):
 
 
 
-def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = False):
+def perform_pm_summary(client, requirement, paths, bot_id, skip_confidence = False):
     """Have PM bot analyze results and provide structured summary."""
     print("\033[34mGetting PM summary...\033[0m")
 
@@ -191,14 +191,12 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
 
     Then:
 
-    Based on your review above documents,  provide a JSON response with the following fields:
+    Based on your review above documents, provide a JSON response with the following fields:
     - UPSTREAM_DB_CONNECTION: The database connection ID where the source data resides (e.g. 'Snowflake', 'my_databricks', etc.)
     - UPSTREAM_TABLE: List of source table(s) needed for the data, with schema prefixes
     - UPSTREAM_COLUMN: List of source column(s) for the mapping
     - TRANSFORMATION_LOGIC: SQL snippet or natural language description of any needed transformations
     - CONFIDENCE_SCORE: Mapping proposers confidence in the mapping, HIGH or LOW.
-    - CONFIDENCE_SUMMARY: Description of the confidence expressed by the mapping proposer, why it scored it this way.
-    - PM_BOT_COMMENTS: Your brief statement about the team's work and what specific feedback would be helpful from human reviewers
 
     Format as valid JSON with these exact field names between !!JSON_START!! and !!JSON_END!! tags. Use git_action to retrieve the files if needed.
     This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
@@ -217,7 +215,7 @@ def perform_pm_summary(client, requirement, paths, bot_id,skip_confidence = Fals
     try:
         summary = json.loads(response)
         required_fields = ["UPSTREAM_DB_CONNECTION", "UPSTREAM_TABLE", "UPSTREAM_COLUMN", "TRANSFORMATION_LOGIC",
-                         "CONFIDENCE_SCORE", "CONFIDENCE_SUMMARY", "PM_BOT_COMMENTS"]
+                         "CONFIDENCE_SCORE"]
         for field in required_fields:
             if field not in summary:
                 raise Exception(f"Missing required field {field} in PM summary")
@@ -266,13 +264,10 @@ def save_pm_summary_to_requirements(physical_column_name, summary_fields, table_
                 mapping_proposal = %(mapping_proposal)s,
                 confidence_output = %(confidence_output)s,
                 confidence_score = %(confidence_score)s,
-                confidence_summary = %(confidence_summary)s,
-                PM_BOT_COMMENTS = %(pm_bot_comments)s,
                 transformation_logic = %(transformation_logic)s,
                 status = %(status)s,
-                which_mapping_correct = %(which_mapping_correct)s,
-                primary_issues = %(primary_issues)s,
-                secondary_issues = %(secondary_issues)s,
+                mapping_correct_flag = %(mapping_correct_flag)s,
+                mapping_issues = %(mapping_issues)s,
                 questions = %(questions)s,
                 proposal_made = %(proposal_made)s
             WHERE physical_column_name = %(physical_column_name)s
@@ -346,22 +341,22 @@ def update_single_gsheet_cell(client, g_file_id, cell_location, value, pm_bot_id
         raise e
 
 
-def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_location, pm_bot_id, source_research_content, mapping_proposal_content, which_mapping_correct, primary_issues, secondary_issues, questions, proposal_made, confidence_output):
+def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_location, pm_bot_id, source_research_content, mapping_proposal_content, confidence_output, mapping_correct_flag, mapping_issues, questions, proposal_made):
     """
-    Update Google Sheet with mapping information from PM summary.
-
+    Update a Google Sheet with mapping results.
+    
     Args:
-        client: Genesis API client
-        filtered_requirement: The requirement being processed
-        summary: PM summary containing mapping details
-        gsheet_location: URL/ID of Google Sheet to update
-        pm_bot_id: ID of PM bot to use
-        source_research_content: Content of source research
-        mapping_proposal_content: Content of mapping proposal
-        which_mapping_correct: Which mapping is correct
-        correct_answer: The correct answer
-        primary_issues: Primary issues identified
-        secondary_issues: Secondary issues identified
+        client: Genesis API client instance
+        filtered_requirement: Dictionary containing requirement details
+        summary: Dictionary containing mapping summary fields (UPSTREAM_DB_CONNECTION, UPSTREAM_TABLE, UPSTREAM_COLUMN, etc)
+        gsheet_location: Google Sheet URL or ID
+        pm_bot_id: Bot ID to use for the operation
+        source_research_content: Source research content
+        mapping_proposal_content: Mapping proposal content
+        confidence_output: Confidence analysis output
+        
+    Returns:
+        None
     """
     try:
 
@@ -422,21 +417,18 @@ def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_loc
 
         fields_to_update = [
             {'column': 'UPSTREAM_DB_CONNECTION', 'value': summary['UPSTREAM_DB_CONNECTION']},
-            {'column': 'UPSTREAM_TABLE', 'value': summary['UPSTREAM_TABLE']},
+            {'column': 'UPSTREAM_TABLE', 'value': summary['UPSTREAM_TABLE']}, 
             {'column': 'UPSTREAM_COLUMN', 'value': summary['UPSTREAM_COLUMN']},
-            {'column': 'TRANSFORMATION_LOGIC', 'value': summary['TRANSFORMATION_LOGIC']},
-            {'column': 'CONFIDENCE_SCORE', 'value': summary['CONFIDENCE_SCORE']},
-            {'column': 'CONFIDENCE_SUMMARY', 'value': summary['CONFIDENCE_SUMMARY']},
-            {'column': 'PM_BOT_COMMENTS', 'value': summary['PM_BOT_COMMENTS']},
             {'column': 'SOURCE_RESEARCH', 'value': source_research_content},
             {'column': 'MAPPING_PROPOSAL', 'value': mapping_proposal_content},
-            {'column': 'WHICH_MAPPING_CORRECT', 'value': which_mapping_correct},
-            {'column': 'PRIMARY_ISSUES', 'value': primary_issues},
-            {'column': 'SECONDARY_ISSUES', 'value': secondary_issues},
-            {'column': 'STATUS', 'value': 'READY_FOR_REVIEW'},
+            {'column': 'CONFIDENCE_OUTPUT', 'value': confidence_output},
+            {'column': 'CONFIDENCE_SCORE', 'value': summary['CONFIDENCE_SCORE']},
+            {'column': 'TRANSFORMATION_LOGIC', 'value': summary['TRANSFORMATION_LOGIC']},
+            {'column': 'STATUS', 'value': 'READY_FOR_REVIEW' if proposal_made else 'QUESTIONS_POSED'},
+            {'column': 'MAPPING_CORRECT_FLAG', 'value': mapping_correct_flag},
+            {'column': 'MAPPING_ISSUES', 'value': mapping_issues},
             {'column': 'QUESTIONS', 'value': questions},
-            {'column': 'PROPOSAL_MADE', 'value': proposal_made},
-            {'column': 'CONFIDENCE_OUTPUT', 'value': confidence_output}
+            {'column': 'PROPOSAL_MADE', 'value': proposal_made}
         ]
 
         # Loop through fields and update each one
@@ -461,28 +453,12 @@ def update_gsheet_with_mapping(client, filtered_requirement, summary, gsheet_loc
 def evaluate_results(client, filtered_requirement=None, pm_bot_id=None, mapping_proposal_content=None, correct_answer_for_eval=None, deng_project_config=None):
     """
     Evaluate the mapping results against known correct answers.
-
-    Args:
-        client: Genesis API client
-        filtered_requirement: The requirement being processed
-        paths: Dictionary of file paths
-        pm_bot_id: ID of the PM bot to use
-        source_research_content: Content of source research report
-        mapping_proposal_content: Content of mapping proposal
-        confidence_output_content: Content of confidence analysis
-        summary: PM summary of the mapping
-
-    Returns:
-        Dictionary containing evaluation results
     """
     try:
-        # Get the correct answers file
         correct_answer = correct_answer_for_eval
-
         hint = deng_project_config.get('evaluation_hint', '') if deng_project_config else ''
 
-        # Now prepare full evaluation message
-        message = f"""{message_prefix}
+        message = f'''{message_prefix}
 Here is the requirement I want you to evaluate:
 {filtered_requirement}
 
@@ -495,11 +471,10 @@ Here is the correct answer to compare against:
 Please evaluate the mapping proposal results against the correct answer for this field.
 
 Compare the following aspects:
-1. Is the Primary mapping correct?
-2. Are the Primary option identified source tables/columns correct?
-3. Is the Primary option transformation logic correct?
+1. Is the mapping correct?
+2. Are the identified source tables/columns correct?
+3. Is the transformation logic correct?
 
-If the Primary option is not fully correct, check the Secondary option, if one is provided, and perform the same analysis on that option.
 Note that the correct answer may contain extra commentary, and references to specific CTEs.  It is not required that the mapping proposal
 incorporate these elements exactly, but that it gets the correct source table(s) and transformation logic.
 
@@ -511,14 +486,12 @@ Format your response as a JSON with these fields as follows:
 
 ```json
 {{
-    "WHICH_MAPPING_CORRECT": "primary, secondary, or neither",
+    "MAPPING_CORRECT_FLAG": "TRUE or FALSE or ERROR",
     "CORRECT_ANSWER": "what is the correct answer text",
-    "PRIMARY_ISSUES": "'NONE' if primary is correct, or detailed text with the problems with primary if not correct",
-    "SECONDARY_ISSUES": "'NONE' if secondary is correct, detailed text with the problems with secondary if not correct",
+    "MAPPING_ISSUES": "NONE if mapping is correct, or detailed text explaining the issues if not correct",
 }}
 ```
-This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for futher permission to proceed.
-"""
+This is being run by an automated process so do not repeat these instructions back to me, and do not stop to ask for further permission to proceed.'''
 
         # Send to PM bot for evaluation
         message_str = message
@@ -527,10 +500,11 @@ This is being run by an automated process so do not repeat these instructions ba
 
         json_str = evaluation.split("```json\n")[-1].split("\n```")[0].strip()
         response = json_str
+        
         # Basic validation that we got JSON back
         try:
             summary = json.loads(response)
-            required_fields = ["WHICH_MAPPING_CORRECT", "CORRECT_ANSWER", "PRIMARY_ISSUES", "SECONDARY_ISSUES"]
+            required_fields = ["MAPPING_CORRECT_FLAG", "CORRECT_ANSWER", "MAPPING_ISSUES"]
             for field in required_fields:
                 if field not in summary:
                     raise Exception(f"Missing required field {field} in PM summary")
@@ -541,11 +515,10 @@ This is being run by an automated process so do not repeat these instructions ba
         print("\033[96m" + "-"*80 + "\033[0m")  # Cyan separator
         print(json.dumps(summary, indent=4, sort_keys=True, ensure_ascii=False))
         print("\033[96m" + "-"*80 + "\033[0m")  # Cyan separator
-        if summary["WHICH_MAPPING_CORRECT"] != "neither":
+        if summary["MAPPING_CORRECT_FLAG"].lower() == "true":
             print("\033[92m" + "🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉" + "\033[0m")
         else:
             print("\033[91m" + "🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑" + "\033[0m")
-
 
         return evaluation, summary, thread
 
@@ -836,23 +809,30 @@ def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=Non
         # Step 16: Evaluate mapping confidence
         confidence_prompt = f'''{message_prefix} Based on the source research report above, please evaluate if we have enough information to define an exact source and transform for this field with 100% confidence.
 
-        Remember, the requirement states: {requirement['PHYSICAL_COLUMN_NAME']} is defined as: {requirement['COLUMN_DESCRIPTION']}
+        And remember the full requirement is: 
+        {requirement}
 
-        Return TRUE only if:
+        Remember, the column we are mapping's requirement states: {requirement['PHYSICAL_COLUMN_NAME']} is defined as: {requirement['COLUMN_DESCRIPTION']}
+        
+        And remember the hint we gave at the start of this work, which is still applicable now and for the following steps: 
+        {hint}
+
+        Now, I want you to return TRUE only if:
         1. You have clear requirements and evidence from schema research and/or past projects on how to proceed
         2. You are 100% confident in how to map this field
+        3. The mapping is relatively simple and would not benefit from human review or a few questions to a human before you make it
         3. You have either:
            - An extremely clearly stated requirement that you know exactly how to fullfil based available data identified in source research
-           - An exactly matching example from a directly related past project, or
-           - A specific document mention of how to perform this mapping for this data
+           - or, an exactly matching example from a directly related past project, or
+           - or, A specific document mention of how to perform this mapping for this data
         4. Note: If your requirement is clear and simple, and you have a clear path forward based on the data identified in source research, then you can return TRUE even if you don't have an exact match from a past project or document, or if past projects conflict or express greater complexity on how to map this field.
 
         Return FALSE if one or more of the following are true:
-        - You are not 100% confident in how to map this field to fulfil the requirements
-        - There is not enough detail in the requirements
-        - There is no exactly matching example from a related project
-        - There is no specific document guidance for this mapping
-        - There may be multiple ways to map this field based on the evidence, and you'd like some questions answered before proposing a mapping
+        - You are not 100% confident in how to map this field to fulfill the requirement
+        - There is not enough detail in the requirement
+        - There is no supporting evidence of the mapping approach from a related project or document
+        - The mapping and/or joins is complex (derived fields, lots of math, lots of case statements, or similar) and would benefit from human review or a few questions to a human before you make it
+        - There may be multiple ways to map this field based on the evidence and the stated requirement isn't specific which way is correct
 
         Respond with only TRUE or FALSE.'''
 
@@ -870,7 +850,7 @@ def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=Non
             explanation = call_genesis_bot(client, bot_id, explain_prompt, thread=thread)
 
             # Get clarifying questions
-            questions_prompt = f'''{message_prefix} What are up to 5 questions you would want to ask a business stakeholder to help clarify the areas of uncertainty? Restate the name of the field in your questions.'''
+            questions_prompt = f'''{message_prefix} What are a few questions you would want to ask a business stakeholder to help clarify the areas of uncertainty? Restate the name of the field in your questions.'''
             
             questions = call_genesis_bot(client, bot_id, questions_prompt, thread=thread)
 
@@ -939,6 +919,8 @@ MAPPING PROPOSAL:
 
 
 def perform_mapping_proposal_new(client, requirement, paths, bot_id, pm_bot_id=None, project_id=None, deng_project_config=None):
+
+
     f"""{message_prefix}Execute mapping proposal step and validate results."""
     print("\033[34mExecuting mapping proposal...\033[0m")
 
@@ -1584,23 +1566,22 @@ def initialize_system(
         LENGTH VARCHAR(16777216),
         DECIMAL VARCHAR(16777216),
         LIST_OF_VALUES VARCHAR(16777216),
+        CORRECT_ANSWER_FOR_EVAL VARCHAR(16777216),
+        SOURCE_RESEARCH VARCHAR(16777216),
+        CONFIDENCE_SCORE VARCHAR(16777216),
+        CONFIDENCE_OUTPUT VARCHAR(16777216),
+        PROPOSAL_MADE VARCHAR(16777216),
+        QUESTIONS VARCHAR(16777216),
+        MAPPING_PROPOSAL VARCHAR(16777216),
         UPSTREAM_DB_CONNECTION VARCHAR(16777216),
         UPSTREAM_TABLE VARCHAR(16777216),
         UPSTREAM_COLUMN VARCHAR(16777216),
-        SOURCE_RESEARCH VARCHAR(16777216),
-        MAPPING_PROPOSAL VARCHAR(16777216),
-        CONFIDENCE_OUTPUT VARCHAR(16777216),
-        CONFIDENCE_SCORE VARCHAR(16777216),
-        CONFIDENCE_SUMMARY VARCHAR(16777216),
-        PM_BOT_COMMENTS VARCHAR(16777216),
         TRANSFORMATION_LOGIC VARCHAR(16777216),
         STATUS VARCHAR(16777216),
-        WHICH_MAPPING_CORRECT VARCHAR(10),
-        PRIMARY_ISSUES VARCHAR(16777216),
-        SECONDARY_ISSUES VARCHAR(16777216),
-        CORRECT_ANSWER_FOR_EVAL VARCHAR(16777216),
-        PROPOSAL_MADE VARCHAR(16777216),
-        QUESTIONS VARCHAR(16777216)
+        MAPPING_CORRECT_FLAG VARCHAR(10),
+        MAPPING_ISSUES VARCHAR(16777216),
+        CORRECT_TO_DECLINE_FLAG VARCHAR(10),
+        OVERALL_CORRECT_FLAG VARCHAR(10)
         );   """
     run_snowflake_query(client, create_query, bot_id)
     
@@ -1887,17 +1868,14 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
 
         if source_research_results.get('success'):
             source_research = source_research_results['contents']['source_research']
-            source_research_path = source_research_results['git_file_paths']['source_research']
-            source_research_thread = source_research_results['thread']
+           # source_research_path = source_research_results['git_file_paths']['source_research']
+           # source_research_thread = source_research_results['thread']
 
             # These steps are now handled in perform_source_research_v2
             mapping_proposal = source_research_results['contents']['mapping_proposal']
-            mapping_proposal_path = source_research_results['git_file_paths']['mapping_proposal']
-            mapping_proposal_thread = source_research_results['thread']
+         #   mapping_proposal_path = source_research_results['git_file_paths']['mapping_proposal']
+         #   mapping_proposal_thread = source_research_results['thread']
             confidence_report = source_research_results['contents']['confidence_report']
-
-            summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
-            summary = summary_results['summary']
 
             proposal_made = source_research_results['contents']['proposal_made']
             questions = source_research_results['contents']['questions']
@@ -1905,6 +1883,20 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
             # Get the full content of each file from git
             source_research_content = source_research
             mapping_proposal_content = mapping_proposal        
+
+            # Only perform PM summary if a mapping was proposed
+            if proposal_made:
+                summary_results = perform_pm_summary(client, filtered_requirement, paths, pm_bot_id, skip_confidence)
+                summary = summary_results['summary']
+            else:
+                # Set all summary fields to None if no mapping was proposed
+                summary = {
+                    'UPSTREAM_DB_CONNECTION': None,
+                    'UPSTREAM_TABLE': None,
+                    'UPSTREAM_COLUMN': None,
+                    'TRANSFORMATION_LOGIC': None,
+                    'CONFIDENCE_SCORE': None
+                }
 
             # Evaluate results
             if requirement['CORRECT_ANSWER_FOR_EVAL'] and proposal_made:
@@ -1924,13 +1916,10 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
                 'mapping_proposal': mapping_proposal_content,
                 'confidence_output': confidence_report,
                 'confidence_score': summary['CONFIDENCE_SCORE'],
-                'confidence_summary': summary['CONFIDENCE_SUMMARY'],
-                'pm_bot_comments': summary['PM_BOT_COMMENTS'],
                 'transformation_logic': summary['TRANSFORMATION_LOGIC'],
-                'which_mapping_correct': eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
-                'primary_issues': eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
-                'secondary_issues': eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
-                'status': 'READY_FOR_REVIEW',
+                'mapping_correct_flag': eval_json['MAPPING_CORRECT_FLAG'] if eval_json and eval_json['MAPPING_CORRECT_FLAG'] is not None else '',
+                'mapping_issues': eval_json['MAPPING_ISSUES'] if eval_json and eval_json['MAPPING_ISSUES'] is not None else '',
+                'status': 'READY_FOR_REVIEW' if proposal_made else 'QUESTIONS_POSED',
                 'questions': questions,
                 'proposal_made': proposal_made
             }
@@ -1942,7 +1931,7 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
                 requirements_table_name
             )
             print("\033[32mSuccessfully saved results to database for requirement:", requirement['PHYSICAL_COLUMN_NAME'], "\033[0m")
-            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id)     
+            record_work(client=client, todo_id=todo['todo_id'], description=f"Completed database update for column: {requirement['PHYSICAL_COLUMN_NAME']}", bot_id=pm_bot_id, results=None, thread_id=None)     
 
             # if correct, ready for review, otherwise needs help
             # Update todo status to complete
@@ -1962,12 +1951,11 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
                     pm_bot_id=pm_bot_id,
                     source_research_content=source_research_content,
                     mapping_proposal_content=mapping_proposal_content,
-                    which_mapping_correct=eval_json['WHICH_MAPPING_CORRECT'] if eval_json and eval_json['WHICH_MAPPING_CORRECT'] is not None else '',
-                    primary_issues=eval_json['PRIMARY_ISSUES'] if eval_json and eval_json['PRIMARY_ISSUES'] is not None else '',
-                    secondary_issues=eval_json['SECONDARY_ISSUES'] if eval_json and eval_json['SECONDARY_ISSUES'] is not None else '',
+                    mapping_correct_flag=eval_json['MAPPING_CORRECT_FLAG'] if eval_json and eval_json['MAPPING_CORRECT_FLAG'] is not None else '',
+                    mapping_issues=eval_json['MAPPING_ISSUES'] if eval_json and eval_json['MAPPING_ISSUES'] is not None else '',
+                    confidence_output=confidence_report,
                     questions=questions,
-                    proposal_made=proposal_made,
-                    confidence_output=confidence_report
+                    proposal_made=proposal_made
                 )
                 print(f"\033[32mSuccessfully updated Google Sheet for requirement: {requirement['PHYSICAL_COLUMN_NAME']}\033[0m")
                 record_work(
@@ -2013,12 +2001,9 @@ def process_todo_item(todo, client, requirements, pm_bot_id, run_number, project
             'mapping_proposal': None,
             'confidence_output': None,
             'confidence_score': 0,
-            'confidence_summary': None,
-            'pm_bot_comments': f'Error: {str(e)}',
             'transformation_logic': None,
-            'which_mapping_correct': 'error',
-            'primary_issues': f'Error: {str(e)}',
-            'secondary_issues': None,
+            'mapping_correct_flag': 'error',
+            'mapping_issues': f'Error: {str(e)}',
             'status': 'ERROR'
         }
 

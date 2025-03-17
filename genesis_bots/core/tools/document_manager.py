@@ -436,7 +436,7 @@ class DocumentManager(object):
             )
             response = query_engine.query(query)
 
-            return response
+            return str(response)
 
         except Exception as e:
             print(f"Error querying across indices: {e}")

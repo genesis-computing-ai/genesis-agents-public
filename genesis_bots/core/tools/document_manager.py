@@ -173,6 +173,9 @@ class DocumentManager(object):
                 unique_docs[doc_path] = {
                     "path": doc_path,
                     "index": idx,
+                    "file_name": metadata.get('file_name'),
+                    "file_type": metadata.get('file_type'),
+                    "file_size": metadata.get('file_size'),
                     "is_subdir": False,
                     "content": content
                 }
@@ -436,7 +439,7 @@ class DocumentManager(object):
             )
             response = query_engine.query(query)
 
-            return response
+            return str(response)
 
         except Exception as e:
             print(f"Error querying across indices: {e}")

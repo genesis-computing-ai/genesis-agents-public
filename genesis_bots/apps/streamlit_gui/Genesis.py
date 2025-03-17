@@ -380,6 +380,7 @@ if st.session_state.data:
     if st.session_state.NativeMode: pages.add_page('show_server_logs', 'Server Logs', 'show_server_logs', 'show_server_logs')
     pages.add_page('support', 'Support and Community', 'support', 'support')
     pages.add_page('db_connections', 'Database Connections', 'db_connections', 'db_connections')
+    pages.add_page('bot_docs', 'Bot Documents', 'bot_docs', 'bot_docs')
     pages.add_page('bot_projects', 'Bot Projects', 'bot_projects', 'bot_projects')
     # pages.add_page('bot_config','Projects Dashboard','bot_config','bot_config')
 
@@ -806,7 +807,7 @@ if st.session_state.data:
 
         # Always show configuration and support buttons
         st.markdown("---")  # Add a visual separator
-        desired_sidebar = ["configuration", "db_connections", "bot_projects", "support", "projects_dashboard"]
+        desired_sidebar = ["configuration", "db_connections", "bot_projects", "bot_docs", "support", "projects_dashboard"]
         for key in desired_sidebar:
             if key in pages.all:
                 page = pages.all[key]

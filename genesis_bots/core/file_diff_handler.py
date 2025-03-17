@@ -329,6 +329,34 @@ class GitFileManager:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def remove_file(self, file_path: str, commit_message: str = None) -> Dict:
+        """Remove a file from the repository"""
+        try:
+            full_path = os.path.join(self.repo_path, file_path)
+            if not os.path.exists(full_path):
+                return {"success": False, "error": f"File not found: {file_path}"}
+
+            # Remove file from filesystem
+            os.remove(full_path)
+
+            # Remove from git
+            self.repo.index.remove([file_path])
+
+            # Prepare response
+            result = {
+                "success": True,
+                "message": f"File {file_path} removed successfully"
+            }
+
+            # Commit if message provided
+            if commit_message:
+                self.commit_changes(commit_message)
+                result["message"] += " and changes committed"
+
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def git_action(self, action: str, **kwargs) -> Dict:
         """
         Unified interface for all git operations.
@@ -345,6 +373,7 @@ class GitFileManager:
             - switch_branch: Switch to branch (requires: branch_name)
             - get_branch: Get current branch name
             - get_status: Get file status (optional: file_path)
+            - remove_file: Remove a file from the repository (requires: file_path; optional: commit_message)
         
         Returns:
             Dict containing operation result and any relevant data
@@ -451,6 +480,14 @@ class GitFileManager:
             elif action == "get_status":
                 status = self.get_file_status(kwargs.get("file_path"))
                 return status
+
+            elif action == "remove_file":
+                if "file_path" not in kwargs:
+                    return {"success": False, "error": "file_path is required"}
+                return self.remove_file(
+                    kwargs["file_path"],
+                    kwargs.get("commit_message")
+                )
 
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}

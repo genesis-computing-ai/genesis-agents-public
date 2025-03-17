@@ -38,6 +38,7 @@ chroma db
 filter result fields too verbose
 paths returned in search results should be relative to BOT_GIT: so bots can find them later and read them
 make bot_git limit the number of results returned and allow for filtering
+add a simpler way to see if a named file is in the index 
 
 GXS set up todos for requirments, have local listener look for fields that need mapping work, and then run them
 Have local listener look for Todos in a specified project, and then process them...

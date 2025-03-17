@@ -1034,6 +1034,7 @@ class DatabaseConnector:
         from genesis_bots.core.bot_os_memory import BotOsKnowledgeAnnoy_Metadata
         from genesis_bots.core.bot_os import BotOsSession  # Add this import
 
+        
 
         # logger.info(f"Search metadata called with query: {query}, scope: {scope}, top_n: {top_n}, verbosity: {verbosity}")
         try:
@@ -1534,7 +1535,7 @@ def _search_metadata(
     search_string="String to search for in metadata",
     database="Database name (not valid for Sqlite)",
     schema="Schema name (not valid for Sqlite)",
-    table="Table name",
+    table="Exact Table name to locate",
     top_n="Number of rows to return",
     #knowledge_base_path="Path to the knowledge vector base",
     connection_id="ID of the database connection to query (optional, if not specified, all connections will be searched)",

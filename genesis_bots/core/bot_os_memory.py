@@ -339,6 +339,15 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             schema, table = table.split('.', 1)
             logger.debug(f"Split table reference into schema: {schema}, table: {table}")
 
+        # Check for invalid characters in table name
+        if table and ((',' in table) or (' ' in table)):
+            return {
+                "success": False,
+                "error": "Invalid table name parameter",
+                "message": "The table parameter can only be an exact table name without spaces or commas. If you are looking for a table but don't know the exact name, omit the table parameter and use the search query instead."
+            }
+
+
         try:
             if scope != "database_metadata":
                 return {"error": f"Invalid scope '{scope}'. Only 'database_metadata' scope is currently supported."}

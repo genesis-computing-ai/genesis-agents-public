@@ -727,49 +727,61 @@ def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=Non
         response = call_genesis_bot(client, bot_id, initial_prompt, thread=thread)
 
         # Step 2: Get search term proposals
-        search_prompt = f'''{message_prefix} Based on these requirements, propose 3 or more relevant search terms that could be useful to use to search the existing system table metadata to find relevant source data for the mapping that needs to be created.
-        Format your response as a numbered list.'''
+       # search_prompt = f'''{message_prefix} Based on these requirements, propose 3 or more relevant search terms that could be useful to use to search the existing system table metadata to find relevant source data for the mapping that needs to be created.
+       # Format your response as a numbered list.'''
+
+        # Step 2: Perform first data explorer search
+        search_prompt = f'''{message_prefix} You can now use the data_explorer tool to search the existing system table metadata to find relevant source data for the mapping that needs to be created. 
+          Perform your first search now, and provide a brief explanation of what you found and what parts of it seem relevant.'''
         
         response = call_genesis_bot(client, bot_id, search_prompt, thread=thread)
 
-        # Steps 3-5: Run data explorer searches one at a time
+        # Step 3: Run more data explorer searches 
         for i in range(3):
             if i == 0:
-                explorer_prompt = f'''{message_prefix} As you perform the rest of your work, you may find these hints to be of use: {hint}\n\nNow, please use data_explorer to search using search term #{i+1} from your list above. 
-                Provide a brief explanation of what you found and whether it seems relevant.'''
+                explorer_prompt = f'''{message_prefix} As you perform the rest of your work, you may find these hints to be of use: {hint}\n\n'''
             else:
-                explorer_prompt = f'''{message_prefix} Now, please use data_explorer to search using search term #{i+1} from your list above. 
-                Provide a brief explanation of what you found and whether it seems relevant.'''
+                explorer_prompt = f'''{message_prefix}'''
+                
+            explorer_prompt += f'''Now, either perform a new search with data_explorer or follow up on the previous search with a new search, or return simple FALSE if your exploration seems sufficient for now.'''
+            explorer_prompt += f'''If you do perform another search, provide a brief explanation of what additional information you found this time, and whether it seems relevant.'''
             
             response = call_genesis_bot(client, bot_id, explorer_prompt, thread=thread)
 
-        # Step 6: Get document search terms
-        doc_search_prompt = f'''{message_prefix} Please propose three search terms to use with document_index() to find relevant sections of documents about sourcing or mapping this column.
-        Format your response as a numbered list, but do not execute the searches yet.'''
+            if 'FALSE' in response[-20:]:
+                break
+
+        # Step 4: Perform first document search
+        search_prompt = f'''{message_prefix} You can now use the document_index tool to search a document repository to find information that may be helpful for your mapping research.
+
+        You may find both business documents and technical documents including code from past projects in the document repository.
+
+        There are two ways to search the document repository:
+        a) document_index(action='SEARCH', query='<search query>'), which returns search results.  Use a top_n of 10 or so.
+        b) document_index(action='ASK', query='<question>'), which returns a specific answer to a question, if available, and references to supporting documents.
+
+        Write and perform your first search now, using either of these two approaches, and provide a brief explanation of what you found and what parts of it seem relevant.'''
         
-        response = call_genesis_bot(client, bot_id, doc_search_prompt, thread=thread)
+        response = call_genesis_bot(client, bot_id, search_prompt, thread=thread)
 
-        # Steps 7-9: Run document searches one at a time
+        # Step 5: Perform more document searches
         for i in range(3):
-            doc_search_exec_prompt = f'''{message_prefix} Please execute document_index(action='SEARCH') using search term #{i+1} from your list above.
-            Use top_n of at least 10 and explain what relevant information you found.'''
-            
-            response = call_genesis_bot(client, bot_id, doc_search_exec_prompt, thread=thread)
-
-        # Step 10: Get questions for document index
-        questions_prompt = f'''{message_prefix} Please write up 3 specific questions to ask using document_index(action='ASK') that would help us understand this field, where it comes from, and any other relevant details.
-        Format your response as a numbered list, but do not execute the questions yet.'''
+            search_prompt = f'''{message_prefix} You can now perform another search or ask another question of the document repository, if you like.  Perform another search using either of the two approaches, 
+            and provide a brief explanation of what new information you found and what parts of it seem relevant.  Or if you are satisfied with your results, return simply FALSE.'''
         
-        response = call_genesis_bot(client, bot_id, questions_prompt, thread=thread)
+            response = call_genesis_bot(client, bot_id, search_prompt, thread=thread)
 
-        # Steps 11-13: Run document questions one at a time
-        for i in range(3):
-            question_exec_prompt = f'''{message_prefix} Please execute document_index(action='ASK') using question #{i+1} from your list above.
-            Explain what relevant information you learned from the response.'''
-            
-            response = call_genesis_bot(client, bot_id, question_exec_prompt, thread=thread)
+            if 'FALSE' in response[-20:]:
+                break
 
-        # Step 14: Write final report
+ 
+        # Step 6: Perform first data explorer search
+        search_prompt = f'''{message_prefix} We are almost ready to write up our report. If you would like to perform another data_explorer or document_index search to help clarify any areas of uncertainty, please do so now.'''
+
+        response = call_genesis_bot(client, bot_id, search_prompt, thread=thread)
+
+
+        # Step 7: Write final report
         report_prompt = f'''{message_prefix} Based on all the searches and research above, please write up a full and detailed report that the next bot can use to propose a mapping and transform.
 
         Include:
@@ -781,7 +793,7 @@ def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=Non
         
         response = call_genesis_bot(client, bot_id, report_prompt, thread=thread)
 
-        # Step 15: Verify git save and retry if needed
+        # Step 8: Verify git save and retry if needed
         try:
             contents = check_git_file(client, paths=paths, file_name=paths["source_research_file"], bot_id=eve_bot_id)
         except Exception as e:
@@ -806,7 +818,7 @@ def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=Non
                            f"{paths['base_git_path']}{paths['source_research_file']}",
                            contents)
 
-        # Step 16: Evaluate mapping confidence
+        # Step 9: Evaluate mapping confidence
         confidence_prompt = f'''{message_prefix} Based on the source research report above, please evaluate if we have enough information to define an exact source and transform for this field with 100% confidence.
 
         And remember the full requirement is: 
@@ -850,7 +862,7 @@ def perform_source_research_v2(client, requirement, paths, bot_id, pm_bot_id=Non
             explanation = call_genesis_bot(client, bot_id, explain_prompt, thread=thread)
 
             # Get clarifying questions
-            questions_prompt = f'''{message_prefix} What are a few questions you would want to ask a business stakeholder to help clarify the areas of uncertainty? Restate the name of the field in your questions.'''
+            questions_prompt = f'''{message_prefix} What question or questions would you want to ask either a Business SME or a Data Engineer to help clarify the areas of uncertainty? Restate the name of the field in your questions, and mark the questions with which of these two types of people you would ask.  Ideally the asnwers to these questions will be sufficient to allow you on a future run to propose a mapping with high confidence.'''
             
             questions = call_genesis_bot(client, bot_id, questions_prompt, thread=thread)
 
@@ -1534,7 +1546,7 @@ def initialize_system(
     
     index_id = initialize_document_index(client, pm_bot_id, project_id)
 
-    push_knowledge_files_to_git_and_index(client, eve_bot_id, past_projects_dir, past_projects_git_path, index_id)
+    push_knowledge_files_to_git_and_index(client, pm_bot_id, past_projects_dir, past_projects_git_path, index_id)
 
 
     #index_input_files(client, pm_bot_id, project_id, input_files_dir)
@@ -1775,8 +1787,8 @@ def main():
         # If a specific todo_id is provided, filter the todos to only include this one
     
         load_bots = False
-        reset_project = False
-        index_files = True
+        reset_project = True
+        index_files = False
         if load_bots:
             # make the runner_id overrideable
             load_bots_from_yaml(client=client, bot_team_path=bot_team_path) # , onlybot=source_research_bot_id)  # takes bot definitions from yaml files at the specified path and injects/updates those bots into the running local server
@@ -2024,6 +2036,7 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
     """
     Initialize multiple document indices based on configuration and populate them with files.
     Preserves subdirectory structure when saving to git and indexing.
+    Checks if files already exist before re-indexing.
     
     Args:
         client: Genesis API client instance
@@ -2039,7 +2052,6 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
         return {}
 
     indices = {}
-    
     for index_config in project_config['document_indices']:
         index_name = index_config['index_name']
         path_to_files = index_config['path_to_files']
@@ -2060,28 +2072,9 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
             )
             
             if 'Error' in result and result['Error'] == 'Index with the same name already exists':
-                print(f"Document index {full_index_name} already exists, removing")
-                client.run_genesis_tool(
-                    tool_name="document_index",
-                    params={
-                        "action": "DELETE_INDEX",
-                        "index_name": full_index_name,
-                        "bot_id": bot_id
-                    },
-                    bot_id=bot_id
-                )
-                # Recreate the index
-                client.run_genesis_tool(
-                    tool_name="document_index",
-                    params={
-                        "action": "CREATE_INDEX",
-                        "index_name": full_index_name,
-                        "bot_id": bot_id
-                    },
-                    bot_id=bot_id
-                )
-            
-            print(f"Created document index: {full_index_name}")
+                print(f"Document index {full_index_name} already exists, using existing index")
+            else:
+                print(f"Created new document index: {full_index_name}")
             
             # Walk through directory and add files
             i = 0
@@ -2107,32 +2100,52 @@ def initialize_document_indices(client, bot_id, project_id, project_config):
                         rel_path
                     ).replace('\\', '/')  # Ensure forward slashes for git paths
                     
-                    # Put file in git, preserving directory structure
-                    put_git_file(
-                        client=client,
-                        local_file=local_path,
-                        git_file_path=git_path + '/',
-                        file_name=file,
-                        bot_id=bot_id,
-                    )
-                    
-                    # Add to index with full path
+                    # Full git path for the file
                     full_git_path = f"{git_path}/{file}".replace('//', '/')
-                    resp = client.run_genesis_tool(
-                        tool_name="document_index",
-                        params={
-                            "action": "ADD_DOCUMENTS",
-                            "index_name": full_index_name,
-                            "filepath": f"BOT_GIT:{full_git_path}",
-                        },
-                        bot_id=bot_id
-                    )
-                    
-                    if resp['Success'] == True:
-                        print(f'...indexed file {local_path} in {full_index_name}, and saved it to git at {full_git_path} (#{i})')
-                    else:
-                        print(f'\033[31mError indexing file {local_path} in {full_index_name}: {resp["Error"]}\033[0m')
-                        a = input('Error indexing, press return to continue...')
+
+                    # Check if file exists in git
+                    try:
+                        git_file = client.gitfiles.read(full_git_path, bot_id=bot_id)
+                        file_in_git = bool(git_file)
+                    except ValueError as e:
+                        if "'utf-8' codec can't decode" in str(e):
+                            file_in_git = True  # File exists but has encoding issues
+                        else:
+                            file_in_git = False
+
+                
+                    if file_in_git:
+                        print(f'...skipping {local_path} - already in git (#{i})')
+                        continue
+
+                    # Put file in git if needed
+                    if not file_in_git:
+                        put_git_file(
+                            client=client,
+                            local_file=local_path,
+                            git_file_path=git_path + '/',
+                            file_name=file,
+                            bot_id=bot_id,
+                        )
+                        print(f'...saved file to git at {full_git_path} (#{i})')
+
+                    # Add to index if needed
+                    if not file_in_git:
+                        resp = client.run_genesis_tool(
+                            tool_name="document_index",
+                            params={
+                                "action": "ADD_DOCUMENTS",
+                                "index_name": full_index_name,
+                                "filepath": f"BOT_GIT:{full_git_path}",
+                            },
+                            bot_id=bot_id
+                        )
+                        
+                        if resp['Success'] == True:
+                            print(f'...indexed file in {full_index_name} (#{i})')
+                        else:
+                            print(f'\033[31mError indexing file {local_path} in {full_index_name}: {resp["Error"]}\033[0m')
+                            a = input('Error indexing, press return to continue...')
             
             indices[index_name] = full_index_name
             

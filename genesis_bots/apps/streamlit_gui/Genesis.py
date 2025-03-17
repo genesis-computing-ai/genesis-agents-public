@@ -826,7 +826,7 @@ if st.session_state.data:
                         st.session_state["previous_selection"] = page.display_name
                         st.rerun()
 
-    st.sidebar.markdown("[Project Manager Dashboard (Local)](http://localhost:8080/projects/dashboard)", unsafe_allow_html=True)
+    st.sidebar.markdown("[Project Manager Dashboard (Local)](http://localhost:8080/projects/react)", unsafe_allow_html=True)
 
     try:
         # Use page_id directly instead of looking up by display name

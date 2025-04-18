@@ -1,0 +1,154 @@
+.config-window {
+  display: flex;
+  flex-direction: column;
+  width: 95%;
+  height: 95vh;
+  margin: 0 auto;
+  margin-top: 30px;
+  background-color: #3f3f3f;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+
+.back-to-chat {
+  color: #ff9f4d;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 10px 0;
+  user-select: none;
+  text-align: left;
+  margin-left: 20px;
+  margin-top: 30px;
+}
+
+.back-to-chat:hover {
+  text-decoration: underline;
+  color: #ffb366;
+}
+
+/* Config Menu Styles */
+.config-menu {
+  width: 100%;
+  padding: 20px 0;
+  background-color: #3f3f3f;
+}
+
+.config-menu h3 {
+  font-size: 1rem;
+  font-weight: 400;
+  font: Source Sans Pro, sans-serif;
+  line-height: 1.6;
+  margin: 4px;
+  text-align: left !important;
+  color: white;
+}
+
+.config-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.config-menu-item {
+  font-size: 1rem;
+  font-weight: 400;
+  font: Source Sans Pro, sans-serif;
+  line-height: 1.6;
+  cursor: pointer;
+  text-align: left !important;
+  padding: 8px 15px;
+  color: white;
+  transition: background-color 0.2s ease;
+}
+
+.config-menu-item:hover {
+  background-color: rgba(230, 115, 0, 0.1);
+}
+
+.config-menu-item.active {
+  background-color: #E67300;
+  color: white;
+}
+
+/* Config Content Styles */
+.config-wrapper {
+  flex: 1;
+  height: 100%;
+  background-color: #3f3f3f;
+}
+
+.config-pane {
+  height: 100%;
+  padding: 20px;
+}
+
+.config-content {
+  height: 100%;
+  background-color: #3f3f3f;
+}
+
+.config-header {
+  padding: 15px 0;
+  border-bottom: 1px solid #555;
+}
+
+.config-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-header-title h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 400;
+  font: Source Sans Pro, sans-serif;
+  line-height: 1.6;
+  color: white;
+}
+
+.config-body {
+  padding: 20px 0;
+}
+
+.config-page {
+  padding: 15px 0;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+  border-radius: 6px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1rem;
+  font-weight: 400;
+  font: Source Sans Pro, sans-serif;
+  line-height: 1.6;
+  color: white;
+}
+
+.form-control {
+  width: 99%;
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #555;
+  background-color: #3f3f3f;
+  color: white;
+  font-size: 1rem;
+  font: Source Sans Pro, sans-serif;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #E67300;
+}
+
+select.form-control {
+  height: 35px;
+  background-color: #3f3f3f;
+}

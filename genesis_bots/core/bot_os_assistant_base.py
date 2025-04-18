@@ -7,6 +7,7 @@ import dill
 import json
 from   multiprocessing          import Process
 import sys
+import traceback
 
 from   genesis_bots.core.logging_config      import logger
 
@@ -91,7 +92,7 @@ def execute_function_blocking(
             #   return(str(results))
             return results
         except Exception as e:
-            logger.info(f"Error: {str(e)}")
+            logger.info(f"Error: {str(e)}\n{traceback.format_exc()}")
             return f"caught exception {str(e)} trying to run {func_name}"
     else:
         return f"Error function {func_name} does not exist"
@@ -212,15 +213,22 @@ def execute_function(
             if func_name == '_run_process':
                 s_arguments["bot_id"] = bot_id
 
-            if func_name == '_delegate_work':
+            if func_name == '_delegate_work' or func_name == 'run_program':
                 s_arguments["status_update_callback"] = status_update_callback
                 s_arguments["session_id"] = session_id
                 s_arguments["input_metadata"] = input_metadata
                 s_arguments["run_id"] = run_id
+
             if func_name in {'_run_query', '_query_database', '_search_metadata', '_search_metadata_detailed', '_get_full_table_details', '_run_snowpark_python', '_send_email', '_manage_artifact', '_manage_tests', '_set_harvest_control_data', '_get_harvest_control_data', '_list_database_connections'}:
                 s_arguments["bot_id"] = bot_id
                 if 'query' in s_arguments:
                     s_arguments['query'] = 'USERQUERY::' + s_arguments['query']
+
+            if func_name == 'dbt_cloud_analyze_run' or func_name == 'dbt_cloud_run_monitor':
+                s_arguments["status_update_callback"] = status_update_callback
+                s_arguments["session_id"] = session_id
+                s_arguments["input_metadata"] = input_metadata
+
             # execute the function
             completion_callback(
                 execute_function_blocking(func_name, s_arguments, available_functions)

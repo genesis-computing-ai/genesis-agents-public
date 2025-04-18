@@ -26,10 +26,10 @@ project_manager_tools = ToolFuncGroup(
 @gc_tool(
     action=ToolFuncParamDescriptor(
         name="action",
-        description="Action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST)",
+        description="Action to perform (CREATE, UPDATE, GET_TODO_DETAILS, CHANGE_STATUS, LIST)",
         required=True,
         llm_type_desc=dict(
-            type="string", enum=["CREATE", "UPDATE", "CHANGE_STATUS", "LIST"]
+            type="string", enum=["CREATE", "UPDATE", "GET_TODO_DETAILS", "CHANGE_STATUS", "LIST"]
         ),
     ),
     todo_id=ToolFuncParamDescriptor(
@@ -82,6 +82,12 @@ project_manager_tools = ToolFuncGroup(
             ),
         ),
     ),
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to manage todos for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
@@ -92,11 +98,14 @@ def manage_todos(
     todo_id: str = None,
     todo_details: Dict = None,
     thread_id: str = None,
+    for_bot_id: str = None
 ) -> None:
     """
     Manage todo items with various actions. When creating Todos try to include any dependencies on other todos
     where they exist, it is important to track those to make sure todos are done in the correct order.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     return project_manager.manage_todos(
         action=action,
         bot_id=bot_id,
@@ -128,6 +137,12 @@ def manage_todos(
         ),
         required=False,
     ),
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to manage projects for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -137,12 +152,15 @@ def manage_projects(
     project_id: str=None,
     project_details: Dict=None,
     thread_id: str=None,
-    static_project_id: bool = False
+    static_project_id: bool = False,
+    for_bot_id: str = None
 ):
     """
     Manages projects through various actions (CREATE, UPDATE, CHANGE_STATUS, LIST, DELETE)
     These tools allow you to list, create, update, and remove projects, and change the status of projects.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     return project_manager.manage_projects(
         action=action,
         bot_id=bot_id,
@@ -156,8 +174,14 @@ def manage_projects(
 @gc_tool(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     todo_id="ID of the todo item to record work for",
-    work_description="Detailed description of the work performed or progress made",
-    work_results="Optional results, output, or findings from the work performed",
+    work_description="Detailed description of ALL the work performed or progress made since your last call to this function",
+    work_results="Optional results, output, or findings from all the work performed since your last call to this function",
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to record work for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -167,11 +191,14 @@ def record_todo_work(
     work_description: str,
     work_results: str=None,
     thread_id: str=None,
+    for_bot_id: str = None,
 ):
     """
-    Record work progress on a todo item without changing its status. Use this to log incremental progress, intermediate results,
-    or work updates.
+    Records incremental progress on a todo item without changing its status. Useful for 
+    maintaining a detailed work log over time.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     return project_manager.record_work(
         bot_id=bot_id,
         todo_id=todo_id,
@@ -201,16 +228,25 @@ def get_todo_history(
 @gc_tool(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     project_id="ID of the project to get todos for",
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to get todos for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
 def get_project_todos(
     bot_id: str,
     project_id: str,
-    thread_id: str=None):
+    thread_id: str=None,
+    for_bot_id: str = None):
     """
-    Get all todos associated with a specific project
+    Retrieves a comprehensive list of todos associated with a specific project.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     return project_manager.get_project_todos(bot_id=bot_id, project_id=project_id)
 
 
@@ -218,6 +254,12 @@ def get_project_todos(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     todo_id="ID of the todo to get dependencies for",
     include_reverse="If true, also include todos that depend on this todo",
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to get dependencies for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -225,11 +267,14 @@ def get_todo_dependencies(
     bot_id: str,
     todo_id: str,
     include_reverse: bool=False,
-    thread_id: str=None
+    thread_id: str=None,
+    for_bot_id: str = None
 ):
     """
-    Get all dependencies for a specific todo item
+    Provides a dependency graph for a todo item, helping track task prerequisites and relationships.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     return project_manager._get_todo_dependencies(
         bot_id=bot_id, todo_id=todo_id, include_reverse=include_reverse
     )
@@ -240,6 +285,12 @@ def get_todo_dependencies(
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
     todo_id="ID of the todo that has the dependency",
     depends_on_todo_id="ID of the todo that needs to be completed first",
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to manage dependencies for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -248,11 +299,14 @@ def manage_todo_dependencies(
     bot_id: str,
     todo_id: str,
     depends_on_todo_id: str=None,
-    thread_id: str=None
+    thread_id: str=None,
+    for_bot_id: str = None
 ):
     """
-    Manage dependencies between todo items, allowing you to specify that one todo must be completed before another can start
+    Maintains the dependency graph between todos to ensure proper task sequencing and workflow management.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     return project_manager.manage_todo_dependencies(
         action=action,
         bot_id=bot_id,
@@ -295,7 +349,8 @@ def manage_project_assets(
     thread_id: str=None,
 ):
     """
-    Manage project assets including their descriptions and locations in the git system
+    Centralized management system for project assets. Use this to track and organize 
+    project-related files and resources in the git system.
     """
     return project_manager.manage_project_assets(
         action=action,
@@ -317,6 +372,12 @@ def manage_project_assets(
         ),
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to delete todos for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -324,10 +385,13 @@ def delete_todos_bulk(
     todo_ids: List[str],
     bot_id: str,
     thread_id: str = None,
+    for_bot_id: str = None,
 ) -> None:
     """
-    Delete multiple todo items in bulk. This will permanently remove the specified todos and their work history.
+    Permanently removes multiple todo items and their associated work history in a single operation.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     results = []
     for todo_id in todo_ids:
         result = project_manager.manage_todos(
@@ -373,6 +437,12 @@ def delete_todos_bulk(
         ),
     ),
     bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    for_bot_id=ToolFuncParamDescriptor(
+        name="for_bot_id",
+        description="Optional bot_id to create todos for another bot instead of yourself",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
     thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
     _group_tags_=[project_manager_tools],
 )
@@ -381,12 +451,18 @@ def create_todos_bulk(
     todos: List[Dict[str, Any]],
     bot_id: str,
     thread_id: str = None,
-) -> None:
+    for_bot_id: str = None,
+) -> Dict[str, Any]:
     """
-    Create multiple todo items in bulk for a project. Each todo in the array can specify its name,
-    description, assignments, and dependencies.
+    Efficiently creates multiple todo items in a single operation. Returns both the creation 
+    results and a mapping between input and created todo IDs.
     """
+    if for_bot_id:
+        bot_id = for_bot_id
     results = []
+    todo_id_map = {}
+    todo_mappings = []  # Changed from todo_ids to store both id and name
+    
     for todo in todos:
         todo_details = {
             "project_id": project_id,
@@ -403,8 +479,20 @@ def create_todos_bulk(
             todo_details=todo_details,
             thread_id=thread_id,
         )
+        
         results.append(result)
-    return results
+        
+        if result["success"]:
+            todo_mappings.append({
+                "id": result["todo_id"],
+                "name": todo["todo_name"]
+            })
+    
+    return {
+        "results": results,
+        "todo_mappings": todo_mappings
+    }
+
 
 
 project_manager_functions: List[Callable[..., Any]] = [
@@ -417,6 +505,7 @@ project_manager_functions: List[Callable[..., Any]] = [
     manage_project_assets,
     create_todos_bulk,
     delete_todos_bulk,
+    get_todo_history,
 ]
 
 

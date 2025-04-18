@@ -39,6 +39,7 @@ from   genesis_bots.demo.routes.slack \
 
 from genesis_bots.connectors.data_connector import DatabaseConnector
 from genesis_bots.core.tools.project_manager import project_manager
+from genesis_bots.core.tools.document_manager import document_manager
 
 udf_routes = Blueprint('udf_routes', __name__)
 
@@ -230,17 +231,47 @@ def get_metadata():
                 bot_id=bot_id,
                 thread_id=None
             ))}
+        elif metadata_type.startswith('get_credentials'):
+            bot_id = metadata_type.split('get_credentials ')[1].strip()
+            result = genesis_app.db_adapter.get_credentials(bot_id)
+            print(result)
         elif metadata_type.startswith('list_todos '):
             project_id = metadata_type.split('list_todos ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_project_todos(
                 bot_id=None,  # Not needed for listing todos
-                project_id=project_id
+                project_id=project_id,
+                no_history=True
+
             ))}
-        elif metadata_type.startswith('list_todo_history '):
-            todo_id = metadata_type.split('list_todo_history ')[1].strip()
+        elif metadata_type.startswith('get_todo_details '):
+            todo_id = metadata_type.split('get_todo_details ')[1].strip()
+
+            todo_details = project_manager.manage_todos(
+                action="GET_TODO_DETAILS",
+                bot_id=None,  # Not needed for getting todo details
+                todo_id=todo_id
+            )
+
+            if todo_details and todo_details.get("success"):
+                result = {"Success": True, "Data": json.dumps(todo_details["todo"])}
+            else:
+                result = {"Success": False, "Error": todo_details.get("error", "Todo not found")}
+        elif metadata_type.startswith('get_todo_history '):
+            todo_id = metadata_type.split('get_todo_history ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.get_todo_history(
                 todo_id=todo_id
             ))}
+        elif metadata_type.startswith('get_thread '):
+            thread_id = metadata_type.split('get_thread ')[1].strip()
+            result = {"Success": True, "Data": json.dumps(genesis_app.db_adapter.read_thread_messages(thread_id))}
+        elif metadata_type.startswith('get_list_threads '):
+            bot_name = metadata_type.split('get_list_threads ')[1].strip()
+            threads = genesis_app.db_adapter.get_list_threads(bot_name)
+            # Convert datetime objects to strings before JSON serialization
+            for thread in threads:
+                if thread['TIMESTAMP'] and not isinstance(thread['TIMESTAMP'], str):
+                    thread['TIMESTAMP'] = thread['TIMESTAMP'].isoformat()
+            result = {"Success": True, "Data": json.dumps(threads)}
         elif metadata_type.startswith('list_project_artifacts '):
             project_id = metadata_type.split('list_project_artifacts ')[1].strip()
             result = {"Success": True, "Data": json.dumps(project_manager.manage_project_assets(
@@ -267,8 +298,9 @@ def get_metadata():
             result = genesis_app.db_adapter.eai_test(site=site)
         elif metadata_type == 'check_eai_assigned':  # Then check for exact match
             result = genesis_app.db_adapter.check_eai_assigned()
-        elif metadata_type.startswith('get_endpoints'):
-            result = genesis_app.db_adapter.get_endpoints()
+        elif metadata_type.startswith('get_endpoints '):
+            type = metadata_type.split('get_endpoints ')[1].strip()
+            result = genesis_app.db_adapter.get_endpoints(type)
         elif metadata_type.startswith('delete_endpoint_group '):
             metadata_parts = metadata_type.split()
             if len(metadata_parts) == 2:
@@ -276,13 +308,6 @@ def get_metadata():
             else:
                 logger.info("missing group name to delete")
             result = genesis_app.db_adapter.delete_endpoint_group(group_name)
-        elif metadata_type.startswith('set_endpoint '):
-            metadata_parts = metadata_type.split()
-            if len(metadata_parts) == 4:
-                group_name = metadata_parts[1].strip()
-                endpoint = metadata_parts[2].strip()
-                type = metadata_parts[3].strip()
-            result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
             # model_name = metadata_type.split('set_model_name ')[1].strip()
@@ -320,13 +345,59 @@ def get_metadata():
                 result = {"Success": True, "Metadata": m}
             except Exception as e:
                 result = {"Success": False, "Error": e}
-        else:
-            raise ValueError(
-                "Invalid metadata_type provided."
-            )
+        elif metadata_type.startswith('delete_todo '):
+            # Split on first 2 spaces to get PROJECT_ID and TODO_ID
+            parts = metadata_type.split(' ', 2)
+            if len(parts) < 3:
+                raise ValueError("delete_todo requires BOT_ID TODO_ID")
 
-        if result["Success"]:
-            output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+            _, bot_id, todo_id = parts
+
+            # Call project manager to delete todo
+            result = project_manager.manage_todos(
+                action="DELETE",
+                bot_id=bot_id,
+                todo_id=todo_id
+            )
+        elif metadata_type.startswith('index_manager '):
+            args = metadata_type.split(' ')[1:]
+            action = args[0]
+            if action == 'LIST_INDICES':
+                res = document_manager.list_of_indices()
+            elif action == 'LIST_DOCUMENTS_IN_INDEX':
+                index_name = args[1]
+                res = document_manager.list_of_documents(index_name)
+            elif action == 'ADD_DOCUMENT':
+                index_name = args[1]
+                document_path = args[2]
+                res = document_manager.add_document(index_name, document_path)
+            elif action == 'DELETE_DOCUMENT':
+                index_name = args[1]
+                document_path = args[2]
+                res = document_manager.delete_document(index_name, document_path)
+            elif action == 'SEARCH':
+                index_name = args[1]
+                query = ' '.join(args[2:])
+                res = document_manager.retrieve(query, index_name, top_n=10)
+            elif action == 'ASK':
+                query = ' '.join(args[1:])
+                res = document_manager.retrieve_all_indices(query, top_n=1)
+            elif action == 'DELETE_INDEX':
+                index_name = args[1]
+                res = document_manager.delete_index(index_name)
+            elif action == 'CREATE_INDEX':
+                index_name = args[1]
+                bot_id = 'All'
+                res = document_manager.create_index(index_name, bot_id)
+            result = {"Success": True, "Data": json.dumps(res)}
+        else:
+            raise ValueError("Invalid metadata_type provided.")
+
+        if result.get("Success", False) == True or result.get("success", False) == True:
+            if "Data" in result:
+                output_rows = [[input_rows[0][0], json.loads(result["Data"])]]
+            else:
+                output_rows = [[input_rows[0][0], result]]
         else:
             output_rows = [[input_rows[0][0], {"Success": False, "Message": result["Error"]}]]
 
@@ -357,13 +428,13 @@ def set_metadata():
             parts = metadata_type.split(' ', 3)
             if len(parts) < 4:
                 raise ValueError("add_todo requires PROJECT_ID BOT_ID TODO_NAME WHAT_TO_DO")
-            
+
             _, project_id, bot_id, rest = parts
             # Split remaining text on first space to separate TODO_NAME from WHAT_TO_DO
             todo_parts = rest.split(' ', 1)
             if len(todo_parts) < 2:
                 raise ValueError("add_todo requires both TODO_NAME and WHAT_TO_DO")
-                
+
             todo_name, what_to_do = todo_parts
 
             # URL decode todo_name if it's URL encoded
@@ -372,7 +443,7 @@ def set_metadata():
                 todo_name = unquote(todo_name)
             except Exception as e:
                 logger.warning(f"Failed to URL decode todo_name: {str(e)}")
-            
+
             # Call project manager to add todo
             todo_details = {
                 "project_id": project_id,
@@ -386,13 +457,19 @@ def set_metadata():
                 todo_details=todo_details,
                 thread_id=None
             )
-
+        elif metadata_type.startswith('set_endpoint '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) == 4:
+                group_name = metadata_parts[1].strip()
+                endpoint = metadata_parts[2].strip()
+                type = metadata_parts[3].strip()
+            result = genesis_app.db_adapter.set_endpoint(group_name, endpoint, type)
         elif metadata_type.startswith('create_project '):
             # Split on first 3 spaces to get BOT_ID, PROJECT_NAME, DESCRIPTION
             parts = metadata_type.split(' ', 3)
             if len(parts) < 4:
                 raise ValueError("create_project requires BOT_ID PROJECT_NAME DESCRIPTION")
-            
+
             _, bot_id, project_name, description = parts
 
             # URL decode project_name if it's URL encoded
@@ -448,17 +525,22 @@ def set_metadata():
                 service_name = metadata_parts[1].strip()
                 key_pairs = " ".join(metadata_parts[2:])
             result = genesis_app.db_adapter.set_api_config_params(service_name, key_pairs)
+        elif metadata_type.startswith('set_credentials '):
+            metadata_parts = metadata_type.split()
+            if len(metadata_parts) > 3:
+                service_name = metadata_parts[1].strip()
+                key_pairs = '{'
+                for i in range(2, len(metadata_parts), 2):
+                    key_pairs += '"' + metadata_parts[i] + '": "' + metadata_parts[i+1] + '",'
+                key_pairs = key_pairs[:-1] + '}'
+            result = genesis_app.db_adapter.set_api_config_params(service_name, key_pairs)
         elif metadata_type.startswith('set_model_name '):
             model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
-            # model_name = metadata_type.split('set_model_name ')[1].strip()
-            # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
             result = genesis_app.db_adapter.update_model_params(model_name, embedding_model_name)
         else:
             raise ValueError(
                 "Invalid metadata_type provided."
             )
-
-
 
         if result.get("Success", False) or result.get("success", False):
             if "Data" not in result:

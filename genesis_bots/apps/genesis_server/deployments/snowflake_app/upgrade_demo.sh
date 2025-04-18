@@ -100,8 +100,8 @@ snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('gra
 snow sql -c GENESIS-ALPHA-CONSUMER -q "call genesis_bots.core.run_arbitrary('grant all on schema genesis_bots.APP1 to application role app_public;');"
 snow sql -c GENESIS-ALPHA-CONSUMER -q "show applications;"
 
-# python3 -c "import sys; sys.path.append('${PROJECT_ROOT}/apps/streamlit_gui'); from make_alpha_sis_launch import revert_genesis_bots; revert_genesis_bots()"
-
+# Revert the demo pool changes
+python3 genesis_bots/apps/streamlit_gui/make_demo_compute_pool.py revert
 
 echo "Upgrade complete"
 

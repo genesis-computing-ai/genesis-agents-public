@@ -1,0 +1,176 @@
+.chat-menu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.new-chat-button {
+  background-color: #E67300;
+  color: white;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  margin: 10px 0 120px 0;
+  width: 90%;
+  text-align: left;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.active-chat-session-wrapper{
+  display: flex;
+  flex-direction: row;
+  width: 280px;
+  height: 80px;
+}
+
+.active-chat-session {
+  background-color: #E67300;
+  color: white;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  margin: 10px 0 0px 0;
+  width: 160px;
+  text-align: left;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+}
+
+.active-chat-session-delete{
+  width: 10px;
+  height: 20px;
+  background-color: #E67300;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  margin: 10px 0 64px 4px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  color: black;
+  font-weight: 1000;
+}
+
+.active-chat-session-delete:hover{
+  background-color: #FFA500;
+}
+
+.active-sessions-label {
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.upload-box-header-text {
+  color: black;
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.divider {
+  height: 1px;
+  background-color: #ccc;
+  margin: 8px 0;
+  width: 100%;
+  margin: 30px 0;
+}
+
+.upload-box {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  overflow: hidden;
+  transition: height 0.3s ease-in-out;
+  height: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.upload-box.open {
+  height: 200px;
+}
+
+.upload-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 16px 0 16px;
+  height: 20px;
+}
+
+.disclosure-arrow {
+  font-size: 12px;
+  color: #666;
+}
+
+.upload-box-content {
+  padding: 16px;
+}
+
+.upload-box-content-text{
+  color: black;
+  height: 30px;
+  display: flex;
+  align-items: left;
+  justify-content: left;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  color: #000;
+  margin-bottom: 8px;
+}
+
+.file-upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
+  background-color: #fff;
+  transition: border-color 0.3s ease;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-upload-area.dragging {
+  border-color: #E67300;
+  background-color: rgba(230, 115, 0, 0.05);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-instructions {
+  color: #666;
+  font-size: 14px;
+}
+
+.upload-instructions p {
+  margin: 4px 0;
+}
+
+.select-files-button {
+  background-color: #E67300;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.select-files-button:hover {
+  background-color: #ff8c1a;
+}

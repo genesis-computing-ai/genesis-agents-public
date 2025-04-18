@@ -24,6 +24,9 @@ def parse_arguments():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="A simple CLI chat interface to Genesis bots")
     add_default_argparse_options(parser)
+    parser.add_argument('--prompt', '-p', type=str, required=False,
+                        help='One shot prompt to run with genesis.'                   
+    )
     return parser.parse_args()
 
 
@@ -40,6 +43,24 @@ def main():
     bot_to_thread_map:dict[str, UUID] = defaultdict(lambda: uuid4())  # maps bot_id to thread_id
 
     with GenesisAPI(server_proxy=server_proxy) as client:
+        if args.prompt:
+            # Send message to Eve, wait for response
+            curr_bot_id = 'Eve'
+            thread_id = bot_to_thread_map[curr_bot_id]
+            try:
+                request = client.submit_message(curr_bot_id, args.prompt, thread_id=thread_id)
+            except Exception as e:
+                print(f"{COLOR_RED}ERROR: {e}.{COLOR_RESET}")
+                return
+            response = client.get_response(request.bot_id, request.request_id, timeout_seconds=5*60)
+            if not response:
+                print(f"{COLOR_RED}ERROR: No response from bot {request.bot_id} within {5*60} seconds.{COLOR_RESET}")
+                return
+
+            # Print the bot's response
+            print(f"{COLOR_BLUE}[{request['bot_id']}]: {COLOR_RESET} {COLOR_CYAN}{response}{COLOR_RESET}")
+            return
+        
         welcome_msg = "\nWelcome to the Genesis chat interface. Type '/quit' to exit."
         if curr_bot_id is None:
             welcome_msg += "\nStart your first message with @<bot_id> to chat with that bot. Use it again to switch bots."

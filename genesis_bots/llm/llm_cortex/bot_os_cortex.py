@@ -93,7 +93,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
 
         return self.cortex_rest_api(thread_id, message_metadata=message_metadata, event_callback=event_callback, temperature=temperature, fast_mode = fast_mode)
 
-
+   
     def fix_tool_calls(self, resp):
 
         while True:
@@ -404,11 +404,11 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
                         ]
                         logger.info(f"Model not {self.llm_engine} active. Trying all models in priority order.")
                         for model in models_to_try:
-
+                            
                             request_data["model"] = model
                             self.thread_model_map[thread_id] = model
                             response = requests.post(url, json=request_data, stream=True, headers=headers)
-
+                            
                             if response.status_code == 200 and not response.text.startswith('{"message":"unknown model '):
                                 # Found working model
                                 self.llm_engine = model
@@ -784,7 +784,7 @@ class BotOsAssistantSnowflakeCortex(BotOsAssistantInterface):
             # Update the first (system) message with current instructions
             if self.thread_history[thread_id][0]["message_type"] == "system":
                 self.thread_history[thread_id][0]["content"] = self.instructions
-
+            
         self.thread_history[thread_id].append(message_object)
 
         try:

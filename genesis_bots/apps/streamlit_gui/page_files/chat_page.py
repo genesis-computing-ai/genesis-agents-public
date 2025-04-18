@@ -564,6 +564,7 @@ def chat_page():
                 # This mechanism is used for injecting initial 'action' from the URL and the logic in Genesis.py to set initial chat session data should
                 # be in-sync with the initial_chat_session_data for this mechanism to work. Otherwise we silently ignore it.
                 st.session_state.initial_chat_session_data = None
+                st.session_state.run_intro = True
 
             # (File uploader and active chat session UI are provided by Genesis.py.)
             # Retrieve the file uploader value from the main sidebar (set in Genesis.py)
@@ -658,14 +659,16 @@ def chat_page():
                 # Only auto-submit the intro prompt if:
                 #   1. No user message exists ‒ meaning the user hasn't spoken yet.
                 #   2. No intro prompt (assistant message marked as intro) exists.
-                if not any(m.role == "user" for m in messages) and not any(m.is_intro_prompt for m in messages):
+                if st.session_state.get('run_intro') or (not any(m.role == "user" for m in messages) and not any(m.is_intro_prompt for m in messages)):
                     # Use a thread-specific flag to ensure we only send it once per thread
+                    st.session_state['run_intro'] = False
                     intro_flag_key = f"intro_prompt_sent_{selected_thread_id}"
                     if intro_flag_key not in st.session_state:
                         st.session_state[intro_flag_key] = False
                     if not st.session_state[intro_flag_key]:
                         submit_button(selected_bot_intro_prompt, st.empty(), intro_prompt=True)
                         st.session_state[intro_flag_key] = True
+
 
           #          email_popup()
 

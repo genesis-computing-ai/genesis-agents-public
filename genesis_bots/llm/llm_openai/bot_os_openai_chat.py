@@ -3,32 +3,32 @@
 '''
 import json
 import os, uuid, re
-
-from genesis_bots.demo.app import genesis_app
-from genesis_bots.core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
 from collections import deque
 import datetime
 import time
 import random
 import types
-
-from threading import Lock, Thread
-from genesis_bots.core import global_flags
-from genesis_bots.core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
-from genesis_bots.core.bot_os_defaults import _BOT_OS_BUILTIN_TOOLS, BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_DB_CONDUCT_INSTRUCTIONS,BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,BASE_BOT_SLACK_TOOLS_INSTRUCTIONS,BASE_BOT_OPENAI_INSTRUCTIONS
+from threading import Lock, Thread, local as ThreadLocal
 from typing_extensions import override
 import traceback
-from genesis_bots.bot_genesis.make_baby_bot import (  get_bot_details )
-from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
-import openai
 
+from genesis_bots.core import global_flags
+from genesis_bots.core.bot_os_assistant_base import BotOsAssistantInterface, execute_function
+from genesis_bots.core.bot_os_input import BotOsInputMessage, BotOsOutputMessage
+from genesis_bots.core.bot_os_defaults import BASE_BOT_INSTRUCTIONS_ADDENDUM, BASE_BOT_DB_CONDUCT_INSTRUCTIONS,BASE_BOT_PROCESS_TOOLS_INSTRUCTIONS,BASE_BOT_SLACK_TOOLS_INSTRUCTIONS
+from genesis_bots.llm.llm_openai.openai_utils import get_openai_client
 from genesis_bots.core.logging_config import logger
+
+thread_local = ThreadLocal()
 
 class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
     all_functions_backup = None
 
     _shared_done_map = {}  # Maps bot names to their completed runs
     _shared_tool_failure_map = {}  # Maps run hashes to failure counts and timestamps
+
+    # Class-level timestamp for all instances to share
+    _last_bots_active_update = datetime.datetime.now() - datetime.timedelta(minutes=1)
 
     def __init__(self, name:str, instructions:str,
                  tools:list[dict] = None, available_functions=None, files=None,
@@ -99,156 +99,6 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
     def get_done_map(self) -> dict:
         return self.done_map
 
-    def update_vector_store(self, vector_store_id: str, files: list=None, plain_files: list=None, for_bot = None):
-        if for_bot == None:
-            for_bot = self.bot_id
-        file_path = "./uploads/"
-        # Ready the files for upload to OpenAI
-        if files is None and plain_files is None:
-            return vector_store_id
-
-        if files is not None:
-            files = files.urls
-        if plain_files is not None:
-            files = plain_files
-
-        try:
-            files = files.urls
-        except:
-            files = files
-
-        if files is None:
-            files = []
-
-        local_files = [file for file in files if file.startswith('serverlocal:')]
-        stage_files = [file for file in files if not file.startswith('serverlocal:')]
-        files_from_stage = []
-
-        # Expand wildcard expressions in stage_files
-        expanded_stage_files = []
-        for file in stage_files:
-            if '*' in file:
-                # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
-                matching_files = self.log_db_connector.list_stage_contents(
-                    database=self.internal_db_name,
-                    schema=self.internal_schema_name,
-                    stage='BOT_FILES_STAGE',
-                    pattern=file
-                )
-                matching_files_names = [file_info['name'] for file_info in matching_files]
-                matching_files_names = [file_info['name'].split('/', 1)[-1] for file_info in matching_files]
-                expanded_stage_files.extend(matching_files_names)
-            else:
-                expanded_stage_files.append(file)
-        stage_files = expanded_stage_files
-        # Deduplicate stage_files
-        stage_files = list(set(stage_files))
-
-        valid_extensions = {
-                 '.c': 'text/x-c',
-                 '.cs': 'text/x-csharp',
-                 '.cpp': 'text/x-c++',
-                 '.doc': 'application/msword',
-                 '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                 '.html': 'text/html',
-                 '.java': 'text/x-java',
-                 '.json': 'application/json',
-                 '.md': 'text/markdown',
-                 '.pdf': 'application/pdf',
-                 '.php': 'text/x-php',
-                 '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                 '.py': 'text/x-python',
-                 '.rb': 'text/x-ruby',
-                 '.tex': 'text/x-tex',
-                 '.txt': 'text/plain',
-                 '.css': 'text/css',
-                 '.js': 'text/javascript',
-                 '.sh': 'application/x-sh',
-                 '.ts': 'application/typescript',
-           }
-
-        # Filter out files from stage_files that don't have a valid extension
-        excluded_files = [file for file in stage_files if not any(file.endswith(ext) for ext in valid_extensions)]
-        stage_files = [file for file in stage_files if any(file.endswith(ext) for ext in valid_extensions)]
-
-        if excluded_files:
-            logger.info(f"{self.bot_name} for bot {for_bot} update_vector_store excluded files with invalid extensions: {', '.join(excluded_files)}")
-        for file in stage_files:
-            # Read each file from the stage and save it to a local location
-            try:
-                # Assuming 'self' has an attribute 'snowflake_connector' which is an instance of the SnowflakeConnector class
-                new_file_location = f"./runtime/downloaded_files/{for_bot}_BOT_DOCS/{file}"
-                os.makedirs(f"./runtime/downloaded_files/{for_bot}_BOT_DOCS", exist_ok=True)
-                contents = self.log_db_connector.read_file_from_stage(
-                      database=self.internal_db_name,
-                      schema=self.internal_schema_name,
-                      stage='BOT_FILES_STAGE',
-                      file_name=file,
-                      for_bot=f'{for_bot}_BOT_DOCS',
-                      thread_id=f'{for_bot}_BOT_DOCS',
-                      return_contents=False,
-                      is_binary=False
-                      )
-                if contents==file:
-                    local_file_path = new_file_location
-                    files_from_stage.append(local_file_path)
-                    logger.info(f"{self.bot_name} for bot {for_bot} update_vector_store successfully retrieved {file} from stage and saved to {new_file_location}")
-            except Exception as e:
-                logger.info(f"{self.bot_name} for bot {for_bot} update_vector_store failed to retrieve {file} from stage: {e}")
-
-        local_files = [file.replace('serverlocal:', '') for file in local_files]
-
-        for file in local_files:
-            if not os.path.isfile(file_path + file):
-                logger.error(f"Vector indexer: Can't find file: {file_path+file}")
-
-        file_streams = [open(file_path + file_id, "rb") for file_id in local_files]
-        stage_streams = [open(file_id, "rb") for file_id in files_from_stage]
-
-        # Use the upload and poll SDK helper to upload the files, add them to the vector store,
-        # and poll the status of the file batch for completion.
-
-        try:
-            if len(file_streams) > 0:
-                file_batch = self.client.beta.vector_stores.file_batches.upload_and_poll(
-                vector_store_id=vector_store_id, files=file_streams )
-                logger.info(f"File counts added to the vector store '{vector_store_id}': local: {file_batch.file_counts}")
-            if len(stage_streams) > 0:
-                stage_batch = self.client.beta.vector_stores.file_batches.upload_and_poll(
-                vector_store_id=vector_store_id, files=stage_streams )
-                logger.info(f"File counts added to the vector store '{vector_store_id}': local: {stage_batch.file_counts}")
-
-        except Exception as e:
-            logger.error(f"Failed to add files to the vector store '{vector_store_id}' for the bot with error: {e}")
-            return vector_store_id
-
-        # Close the file streams after uploading
-        for file_stream in file_streams:
-            file_stream.close()
-        # Close the file streams after uploading
-        for file_stream in stage_streams:
-            file_stream.close()
-        # Log the status and the file counts of the batch to see the result of this operation
-            import time
-
-            logger.info(f"Vector store '{vector_store_id}' creation status: {stage_batch.status}")
-            return vector_store_id
-
-        else:
-            logger.info(f"No files provided to add to '{vector_store_id}'")
-            return vector_store_id
-
-    def create_vector_store(self, vector_store_name: str, files: list=None, plain_files: list=None, for_bot= None):
-        # Create a vector store with the given name
-
-        try:
-            vector_store = self.client.beta.vector_stores.create(name=vector_store_name)
-        except Exception as e:
-            logger.error(f"Error creating vector store '{vector_store_name}': {e}")
-            return None
-
-        return self.update_vector_store(vector_store.id, files, plain_files, for_bot=for_bot)
-
     def create_thread(self) -> str:
         thread_id = "completion_thread_" + str(uuid.uuid4())
         logger.info(f"{self.bot_name} openai completion new_thread -> {thread_id}")
@@ -300,6 +150,49 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
     def preprocess(self, input_message, bot_os_thread):
         '''look for special directives in the incoming message'''
         
+        # Check for thread commands
+        if input_message.msg.endswith('!thread'):
+            input_message.msg = input_message.msg.replace('!thread', f'SYSTEM MESSAGE: The User has requested to know what thread ID is running. Respond by telling them that the current thread ID is: {bot_os_thread.thread_id}')
+        
+        thread_switch_match = re.match(r'^!thread\s+(\S+)(?:\s+(.*))?$|^(.*?)\s*!thread\s+(\S+)$', input_message.msg)
+        if thread_switch_match:
+            new_thread_id = thread_switch_match.group(1)
+            old_thread_id = bot_os_thread.thread_id
+            
+            # Get rest of message, defaulting to continuation prompt if empty
+            remaining_msg = thread_switch_match.group(2)
+            if remaining_msg is not None:
+                remaining_msg = remaining_msg.strip()
+            input_message.msg = remaining_msg if remaining_msg else "Please continue our previous conversation."
+            
+            logger.info(f"{self.bot_name} switching thread from {old_thread_id} to {new_thread_id}")
+            
+            # Update thread ID
+            bot_os_thread.thread_id = new_thread_id
+            
+            # Try to load existing messages from the new thread
+            try:
+                git_path = os.getenv('GIT_PATH', os.path.join(os.getcwd(), 'bot_git'))
+                storage_file = os.path.join(git_path, 'threads', self.bot_id, f"{new_thread_id}.json")
+                if os.path.exists(storage_file):
+                    with open(storage_file, 'r') as f:
+                        thread_data = json.load(f)
+                        bot_os_thread.messages = thread_data.get('messages', [])
+                        bot_os_thread.fast_mode = thread_data.get('fast_mode', False)
+                        bot_os_thread.run_messg_count = thread_data.get('run_messg_count', 0)
+                    input_message.msg = f"SYSTEM MESSAGE: Switched to existing thread {new_thread_id}. " + input_message.msg
+                    logger.info(f"{self.bot_name} loaded existing thread {new_thread_id}")
+                else:
+                    # Start fresh message history if no existing thread found
+                    bot_os_thread.messages = []
+                    input_message.msg = f"SYSTEM MESSAGE: Started new thread {new_thread_id}. " + input_message.msg
+                    logger.info(f"{self.bot_name} starting new thread {new_thread_id}")
+            except Exception as e:
+                logger.error(f"Error loading thread {new_thread_id}: {e}")
+                bot_os_thread.messages = []
+                input_message.msg = f"SYSTEM MESSAGE: Error loading thread {new_thread_id}, starting fresh. Error: {str(e)}. " + input_message.msg
+        
+        # Existing preprocessing
         if input_message.msg.endswith('<<!!FAST_MODE!!>>') or bot_os_thread.is_fast_mode():
             input_message.msg = input_message.msg.rstrip('<<!!FAST_MODE!!>>').rstrip()
 
@@ -451,9 +344,15 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         
         new_response = func_response
         if isinstance(func_response, dict) and len(func_response) == 1 and 'error' in func_response:
-            new_response = {"success": False, "error": func_response[0]['error']}
-            func_response = new_response
-            logger.info(f'openai submit_tool_outputs list with error converted to: {func_response}')
+            # Handle both dictionary access patterns
+            error_msg = func_response.get('error')  # Direct dict access
+            if error_msg is None and isinstance(func_response.get(0), dict):  # List-style dict access
+                error_msg = func_response[0].get('error')
+            
+            if error_msg is not None:
+                new_response = {"success": False, "error": error_msg}
+                func_response = new_response
+                logger.info(f'openai submit_tool_outputs list with error converted to: {func_response}')
 
         if isinstance(func_response, str):
             try:
@@ -547,53 +446,33 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
                         logger.info(f"Bot instructions for {target_bot} updated, len={len(instructions)}")
 
-            if ((func_name == 'add_bot_files' or func_name == 'remove_bot_files' ) and
-                (func_response.get('success', False) == True or func_response.get('Success', False) == True)):
-                try:
-                    updated_files_list = func_response.get("current_files_list",None)
-                except:
-                    updated_files_list = None
-
-                target_bot = json.loads(func_args).get('bot_id',None)
-                if target_bot is not None:
-                    my_assistants = self.client.beta.assistants.list(order="desc",limit=100)
-                    my_assistants = [a for a in my_assistants if a.name == target_bot]
-                    assistant_zero = my_assistants[0]
-
-                    try:
-                        vector_store_id = assistant_zero.tool_resources.file_search.vector_store_ids[0]
-                    except:
-                        vector_store_id = None
-                    if vector_store_id is not None:
-                        try:
-                            self.client.beta.vector_stores.delete( vector_store_id=vector_store_id )
-                        except:
-                            pass
-                    bot_tools = assistant_zero.tools
-                    if updated_files_list:
-                        vector_store_name = json.loads(func_args).get('bot_id',None) + '_vectorstore'
-                        vector_store = self.create_vector_store(vector_store_name=vector_store_name, files=None,
-                                                                plain_files=updated_files_list, for_bot = target_bot)
-                        if vector_store is not None:
-                            tool_resources = {"file_search": {"vector_store_ids": [vector_store]}}
-                        else:
-                            tool_resources = {}
-                    else:
-                        tool_resources = {}
-                    self.client.beta.assistants.update(assistant_zero.id, tool_resources=tool_resources)
-
-                    logger.info(f"{self.bot_name} open_ai submit_tool_outputs Bot files for {target_bot} updated.")
         except Exception as e:
-            logger.info(f'openai submit_tool_outputs error to tool checking: {func_response=} {e=}')
+            logger.info(f'postprocess_tool_response(): {func_response=} {e=}')
 
-    def record_tool_call(self, run, thread_id, func_name, func_args, tool_call_id, output_stream, chat_history, output_event):
+    def record_tool_call(self, run, thread_id, func_name, func_args, tool_call_id, output_stream, chat_history, output_event, bot_os_thread=None):
         chat_history(message_type='Tool Call', message_payload=func_name+"("+func_args+")",
-                     message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args})
+                     message_metadata={'tool_call_id':tool_call_id, 'func_name':func_name, 'func_args':func_args}, bot_os_thread=bot_os_thread)
                                     
         logger.telemetry('execute_function:', thread_id, self.bot_id, run.metadata.get('user_email', 'unknown_email'),
                          os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), func_name, 'arg len:'+str(len(func_args)))
 
         function_name_pretty = re.sub(r'(_|^)([a-z])', lambda m: m.group(2).upper(), func_name).replace('_', '')
+        if function_name_pretty == "QueryDatabase" or function_name_pretty == "DataExplorer" or function_name_pretty == "SearchMetadata":
+            try:
+                db_connector = json.loads(func_args).get('connection_id')
+                if db_connector:
+                    function_name_pretty = f"{function_name_pretty}: {db_connector}"
+            except:
+                pass
+        try:
+            func_args_dict = json.loads(func_args)
+            if 'action' in func_args_dict:
+                action = func_args_dict['action']
+                # Convert underscore separated action to camel case
+                action = ''.join(word.capitalize() for word in action.split('_'))
+                function_name_pretty = f"{function_name_pretty}: {action}"
+        except:
+            pass
 
         if output_stream.endswith('\n'):
             output_stream += "\n"
@@ -664,7 +543,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         self.postprocess_tool_response(func_name, func_args, func_response)
         return func_response
 
-    def send_response_to_user(self, run, thread_id, output_stream, model_name, chat_history, output_event):
+    def send_response_to_user(self, run, thread_id, output_stream, model_name, chat_history, output_event, bot_os_thread=None):
         '''send OpenAI response back to user'''
         
         messages = types.SimpleNamespace()
@@ -715,7 +594,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
         chat_history(message_type='Assistant Response', message_payload=output_stream,
                      message_metadata=str(message.content), tokens_in=input_tokens,
-                     tokens_out=output_tokens, files=files_in)
+                     tokens_out=output_tokens, files=files_in, bot_os_thread=bot_os_thread)
         
         logger.telemetry('add_answer:', thread_id, self.bot_id, run.metadata.get('user_email', 'unknown_email'),
                          os.getenv("BOT_OS_DEFAULT_LLM_ENGINE", ""), input_tokens, output_tokens)
@@ -731,8 +610,8 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                                'primary_user': primary_user, 'channel_type': input_message.metadata.get("channel_type", None),
                                'channel_name': input_message.metadata.get("channel", None)}
 
-        def chat_history(**row):
-            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), **chat_history_params, **row)
+        def chat_history(bot_os_thread=None, **row):
+            self.log_db_connector.insert_chat_history_row(datetime.datetime.now(), bot_os_thread = bot_os_thread, **chat_history_params, **row)
 
         def output_event(**event):
             event_callback(self.assistant.id, BotOsOutputMessage(thread_id=thread_id, **event, input_metadata=input_message.metadata))
@@ -744,7 +623,17 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         openai_messages = self.get_openai_messages(bot_os_thread, model_name, input_message)
         if '!o3-mini!' in openai_messages[0]["content"]:
             model_name = 'o3-mini'
+
         params = {'reasoning_effort': input_message.metadata.get('reasoning_effort', 'low')} if model_name == 'o3-mini' else {}
+        response_format = input_message.metadata.get('response_format')
+        if response_format:
+            params['response_format'] = response_format
+        temperature = input_message.metadata.get('temperature')
+        if temperature:
+            params['temperature'] = temperature
+        if response_format:
+            params['response_format'] = response_format
+
         run = types.SimpleNamespace(
             id = run_id,
             status = 'in_progress',
@@ -753,7 +642,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
         )
 
         chat_history(message_type='User Prompt', message_payload=input_message.msg,
-                     message_metadata=input_message.metadata, files=attachments)
+                     message_metadata=input_message.metadata, files=attachments, bot_os_thread=bot_os_thread)
 
         output_stream = ''
         
@@ -773,7 +662,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 run.status = "completed"
                 run.completed_at = datetime.datetime.now()
 
-                self.send_response_to_user(run, thread_id, output_stream + str(e), model_name, chat_history, output_event)
+                self.send_response_to_user(run, thread_id, output_stream + str(e), model_name, chat_history, output_event, bot_os_thread=bot_os_thread)
                 break
 
             if not tool_calls:
@@ -783,7 +672,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 run.completed_at = datetime.datetime.now()
                 run.usage = usage
 
-                self.send_response_to_user(run, thread_id, output_stream + content, model_name, chat_history, output_event)
+                self.send_response_to_user(run, thread_id, output_stream + content, model_name, chat_history, output_event, bot_os_thread=bot_os_thread)
                 break
 
             # LLM requesting us to call tool function(s) and send back the result
@@ -805,11 +694,11 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     run.status = 'completed'
                     run.completed_at = datetime.datetime.now()
                     self.send_response_to_user(run, thread_id, output_stream + f'..stopped!', model_name,
-                                               chat_history, output_event)
+                                               chat_history, output_event, bot_os_thread=bot_os_thread)
                     break
 
                 output_stream = self.record_tool_call(run, thread_id, func_name, func_args, tool_call_id,
-                                                      output_stream, chat_history, output_event)
+                                                      output_stream, chat_history, output_event, bot_os_thread=bot_os_thread)
 
                 # tool function may use below callback to update user on its progress
                 def status_callback(session_id, update_message):
@@ -826,6 +715,9 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     output_event(status=run.status, output=output_stream + msg + " 💬", messages=None)
                     output_stream += msg + '\n'
 
+                # pass bot_os_thread to tool function in thread_local_storage
+                thread_local.bot_os_thread = bot_os_thread
+
                 try:
                     func_response = self.run_tool_function(run, thread_id, func_name, func_args, tool_call_id, status_callback)
                 except Exception as e:
@@ -833,7 +725,7 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                     run.status = 'completed'
                     run.completed_at = datetime.datetime.now()
                     self.send_response_to_user(run, thread_id, output_stream + f'\nError making tool call: {str(e)}', model_name,
-                                               chat_history, output_event)
+                                               chat_history, output_event, bot_os_thread=bot_os_thread)
                     break       
 
                 bot_os_thread.messages.append({"role": "tool", "tool_call_id": tool_call_id, "content": str(func_response)})
@@ -845,11 +737,11 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
                 break
 
             chat_history(message_type='User Prompt', message_payload='Tool call completed, results',
-                         message_metadata=input_message.metadata)
+                         message_metadata=input_message.metadata, bot_os_thread=bot_os_thread)
 
             for tool_call_id, resp in results:
                 chat_history(message_type='Tool Output', message_payload=resp,
-                             message_metadata={'tool_call_id': tool_call_id})
+                             message_metadata={'tool_call_id': tool_call_id}, bot_os_thread=bot_os_thread)
         
             openai_messages = self.get_openai_messages(bot_os_thread, model_name)
             continue # to submit tool calls results to OpenAI
@@ -950,4 +842,33 @@ class BotOsAssistantOpenAIChat(BotOsAssistantInterface):
 
             logger.info(f"Likely newly generated function '{function_name}' added all_functions.")
             return False
+
+    def update_bots_active_table(self):
+        """Update bots active table at most once per minute"""
+        if not global_flags.multibot_mode:
+            return
+
+        current_time = datetime.datetime.now()
+        
+        # Simple timestamp check without locking
+        if (current_time - self.__class__._last_bots_active_update).total_seconds() < 60:
+            return
+            
+        self.__class__._last_bots_active_update = current_time
+
+        try:
+            timestamp_str = self.get_current_time_with_timezone()
+            create_bots_active_table_query = f"""
+            CREATE OR REPLACE TABLE {self.schema}.bots_active ("{timestamp_str}" STRING);
+            """
+            
+            cursor = self.log_db_connector.connection.cursor()
+            cursor.execute(create_bots_active_table_query)
+            self.log_db_connector.connection.commit()
+            logger.debug(f"Table {self.schema}.bots_active updated with timestamp: {timestamp_str}")
+        except Exception as e:
+            logger.debug(f"Failed to update bots_active table: {e}")
+        finally:
+            if cursor:
+                cursor.close()
 

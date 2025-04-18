@@ -628,7 +628,7 @@ class SQLiteCursorWrapper:
                 if len(params) == 8 and 'llm_tokens' in query.lower() and 'MERGE INTO' in query.upper():
                     # Take only the first 4 parameters for llm_tokens MERGE
                     params = params[:4]
-                    logger.debug(f"Using first 4 params for llm_tokens: {params}")
+                    logger.debug("Using first 4 params for llm_tokens: {params}")
                 if len(params) == 5 and 'slack_app_config_tokens' in query.lower() and 'MERGE INTO' in query.upper():
                     # Adjust parameters to match the transformed query
                     params = params[:3]
@@ -1012,59 +1012,23 @@ class SQLiteCursorWrapper:
 
 
         # Handle ALTER TABLE ADD COLUMN statements
-        if 'ALTER TABLE' in query_upper and 'ADD COLUMN' in query_upper:
-            # Remove schema qualifiers
-            query = re.sub(r'(?:[^.\s]+\.){1,2}([^\s(]+)', r'\1', query)
-
-            # Extract table name and columns
-            match = re.match(r'ALTER TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(.+)', query, re.IGNORECASE)
+        if 'ALTER TABLE' in query_upper and ('ADD COLUMN' in query_upper or 'ADD' in query_upper):
+            # Remove schema qualifiers (including 'main.')
+            query = re.sub(r'ALTER TABLE\s+(?:main\.|[^.\s]+\.)?([^\s]+)', r'ALTER TABLE \1', query, re.IGNORECASE)
+            
+            # Extract table name and column definition
+            match = re.match(r'ALTER TABLE\s+(\w+)\s+ADD(?:\s+COLUMN)?\s+(?:IF NOT EXISTS\s+)?(.+)', query, re.IGNORECASE)
             if match:
                 table_name = match.group(1)
-                columns_str = match.group(2).strip(';')
-
-                # Split multiple columns and create separate ALTER TABLE statements
-                columns = [col.strip() for col in columns_str.split(',')]
-
-                # Convert Snowflake types to SQLite types
-                statements = []
-                for col in columns:
-                    # Convert types
-                    col = re.sub(r'VARCHAR\([^)]+\)', 'TEXT', col)
-                    col = re.sub(r'TIMESTAMP', 'DATETIME', col)
-                    col = re.sub(r'ARRAY', 'TEXT', col)
-                    col = re.sub(r'STRING', 'TEXT', col)
-                    col = re.sub(r'BOOLEAN', 'INTEGER', col)
-
-                    # Extract column name (part before first space)
-                    col_name = col.split()[0]
-
-                    # Only try to add column if it doesn't exist
-                    statements.append(f"""
-                        SELECT CASE
-                            WHEN NOT EXISTS (
-                                SELECT 1 FROM pragma_table_info('{table_name}')
-                                WHERE name = '{col_name}'
-                            )
-                            THEN (
-                                SELECT 1
-                            )
-                        END;
-                    """)
-
-                    # The actual ALTER will only be executed if the column doesn't exist
-                    statements.append(f"""
-                        SELECT CASE
-                            WHEN NOT EXISTS (
-                                SELECT 1 FROM pragma_table_info('{table_name}')
-                                WHERE name = '{col_name}'
-                            )
-                            THEN (
-                                SELECT sqlite_version()
-                            )
-                        END;
-                    """)
-
-                return statements
+                column_def = match.group(2).strip(';')
+                
+                # Convert types
+                column_def = re.sub(r'VARCHAR\([^)]+\)', 'TEXT', column_def)
+                column_def = re.sub(r'TIMESTAMP', 'DATETIME', column_def)
+                column_def = re.sub(r'STRING', 'TEXT', column_def)
+                column_def = re.sub(r'BOOLEAN', 'INTEGER', column_def)
+                
+                return f"ALTER TABLE {table_name} ADD COLUMN {column_def}"
 
         # Handle SHOW COLUMNS or DESCRIBE TABLE commands
         if query_upper.startswith('SHOW COLUMNS') or query_upper.startswith('DESCRIBE TABLE'):

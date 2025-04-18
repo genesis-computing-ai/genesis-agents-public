@@ -41,8 +41,8 @@ def setup_slack():
             st.error(f"Failed to check EAI status: {e}")
             st.session_state.slack_eai_available = False
 
-    # Fetch Slack tokens and clear cached tokens
-    tokens = get_slack_tokens()
+    # Fetch Slack tokens using the cached version
+    tokens = get_slack_tokens_cached()
     get_slack_tokens_cached.clear()
 
     tok = tokens.get("Token", "")

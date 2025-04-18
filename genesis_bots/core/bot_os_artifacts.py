@@ -510,13 +510,13 @@ class SnowflakeStageArtifactsStore(ArtifactsStoreBase):
         metadata = self.get_artifact_metadata(artifact_id)
         title = metadata['title_filename']
         mime_type = metadata.get('mime_type', '')
-
+        
         # Simple check if this is an image
         is_image = mime_type and mime_type.startswith('image/')
-
+        
         # Use image markdown for images, regular markdown for other files
         markdown = f"!{'' if is_image else ''}[{title}](artifact:/{artifact_id})"
-
+        
         return f"Here is a markdown syntax you (assistant) can use to {'render' if is_image else 'reference'} this artifact when responding to the user: {markdown}. Strictly follow this markdown syntax. Note that this markdown cannot be used by the user. DO NOT suggest to the user to use this markdown."
 
 

@@ -204,7 +204,7 @@ def _image_analysis(
     }
 
     # Use the provided query or a default one if not provided
-    prompt = query if query else "What’s in this image?"
+    prompt = query if query else "What's in this image?"
 
     openai_model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-2024-11-20")
 
@@ -224,7 +224,7 @@ def _image_analysis(
                 ],
             }
         ],
-        "max_tokens": 300,
+        "max_tokens": 1000,
     }
 
     response = requests.post(
@@ -242,7 +242,299 @@ def _image_analysis(
             "error": f"OpenAI API call failed with status code {response.status_code}: {response.text}",
         }
 
-image_functions = [image_generation, _image_analysis,]
+@gc_tool(
+    file_name=ToolFuncParamDescriptor(
+        name="file_name",
+        description="Name of the image file to process",
+        required=True,
+        llm_type_desc=dict(type="string"),
+    ),
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[image_tools],
+)
+def find_image_path_in_download_folder(
+    file_name: str,
+    thread_id: str=None
+    ):
+    """
+    This function accepts the filename and check multiple scenarios and return the sandbox path to the image
+      - when using this function return the final path to the user - this function does not display the image
+    """
+    if thread_id is None:
+        import random
+        import string
+        thread_id = "".join(
+                random.choices(string.ascii_letters + string.digits, k=10)
+            )
+
+    # Clean up the file name in case it contains a path
+    if "/" in file_name:
+        # Full path provided
+        file_path = file_name
+    else:
+        # Just the file name provided, construct the path
+        if thread_id:
+            # Check if the file exists in the thread directory
+            thread_file_path = f"./runtime/downloaded_files/{thread_id}/{file_name}"
+            if os.path.isfile(thread_file_path):
+                file_path = thread_file_path
+        
+        # If file_path is still None, search for the file in all directories
+        if not file_path:
+            # Search for the file in all directories
+            runtime_dir = "./runtime/downloaded_files"
+            
+            # Create a list of possible locations to check
+            possible_locations = []
+            
+            # If we have a thread_id, check there first
+            if thread_id:
+                possible_locations.append(f"{runtime_dir}/{thread_id}/{file_name}")
+            
+            # Check the root directory
+            possible_locations.append(f"{runtime_dir}/{file_name}")
+            
+            # Check all subdirectories
+            if os.path.exists(runtime_dir):
+                for dir_name in os.listdir(runtime_dir):
+                    dir_path = f"{runtime_dir}/{dir_name}"
+                    if os.path.isdir(dir_path):
+                        possible_locations.append(f"{dir_path}/{file_name}")
+            
+            # Check all possible locations
+            for location in possible_locations:
+                if os.path.isfile(location):
+                    logger.info(f"display_image: Found file at {location}")
+                    file_path = location
+                    
+                    # Copy the file to the thread directory if thread_id is provided
+                    if thread_id:
+                        target_dir = f"{runtime_dir}/{thread_id}"
+                        os.makedirs(target_dir, exist_ok=True)
+                        target_path = f"{target_dir}/{file_name}"
+                        
+                        # Only copy if the target doesn't already exist and it's not the same file
+                        if location != target_path and not os.path.exists(target_path):
+                            import shutil
+                            shutil.copy2(location, target_path)
+                            logger.info(f"display_image: Copied file to {target_path}")
+                    
+                    break
+    
+    # it could be case where "{thread_id}/{file_name}" is passed
+    if os.path.isfile(f"./runtime/downloaded_files/{file_name}"):
+        reference_path = f'sandbox:/mnt/data/runtime/downloaded_files/{file_name}'
+        return {
+            "success": True,
+            "local_file_name": reference_path,
+            "file_name": file_name
+        }
+    
+    # it could be a case where sandbox is already passed
+    if 'sandbox' in file_name and os.path.isfile(file_name.replace('sandbox:/mnt/data', '.')):
+        reference_path = file_name
+        return {
+            "success": True,
+            "local_file_name": reference_path,
+            "file_name": file_name
+        }
+
+
+    if not file_path or not os.path.isfile(file_path):
+        logger.error(f"display_image: File not found: {file_name}")
+        
+        # Provide more detailed error information
+        runtime_dir = "./runtime/downloaded_files"
+        if os.path.exists(runtime_dir):
+            available_files = []
+            for root, _, files in os.walk(runtime_dir):
+                for f in files:
+                    if file_name and file_name.lower() in f.lower():
+                        curr_path = os.path.join(root, f)
+                        available_files.append('sandbox:/mnt/data' + curr_path[1:])
+            
+            if available_files:
+                logger.info(f"display_image: Similar files found: {available_files}")
+                return {
+                    "success": False,
+                    "error": f"Image file not found at expected location, but similar files exist. Try using one of these paths: {available_files}"
+                }
+        
+        return {
+            "success": False,
+            "error": f"Image file not found: {file_name}"
+        }
+
+    reference_path = 'sandbox:/mnt/data' + file_path[1:]
+
+    return {
+        "success": True,
+        "local_file_name": reference_path,
+        "file_name": file_name
+    }
+
+@gc_tool(
+    file_name=ToolFuncParamDescriptor(
+        name="file_name",
+        description="Name of the image file to get.",
+        required=True,
+        llm_type_desc=dict(type="string"),
+    ),
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[image_tools],
+)
+def GetImage(
+    file_name: str,
+    thread_id: str=None
+    ):
+    """
+    Get an existing image from the downloaded_files folder.
+    """
+    # Generate a thread_id if none is provided
+    if thread_id is None:
+        import random
+        import string
+        thread_id = "".join(
+            random.choices(string.ascii_letters + string.digits, k=10)
+        )
+        logger.info(f"DisplayImage: Generated thread_id: {thread_id}")
+    
+    # In Teams adapter, the file might not be in the expected location
+    # Let's check if we need to handle a file upload
+    if file_name and "/" not in file_name:
+        # First, check if the file exists in the runtime/downloaded_files directory
+        runtime_dir = "./runtime/downloaded_files"
+        
+        # Create a list of possible locations to check
+        possible_locations = [
+            f"{runtime_dir}/{thread_id}/{file_name}",
+            f"{runtime_dir}/{file_name}",
+        ]
+        
+        # If we have a thread_id, also check in other thread directories
+        if os.path.exists(runtime_dir):
+            for dir_name in os.listdir(runtime_dir):
+                if os.path.isdir(f"{runtime_dir}/{dir_name}"):
+                    possible_locations.append(f"{runtime_dir}/{dir_name}/{file_name}")
+        
+        # Check all possible locations
+        file_found = False
+        for location in possible_locations:
+            if os.path.isfile(location):
+                logger.info(f"DisplayImage: Found file at {location}")
+                # Copy the file to the expected location
+                target_dir = f"{runtime_dir}/{thread_id}"
+                os.makedirs(target_dir, exist_ok=True)
+                target_path = f"{target_dir}/{file_name}"
+                
+                # Only copy if the target doesn't already exist
+                if location != target_path:
+                    import shutil
+                    shutil.copy2(location, target_path)
+                    logger.info(f"DisplayImage: Copied file to {target_path}")
+                
+                file_found = True
+                break
+        
+        if not file_found:
+            logger.error(f"DisplayImage: File not found in any location: {file_name}")
+            return {
+                "success": False,
+                "error": f"Image file not found: {file_name}. Please upload the image again."
+            }
+    
+    # Call the original display_image function
+    return find_image_path_in_download_folder(file_name, thread_id)
+
+@gc_tool(
+    query=ToolFuncParamDescriptor(
+        name="query",
+        description="The question about the image.",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    openai_file_id=ToolFuncParamDescriptor(
+        name="openai_file_id",
+        description="The OpenAI file ID of the image, if known.",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    file_name=ToolFuncParamDescriptor(
+        name="file_name",
+        description="The full local path to the file to analyze, if known",
+        required=False,
+        llm_type_desc=dict(type="string"),
+    ),
+    thread_id=THREAD_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[image_tools],
+)
+def ImageAnalysis(
+    query: str=None,
+    openai_file_id: str = None,
+    file_name: str = None,
+    thread_id: str=None,
+    input_thread_id: str=None,
+):
+    """
+    Analyzes an image using OpenAI's Vision. Provide either the OpenAI file ID or the full local path to the file.
+    """
+    # Generate a thread_id if none is provided
+    if thread_id is None:
+        import random
+        import string
+        thread_id = "".join(
+            random.choices(string.ascii_letters + string.digits, k=10)
+        )
+        logger.info(f"ImageAnalysis: Generated thread_id: {thread_id}")
+    
+    # In Teams adapter, the file might not be in the expected location
+    # Let's check if we need to handle a file upload
+    if file_name and "/" not in file_name:
+        # First, check if the file exists in the runtime/downloaded_files directory
+        runtime_dir = "./runtime/downloaded_files"
+        
+        # Create a list of possible locations to check
+        possible_locations = [
+            f"{runtime_dir}/{thread_id}/{file_name}",
+            f"{runtime_dir}/{file_name}",
+        ]
+        
+        # If we have a thread_id, also check in other thread directories
+        if os.path.exists(runtime_dir):
+            for dir_name in os.listdir(runtime_dir):
+                if os.path.isdir(f"{runtime_dir}/{dir_name}"):
+                    possible_locations.append(f"{runtime_dir}/{dir_name}/{file_name}")
+        
+        # Check all possible locations
+        file_found = False
+        for location in possible_locations:
+            if os.path.isfile(location):
+                logger.info(f"ImageAnalysis: Found file at {location}")
+                # Copy the file to the expected location
+                target_dir = f"{runtime_dir}/{thread_id}"
+                os.makedirs(target_dir, exist_ok=True)
+                target_path = f"{target_dir}/{file_name}"
+                
+                # Only copy if the target doesn't already exist
+                if location != target_path:
+                    import shutil
+                    shutil.copy2(location, target_path)
+                    logger.info(f"ImageAnalysis: Copied file to {target_path}")
+                
+                file_found = True
+                break
+        
+        if not file_found:
+            logger.error(f"ImageAnalysis: File not found in any location: {file_name}")
+            return {
+                "success": False,
+                "error": f"Image file not found: {file_name}. Please upload the image again."
+            }
+    
+    # Call the original _image_analysis function
+    return _image_analysis(query, openai_file_id, file_name, thread_id, input_thread_id)
+
+image_functions = [image_generation, _image_analysis, find_image_path_in_download_folder, GetImage, ImageAnalysis]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_image_functions():

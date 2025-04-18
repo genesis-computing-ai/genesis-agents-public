@@ -1,7 +1,7 @@
 
 [connections.GENESIS-DEV-PROVIDER]
 account = "dshrnxx-genesis-dev"
-user = "michael.rainey@genesiscomputing.ai"
+user = "DEPLOY"
 authenticator = "SNOWFLAKE_JWT"
 private_key_path = "/home/runner/.keys/dev_provider/rsa_key.p8"
 warehouse = "APP_XSMALL"
@@ -9,7 +9,7 @@ role = "ACCOUNTADMIN"
 
 [connections.GENESIS-DEV-CONSUMER-2]
 account = "dshrnxx-genesis-dev-consumer"
-user = "michael.rainey@genesiscomputing.ai"
+user = "DEPLOY"
 authenticator = "SNOWFLAKE_JWT"
 private_key_path = "/home/runner/.keys/dev_consumer/rsa_key.p8"
 warehouse = "APP_XSMALL"

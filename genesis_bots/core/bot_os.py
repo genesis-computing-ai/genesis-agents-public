@@ -30,6 +30,7 @@ import pickle
 import json
 
 from genesis_bots.core.logging_config import logger
+from genesis_bots.core.file_diff_handler import GitFileManager
 
 class BotOsThread:
     def __init__(self, assistant_implementaion, input_adapter, thread_id=None) -> None:
@@ -223,6 +224,24 @@ class BotOsThread:
         self.messages = messages + self.messages[self.run_messg_count:]
         logger.info(f'bot={self.assistant_impl.bot_id}, thread={self.thread_id}, deleted {count} messages, {total_bytes} bytes in messages now')
         return True
+
+    def to_dict(self):
+        """Serialize thread state to dictionary"""
+        return {
+            'thread_id': self.thread_id,
+            'messages': self.messages,
+            'fast_mode': self.fast_mode,
+            'run_messg_count': self.run_messg_count
+        }
+
+    @classmethod
+    def from_dict(cls, data, assistant_impl, input_adapter):
+        """Reconstruct thread from dictionary"""
+        thread = cls(assistant_impl, input_adapter, thread_id=data['thread_id'])
+        thread.messages = data['messages']
+        thread.fast_mode = data['fast_mode']
+        thread.run_messg_count = data['run_messg_count']
+        return thread
 
 def _get_future_datetime(delta_string: str) -> datetime.datetime:
     # Regular expression to extract number and time unit from the string
@@ -425,14 +444,58 @@ class BotOsSession:
         self.last_table_update = datetime.datetime.now() - datetime.timedelta(seconds=61)
         self.update_bots_active_table()
 
+        # Use bot_git path for thread storage
+        git_path = os.getenv('GIT_PATH', GitFileManager.get_default_git_repo_path())
+        self.thread_storage_path = os.path.join(git_path, 'threads', bot_id)
+        os.makedirs(self.thread_storage_path, exist_ok=True)
 
-     #   sanitized_bot_id = re.sub(r"[^a-zA-Z0-9]", "", self.bot_id)
-     #   thread_maps_filename = f"./thread_maps_{sanitized_bot_id}.pickle"
-     #   if os.path.exists(thread_maps_filename):
-      #      with open(thread_maps_filename, "rb") as handle:
-       #         maps = pickle.load(handle)
-        #        self.in_to_out_thread_map = maps.get("in_to_out", {})
-        #        self.out_to_in_thread_map = maps.get("out_to_in", {})
+        # Load thread maps if they exist
+        thread_maps_file = os.path.join(self.thread_storage_path, "thread_maps.json")
+        if os.path.exists(thread_maps_file):
+            try:
+                with open(thread_maps_file, 'r') as f:
+                    maps = json.load(f)
+                    self.in_to_out_thread_map = maps.get("in_to_out", {})
+                    self.out_to_in_thread_map = maps.get("out_to_in", {})
+            except Exception as e:
+                logger.error(f"Failed to load thread maps for bot {self.bot_id}: {str(e)}")
+
+        self.thread_retention_days = int(os.getenv("THREAD_RETENTION_DAYS", "30"))
+        self.last_cleanup = datetime.datetime.now()
+
+    def _get_thread_storage_file(self, thread_id):
+        """Get path to thread storage file"""
+        safe_thread_id = re.sub(r'[^a-zA-Z0-9-]', '_', thread_id)
+        return os.path.join(self.thread_storage_path, f"{safe_thread_id}.json")
+
+    def _save_thread(self, thread):
+        """Save thread state directly to filesystem in bot_git/threads"""
+        try:
+            thread_data = thread.to_dict()
+            file_path = self._get_thread_storage_file(thread.thread_id)
+            
+            # Write to temporary file first then rename for atomic operation
+            temp_path = file_path + '.tmp'
+            with open(temp_path, 'w') as f:
+                json.dump(thread_data, f, indent=2)
+            os.replace(temp_path, file_path)
+            
+        except Exception as e:
+            logger.error(f"Failed to save thread {thread.thread_id}: {str(e)}")
+
+    def _load_thread(self, thread_id, input_adapter):
+        """Load thread state using git manager"""
+        relative_path = self._get_thread_storage_file(thread_id)
+        
+        result = self.git_manager.git_action(
+            "read_file", 
+            file_path=relative_path
+        )
+        
+        if result.get("success"):
+            thread_data = json.loads(result["content"])
+            return BotOsThread.from_dict(thread_data, self.assistant_impl, input_adapter)
+        return None
 
     def create_thread(self, input_adapter) -> str:
         logger.debug("create llm thread")
@@ -466,16 +529,23 @@ class BotOsSession:
         self, input_message: BotOsInputMessage, event_callback = None
     ):  # thread_id:str, message:str, files=[]):
 
-        if input_message.thread_id not in self.threads:  #32a
-            logger.info(
-                f"{self.bot_name} bot_os add_message new_thread for {input_message.thread_id} not found in existing threads."
-            )
-            thread = BotOsThread(
-                self.assistant_impl,
-                self.input_adapters[0],
-                thread_id=input_message.thread_id,
-            )
+        if input_message.thread_id not in self.threads:
+            # Try to load existing thread from disk
+            thread = self._load_thread(input_message.thread_id, self.input_adapters[0])
+            if thread is None:
+                # Create new thread if none exists
+                logger.info(f"{self.bot_name} bot_os add_message new_thread for {input_message.thread_id}")
+                thread = BotOsThread(
+                    self.assistant_impl,
+                    self.input_adapters[0],
+                    thread_id=input_message.thread_id,
+                )
             self.threads[input_message.thread_id] = thread
+
+            # Save thread maps whenever we create a new thread mapping
+            if input_message.thread_id in self.in_to_out_thread_map:
+                self._save_thread_maps()
+
         else:
             thread = self.threads[input_message.thread_id]
         logger.info(f"{self.bot_name} bot_os add_message, len={len(input_message.msg)}")
@@ -523,6 +593,9 @@ class BotOsSession:
             logger.info("bot os session add false - thread already running")
             return False
         # logger.debug(f'added message {input_message.msg}')
+
+        # Save thread state after message processing
+        self._save_thread(thread)
 
     def _validate_response(
         self, session_id: str, output_message: BotOsOutputMessage
@@ -598,8 +671,49 @@ class BotOsSession:
             if cursor:
                 cursor.close()
 
+    def _cleanup_old_threads(self):
+        """Remove thread storage files older than retention period"""
+        now = datetime.datetime.now()
+        if (now - self.last_cleanup).days < 1:
+            return
+
+        self.last_cleanup = now
+        retention_delta = datetime.timedelta(days=self.thread_retention_days)
+
+        # List all thread files for this bot
+        result = self.git_manager.git_action(
+            "list_files",
+            path=f"threads/{self.bot_id}"
+        )
+        
+        if not result.get("success"):
+            return
+
+        files = result.get("files", {}).get("files", [])
+        for file_path in files:
+            # Get file history to check last modification
+            history = self.git_manager.git_action(
+                "get_history",
+                file_path=file_path,
+                max_count=1
+            )
+            
+            if history.get("success") and history.get("history"):
+                last_commit = history["history"][0]
+                file_modified = last_commit["date"]
+                
+                if now - file_modified > retention_delta:
+                    self.git_manager.git_action(
+                        "remove_file",
+                        file_path=file_path,
+                        commit_message=f"Remove old thread file {file_path}"
+                    )
+                    logger.info(f"Removed old thread storage: {file_path}")
 
     def execute(self):
+        # Add cleanup check at start of execute
+       # self._cleanup_old_threads()
+        
         # self._health_check()
 
         # logger.info("execute ", self.session_name)
@@ -639,7 +753,6 @@ class BotOsSession:
                 continue
 
          #   logger.info(f"bot os session input message {input_message.msg}")
-
 
             self.update_bots_active_table()
 
@@ -879,3 +992,22 @@ Now, with that as background...\n''' + input_message.msg
 
     def _health_check(self):
         pass
+
+    def _save_thread_maps(self):
+        """Save thread mapping dictionaries directly to filesystem in bot_git/threads"""
+        try:
+            maps = {
+                "in_to_out": self.in_to_out_thread_map,
+                "out_to_in": self.out_to_in_thread_map
+            }
+            
+            file_path = os.path.join(self.thread_storage_path, "thread_maps.json")
+            
+            # Write to temporary file first then rename for atomic operation
+            temp_path = file_path + '.tmp'
+            with open(temp_path, 'w') as f:
+                json.dump(maps, f, indent=2)
+            os.replace(temp_path, file_path)
+            
+        except Exception as e:
+            logger.error(f"Failed to save thread maps for bot {self.bot_id}: {str(e)}")

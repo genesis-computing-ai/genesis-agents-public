@@ -45,7 +45,7 @@ git_action_grp = ToolFuncGroup(
         llm_type_desc=dict(
             type="string",
             enum=["list_files", "read_file", "write_file", "generate_diff", "apply_diff",
-             "commit", "get_history", "create_branch", "switch_branch", "get_branch", "get_status"],
+             "commit", "get_history", "create_branch", "switch_branch", "get_branch", "get_status", "remove_file"],
         ),
     ),
     file_path=ToolFuncParamDescriptor(
@@ -92,7 +92,7 @@ git_action_grp = ToolFuncGroup(
     ),
     path=ToolFuncParamDescriptor(
         name="path",
-        description="Optional path filter for listing files",
+        description="Optional path filter for listing files, otherwise will list all files and folders at the root of the repository",
         required=False,
         llm_type_desc=dict(type="string"),
     ),
@@ -145,7 +145,7 @@ def git_action(
     Wrapper for Git file management operations
 
     Args:
-        action: The git action to perform (list_files, read_file, write_file, etc.)
+        action: The git action to perform (list_files, read_file, write_file, remove_file, etc.)
         file_path: Path to the file to operate on
         content: Content to write to file
         commit_message: Message for git commit

@@ -132,6 +132,8 @@ def read_g_doc(doc_id, creds=None):
         document = service.documents().get(documentId=doc_id).execute()
         content = document.get('body').get('content')
 
+        service._http.http.close()
+
         text = ""
         for element in content:
             if 'paragraph' in element:
@@ -144,7 +146,7 @@ def read_g_doc(doc_id, creds=None):
         print(f"An error occurred: {error}")
         return None
 
-def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
+def create_g_doc(data, g_doc_title='Untitled Document', folder_id=None, creds=None):
     logger.info('Entering create_g_doc')
     creds = load_creds()
 
@@ -161,6 +163,10 @@ def create_g_doc(data, g_doc_title='Untitled Document', creds=None):
         logger.info('Inserting text...')
         requests = [{"insertText": {"location": {"index": 1}, "text": data}}]
         docs_service.documents().batchUpdate(documentId=doc_id, body={"requests": requests}).execute()
+
+        if folder_id:
+            logger.info(f'Moving document to folder {folder_id}')
+            drive_service.files().update(fileId=doc_id, addParents=folder_id).execute()
 
         return {"Success": True, "Document ID": doc_id}
 
@@ -191,12 +197,12 @@ def append_g_doc(doc_id, data, creds=None):
 def update_g_doc(doc_id, data, creds=None):
     """
     Update a Google Doc's content by replacing all existing content with new data.
-    
+
     Args:
         doc_id (str): The ID of the document to update
         data (str): The new content to write
         creds: Optional credentials object
-        
+
     Returns:
         dict: Result containing Success status and Document ID or Error
     """
@@ -455,6 +461,7 @@ def get_g_file_comments(file_id, user='Unknown User'):
                     comments["comments"][comment_index]["columnIndex"] = (
                         number_to_column(j + 1)
                     )
+        service._http.http.close()
 
         return comments.get("comments", [])
 
@@ -497,6 +504,8 @@ def add_reply_to_g_file_comment(
             .execute()
         )
 
+        service._http.http.close()
+
         logger.info(f"Reply added: {created_reply['content']}")
         return created_reply
 
@@ -522,6 +531,8 @@ def get_g_file_web_link(file_id, creds=None):
 
         # Get the file metadata including the webViewLink
         file_metadata = service.files().get(fileId=file_id, fields="name, webViewLink, parents").execute()
+
+        service._http.http.close()
 
         return {
             "Success": True,
@@ -557,6 +568,8 @@ def find_g_file_by_name(file_name, creds=None):
         query = f"name='{file_name}'"
         response = service.files().list(q=query, fields="files(id, name, webViewLink, createdTime)").execute()
         files = response.get("files", [])
+
+        service._http.http.close()
 
         if files:
             return {"Success": True, "Files": files}
@@ -626,6 +639,8 @@ def get_g_folder_directory(folder_id=None, creds=None, db_adapter=None):
             "size": f.get("size")
         } for f in files]
 
+        service._http.http.close()
+
         return {
             "Success": True,
             "Files": file_list,
@@ -666,6 +681,8 @@ def add_g_file_comment(
             .execute()
         )
 
+        service._http.http.close()
+
         logger.info(f"Comment added: {created_comment['content']}")
         return created_comment
 
@@ -698,6 +715,8 @@ def get_g_folder_web_link(folder_id, creds):
         logger.info(f"Folder Name: {folder.get('name')}")
         logger.info(f"Web View Link: {folder.get('webViewLink')}")
 
+        service._http.http.close()
+
         return folder.get("webViewLink")
 
     except Exception as e:
@@ -728,6 +747,8 @@ def get_g_file_version(g_file_id = None, creds = None, db_adapter = None):
     file_size = file_metadata.get("size")
     parent_folder_id = file_metadata.get("parents")[0] if file_metadata.get("parents") else None
     g_file_type = 'sheet'
+
+    service._http.http.close()
 
     update_g_drive_file_version_table(db_adapter, g_file_id, version, file_name, file_size, parent_folder_id, g_file_type)
 
@@ -917,6 +938,8 @@ def create_folder_in_folder(folder_name, parent_folder_id):
 
     file = service.files().create(body=file_metadata, fields="id").execute()
 
+    service._http.http.close()
+
     logger.info(f'Folder ID: {file.get("id")} | Folder name: {folder_name}')
 
     return file.get("id")
@@ -1057,6 +1080,9 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
             "g_file_version": "1",
         }
 
+        service._http.http.close()
+        drive_service._http.http.close()
+
         insert_into_g_drive_file_version_table(self, g_file_version_data)
 
         return {"Success": True, "file_id": spreadsheet.get("spreadsheetId"), "file_url": file_url, "folder_url": folder_url}
@@ -1065,7 +1091,7 @@ def create_google_sheet_from_export(self, shared_folder_id, title, data):
         logger.info(f"An error occurred: {error}")
         return error
 
-def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None) -> dict:
+def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", g_folder_id=None, creds=None) -> dict:
     """
     Create a Google Sheet with the given values.
     Load pre-authorized user credentials from the environment.
@@ -1106,6 +1132,10 @@ def create_g_sheet_v4(g_sheet_values, g_sheet_name = "Google Sheet", creds=None)
         )
 
         logger.info(f"{result.get('updatedCells')} cells created.")
+
+        if folder_id:
+            logger.info(f'Moving document to folder {folder_id}')
+            service.files().update(fileId=ss_id, addParents=folder_id).execute()
 
         return {
             "Success": True,
@@ -1263,20 +1293,20 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
                 start_col, end_col = col_range_match.groups()
                 start_col_num = column_to_number(start_col) - 1
                 end_col_num = column_to_number(end_col) - 1
-                
+
                 # Get all rows but only the specified columns
                 rows = [row[start_col_num:end_col_num + 1] for row in rows]
-                
+
             else:
                 # Handle normal ranges like A1:B2
                 match = re.match(r"([A-Za-z]{1,2})(\d+):([A-Za-z]{1,2})(\d+)", cell_range)
                 if match:
                     start_col, start_row, end_col, end_row = match.groups()
-                    
+
                     # Convert column letters to numbers (A=1, B=2, AA=27, etc)
                     start_col_num = column_to_number(start_col) - 1  # Convert to 0-based index
                     end_col_num = column_to_number(end_col) - 1
-                    
+
                     # Convert row numbers to 0-based indices
                     start_row_num = int(start_row) - 1
                     end_row_num = int(end_row) - 1
@@ -1289,22 +1319,24 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
 
                     # Filter rows based on range
                     rows = rows[start_row_num:end_row_num + 1]
-                    
+
                     # Filter columns for each row
                     rows = [row[start_col_num:end_col_num + 1] for row in rows]
                 else:
-                    # Handle single cell case (e.g. "A1" or "AA1") 
+                    # Handle single cell case (e.g. "A1" or "AA1")
                     match = re.match(r"([A-Za-z]{1,2})(\d+)", cell_range)
                     if match:
                         col, row = match.groups()
                         col_num = column_to_number(col) - 1
                         row_num = int(row) - 1
-                        
+
                         # Ensure valid indices
                         if 0 <= row_num < len(rows) and 0 <= col_num < len(rows[0]):
                             rows = [[rows[row_num][col_num]]]
                         else:
                             rows = [[None]]
+
+        service._http.http.close()
 
         return {
             "Success": True,
@@ -1312,7 +1344,7 @@ def read_g_sheet(spreadsheet_id=None, cell_range=None, creds=None) -> dict:
         }
     except Exception as error:
         logger.error(f"HTTPError in read sheet: {error} - {spreadsheet_id}")
-        return {"Success": False,"error": error}
+        return {"Success": False,"error": str(error)}
 
 
 def delete_g_file(file_id=None, creds=None) -> dict:
@@ -1328,6 +1360,8 @@ def delete_g_file(file_id=None, creds=None) -> dict:
         service = build("drive", "v3", credentials=creds)
 
         service.files().delete(fileId=file_id).execute()
+
+        service._http.http.close()
 
         return {"Success": True, "message": f"File {file_id} deleted successfully"}
     except Exception as error:

@@ -145,6 +145,7 @@ def configuration():
         ("db_harvester", "Harvester Status"),
         ("config_jira", "Setup Jira API Params"),
         # ("config_github", "Setup GitHub API Params"),
+        ("config_dbtcloud", "Setup DBT Cloud API Params"),
         ("config_web_access", "Setup WebAccess API Params"),
         ("config_g_sheets", "Setup Google Workspace API"),
     ])
@@ -161,6 +162,7 @@ def configuration():
             ("grant_data", "Grant Data Access"),
             ("start_stop", "Server Stop-Start"),
             ("show_server_logs", "Server Logs"),
+            ("config_eai", "Setup Endpoints"),
         ])
     
 

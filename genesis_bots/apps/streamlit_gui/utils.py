@@ -214,8 +214,8 @@ def set_metadata(metadata_type):
     if st.session_state.NativeMode:
         session = get_session()
         prefix = st.session_state.get('prefix', '')
-        sql = f"select {prefix}.set_metadata('{metadata_type}') "
-        data = session.sql(sql).collect()
+        sql = f"select {prefix}.set_metadata(?)"
+        data = session.sql(sql, (metadata_type,)).collect()
         response = data[0][0]
         response = json.loads(response)
         return response

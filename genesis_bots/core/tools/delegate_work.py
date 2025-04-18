@@ -30,6 +30,301 @@ delegate_work = ToolFuncGroup(
     lifetime="PERSISTENT",
 )
 
+UPDATE_INTERVAL_SECONDS = 10  # Check for updates every 15 seconds
+
+@gc_tool(
+    program_id="ID of the program to run (e.g. 'mapping_research_and_proposal' or 'create_mappings_project')", 
+    todo_id="ID of the todo to process (required for mapping_research_and_proposal program)",
+    project_id="Project ID argument for the program (not needed for create_mappings_project program)",
+    root_folder="Root folder argument for the program (not needed for create_mappings_project program)",
+    g_sheet_id="Google Sheet ID for the project config file (required for create_mappings_project program)",
+    bot_id=BOT_ID_IMPLICIT_FROM_CONTEXT,
+    _group_tags_=[delegate_work],
+)
+def run_program(
+    program_id: str,
+    bot_id: str,
+    todo_id: str = None,
+    thread_id: str = None,
+    run_id: str = None,
+    session_id: str = None,
+    project_id: str = None,
+    root_folder: str = None,
+    g_sheet_id: str = None,
+    status_update_callback: str = None,
+    input_metadata: str = None,
+):
+    """
+    Run an external program with specified parameters and monitor its progress.
+    
+    This function executes external Python programs and provides real-time status updates
+    about their progress. It supports various programs including mapping research,
+    proposal generation, and project creation workflows.
+    
+    The function saves complete program output to a temporary file while also providing
+    periodic summarized updates about the program's progress.
+    """
+    import subprocess, sys
+    from genesis_bots.llm.llm_openai.bot_os_openai import StreamingEventHandler
+
+    def _update_streaming_status(msg, run_id, session_id, thread_id, status_update_callback, input_metadata):
+        message_obj = {
+            "type": "tool_call",
+            "text": msg
+        }
+        if run_id is not None:
+            if run_id not in StreamingEventHandler.run_id_to_messages:
+                StreamingEventHandler.run_id_to_messages[run_id] = []
+            StreamingEventHandler.run_id_to_messages[run_id].append(message_obj)
+
+            if StreamingEventHandler.run_id_to_output_stream.get(run_id) is not None:
+                StreamingEventHandler.run_id_to_output_stream[run_id] = msg
+            else:
+                StreamingEventHandler.run_id_to_output_stream[run_id] = msg
+
+            status_update_callback(session_id, BotOsOutputMessage(thread_id=thread_id, status="in_progress", output=msg+" 💬", messages=None, input_metadata=input_metadata))
+
+    def process_program_output(cmd, tmp_output_file, program_id):
+        last_response = ""
+        previous_summary = ""
+        _last_summary_time = time.time()
+        last_processed_output = ""  # Track what we've already processed
+        
+        # Send initial kickoff message
+        if status_update_callback:
+            status_msg = f"🔄 Running program: {program_id}\nOutput file: {tmp_output_file}"
+            _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+        
+        with open(tmp_output_file, "w") as outfile:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1,
+                env=dict(os.environ, PYTHONUNBUFFERED="1")
+            )
+            
+            while True:
+                output_line = process.stdout.readline()
+                if output_line == '' and process.poll() is not None:
+                    break
+                    
+                if output_line:
+                    outfile.write(output_line)
+                    outfile.flush()
+                    last_response += output_line
+                    
+                    current_time = time.time()
+                    if (current_time - _last_summary_time) >= UPDATE_INTERVAL_SECONDS:
+                        try:
+                            new_output = last_response[len(last_processed_output):]
+                            if not new_output.strip():
+                                continue
+                            
+                            summary_response = ""
+                            if not previous_summary:
+                                summary_response = chat_completion(
+                                    f"An external program is running. Please summarize in a few words what is happening based on this output. Be VERY Brief, use just a few words, not even a complete sentence.\nProgram output:\n\n{new_output}"
+                                , db_adapter=db_adapter, fast=True)
+                            else:
+                                summary_response = chat_completion(
+                                    f"Based on these previous status updates:\n{previous_summary}\n\nNEW output to analyze:\n{new_output}\n\nVery briefly summarize ONLY what's new and different from the previous updates. If the new output doesn't add any significant new information, return only NO_CHANGE. Be extremely concise. Dont talk about the 'the output' just say whats happening thats new, and dont repeat things youve already said."
+                                , db_adapter=db_adapter, fast=True)
+                            
+                            # More robust NO_CHANGE check
+                            cleaned_response = summary_response.strip()
+                            if (cleaned_response and 
+                                cleaned_response != 'NO_CHANGE' and 
+                                not cleaned_response.upper().startswith('NO_CHANGE')):
+                                previous_summary = previous_summary + summary_response + '\n'
+                                status_msg = f"🔄 ... {summary_response}"
+                                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+                                last_processed_output = last_response
+                            
+                            _last_summary_time = current_time
+                        except Exception as e:
+                            logger.error(f"Error getting program output summary: {str(e)}")
+                            _last_summary_time = current_time
+        
+        return process.poll()
+
+    if program_id == "create_mappings_project":
+        # Check if g_sheet_id is provided
+        if not g_sheet_id:
+            return {
+                "error": "g_sheet_id must be provided and needs to point to the project config file, and be available to the bot's gsuite user"
+            }
+
+        # Get genesis_db from environment variable
+        genesis_db = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "genesis_test").split(".")[0]
+        
+        # Set up command for subprocess
+        cmd = [
+            "python", 
+            "-m",
+            "api_examples.data_engineering.mapping_research_and_proposal",
+            "--genesis_db", genesis_db,
+            "--new_from_sheet", g_sheet_id
+        ]
+
+        # Define the output file in /tmp/
+        tmp_output_file = f"tmp/{program_id}_{str(uuid.uuid4())}.txt"
+        
+        try:
+            return_code = process_program_output(cmd, tmp_output_file, program_id)
+            
+            # Read final program output
+            with open(tmp_output_file, 'r') as f:
+                program_output = f.read()
+
+            # Sanitize program output to ensure valid JSON
+            try:
+                # Try to encode/decode to catch any invalid UTF-8 characters
+                program_output = program_output.encode('utf-8', errors='replace').decode('utf-8')
+                # Replace any control characters except newlines and tabs
+                program_output = ''.join(char for char in program_output 
+                                       if char in ('\n', '\t') or (ord(char) >= 32 and ord(char) != 127))
+            except Exception as e:
+                program_output = f"Error sanitizing output: {str(e)}"
+
+            # Truncate program output if over 10k chars
+            if len(program_output) > 5000:
+                truncated_output = program_output[:5000] + "\n\n[Output truncated at 5k chars - full output available in file: " + tmp_output_file + "]"
+                result = {"success": True, "return_code": return_code, "output_file": tmp_output_file, "program_output": truncated_output, "output_truncated": True}
+            else:
+                result = {"success": True, "return_code": return_code, "output_file": tmp_output_file, "program_output": program_output}
+            if status_update_callback:
+                status_msg = f"✅ Program completed: {program_id}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+        
+        except Exception as e:
+            result = {"error": str(e)}
+            if status_update_callback:
+                status_msg = f"❌ Error running program {program_id}: {str(e)}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+            return result
+
+    elif program_id == "mapping_research_and_proposal":
+        # Get genesis_db from environment variable
+        genesis_db = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "genesis_test").split(".")[0]
+        
+        # Set up command for subprocess
+        cmd = [
+            "python",
+            "-m",
+            "api_examples.data_engineering.mapping_research_and_proposal",
+            "--genesis_db", genesis_db,
+            "--todo-id", todo_id
+        ]
+        
+        if root_folder:
+            cmd.extend(["--base-file-path", root_folder])
+            
+        if project_id:
+            cmd.extend(["--project-id", project_id])
+        
+        # Define the output file in /tmp/
+        tmp_output_file = f"tmp/{program_id}_{str(uuid.uuid4())}.txt"
+        
+        try:
+            return_code = process_program_output(cmd, tmp_output_file, program_id)
+            
+            # Read final program output
+            with open(tmp_output_file, 'r') as f:
+                program_output = f.read()
+
+            # Sanitize program output to ensure valid JSON
+            try:
+                # Try to encode/decode to catch any invalid UTF-8 characters
+                program_output = program_output.encode('utf-8', errors='replace').decode('utf-8')
+                # Replace any control characters except newlines and tabs
+                program_output = ''.join(char for char in program_output 
+                                       if char in ('\n', '\t') or (ord(char) >= 32 and ord(char) != 127))
+            except Exception as e:
+                program_output = f"Error sanitizing output: {str(e)}"
+
+            # Truncate program output if over 10k chars
+            if len(program_output) > 5000:
+                truncated_output = program_output[:5000] + "\n\n[Output truncated at 5k chars - full output available in file: " + tmp_output_file + "]"
+                result = {"success": True, "return_code": return_code, "output_file": tmp_output_file, "program_output": truncated_output, "output_truncated": True}
+            else:
+                result = {"success": True, "return_code": return_code, "output_file": tmp_output_file, "program_output": program_output}
+            if status_update_callback:
+                status_msg = f"✅ Program completed: {program_id}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+        
+        except Exception as e:
+            result = {"error": str(e)}
+            if status_update_callback:
+                status_msg = f"❌ Error running program {program_id}: {str(e)}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+            return result
+    
+    elif program_id == "missing_fields_research":
+        # Get genesis_db from environment variable
+        genesis_db = os.getenv("GENESIS_INTERNAL_DB_SCHEMA", "genesis_test").split(".")[0]
+        
+        # Set up command for subprocess
+        cmd = [
+            "python",
+            "-m",
+            "customer_demos.medt.medt_demo_processor",
+            "--genesis_db", genesis_db,
+            "--todo-id", todo_id
+        ]
+        
+        if root_folder:
+            cmd.extend(["--base-file-path", root_folder])
+            
+        if project_id:
+            cmd.extend(["--project-id", project_id])
+        
+        # Define the output file in /tmp/
+        tmp_output_file = f"tmp/{program_id}_{str(uuid.uuid4())}.txt"
+        
+        try:
+            return_code = process_program_output(cmd, tmp_output_file, program_id)
+            
+            # Read final program output
+            with open(tmp_output_file, 'r') as f:
+                program_output = f.read()
+
+            # Sanitize program output to ensure valid JSON
+            try:
+                # Try to encode/decode to catch any invalid UTF-8 characters
+                program_output = program_output.encode('utf-8', errors='replace').decode('utf-8')
+                # Replace any control characters except newlines and tabs
+                program_output = ''.join(char for char in program_output 
+                                       if char in ('\n', '\t') or (ord(char) >= 32 and ord(char) != 127))
+            except Exception as e:
+                program_output = f"Error sanitizing output: {str(e)}"
+
+            # Truncate program output if over 10k chars
+            if len(program_output) > 5000:
+                truncated_output = program_output[:5000] + "\n\n[Output truncated at 5k chars - full output available in file: " + tmp_output_file + "]"
+                result = {"success": True, "return_code": return_code, "output_file": tmp_output_file, "program_output": truncated_output, "output_truncated": True}
+            else:
+                result = {"success": True, "return_code": return_code, "output_file": tmp_output_file, "program_output": program_output}
+            if status_update_callback:
+                status_msg = f"✅ Program completed: {program_id}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+        
+        except Exception as e:
+            result = {"error": str(e)}
+            if status_update_callback:
+                status_msg = f"❌ Error running program {program_id}: {str(e)}"
+                _update_streaming_status(status_msg, run_id, session_id, thread_id, status_update_callback, input_metadata)
+            return result
+    else:
+        result = {"error": f"Program {program_id} not found or not supported"}
+        return result
+    return {
+        "result": result
+    }
+
+
+
 @gc_tool(
     prompt="The prompt to delegate to the target bot",
     target_bot="The bot ID or name to delegate the work to",
@@ -240,7 +535,7 @@ def _delegate_work(
                 if response != last_response:
                     # Track last summary time
                     current_time = time.time()
-                    if (current_time - _last_summary_time) >= 5 or not response.strip().endswith("💬"):
+                    if (current_time - _last_summary_time) >= UPDATE_INTERVAL_SECONDS:  # Changed from 5 to 15 seconds
                         # Send current streaming response for summarization via chat completion
                         last_response = response
                         try:
@@ -336,7 +631,7 @@ def _delegate_work(
         }
 
 
-delegate_work_functions = [_delegate_work,]
+delegate_work_functions = [_delegate_work, run_program]
 
 # Called from bot_os_tools.py to update the global list of functions
 def get_delegate_work_functions():

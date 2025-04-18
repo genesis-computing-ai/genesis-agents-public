@@ -1,0 +1,83 @@
+.projects-window {
+  display: flex;
+  flex-direction: column;
+  width: 95%;
+  height: 95vh;
+  margin: 0 auto;
+  margin-top: 30px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+
+.back-to-chat {
+  color: #ff9f4d;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 10px 0;
+  user-select: none;
+  text-align: left;
+  margin-left: 20px;
+  margin-top: 30px;
+}
+
+.back-to-chat:hover {
+  text-decoration: underline;
+  color: #ffb366;
+}
+
+h1 {
+  margin: 40px 0 20px 20px;
+  color: #ffffff;
+  font-size: 24px;
+  text-align: left;
+}
+
+.projects-info-header {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: #ffffff;
+  margin: 40px 0px 20px 30px;
+}
+
+.divider {
+  height: 1px;
+  background-color: #404040;
+  margin: 10px auto 20px 30px;
+  width: 92%;
+}
+
+.projects-info {
+  color: #e0e0e0;
+  line-height: 1.6;
+  margin: 20px 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+.projects-info p {
+  margin: 0 0 15px 0;
+  line-height: 1.5;
+  color: #e0e0e0;
+}
+
+.projects-info ul {
+  margin: 0;
+  padding-left: 20px;
+  text-align: left;
+  color: #e0e0e0;
+}
+
+.projects-info li {
+  margin: 8px 0;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.projects-info-instructions {
+  margin-left: 30px;
+  color: #e0e0e0;
+}

@@ -1,0 +1,66 @@
+.side-menu {
+  width: 300px;
+  height: 800px;
+  background-color: #3f3f3f;
+  border-right: 1px solid #404040;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-container {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid #404040;
+}
+
+.logo {
+  max-width: 270px;  /* Increased from 208px by 30% */
+  height: auto;
+}
+
+.tab-buttons {
+  display: flex;
+  border-bottom: 1px solid #404040;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 10px 8px;
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.tab-button:hover {
+  background-color: #3c3c3c;
+}
+
+.tab-button.active {
+  background-color: #404040;
+  color: #ffffff;
+  border-bottom: 2px solid #0078d4;
+}
+
+.tab-content {
+  flex: 1;
+  padding: 16px;
+  color: #b3b3b3;
+  overflow-y: auto;
+}
+
+.tab-section {
+  width: 100%;
+  background-color: #3f3f3f;
+}
+
+.tab-section h3 {
+  margin: 0 0 16px 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 500;
+}

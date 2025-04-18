@@ -1,0 +1,261 @@
+.config-window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  background-color: black;
+  color: white;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.back-to-chat {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: white;
+  background-color: black;
+  border-bottom: 1px solid #555;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.back-to-chat:hover {
+  background-color: #945719;
+}
+
+/* Config Menu Styles */
+.config-menu {
+  width: 100%;
+  padding: 20px 0;
+  background-color: #3f3f3f;
+  box-sizing: border-box;
+}
+
+.config-menu h3 {
+  font-size: 1rem;
+  font-weight: 400;
+  font: Source Sans Pro, sans-serif;
+  line-height: 1.6;
+  margin: 4px;
+  text-align: left !important;
+  color: white;
+  box-sizing: border-box;
+}
+
+.config-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background-color: #3f3f3f;
+  box-sizing: border-box;
+}
+
+.config-menu-item {
+  font-size: 1rem;
+  font-weight: 400;
+  font: Source Sans Pro, sans-serif;
+  line-height: 1.6;
+  cursor: pointer;
+  text-align: left !important;
+  padding: 8px 15px;
+  color: white;
+  background-color: #3f3f3f;
+  transition: background-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.config-menu-item:hover {
+  background-color: #945719;
+}
+
+.config-menu-item.active {
+  background-color: #E67300;
+  color: white;
+}
+
+/* Config Content Styles */
+.config-wrapper {
+  flex: 1;
+  height: 100%;
+  background-color: black;
+  box-sizing: border-box;
+}
+
+.config-pane {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 40px); /* Account for back button */
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.config-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.config-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Form styles */
+* {
+  box-sizing: border-box;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  width: 100%;
+  padding-right: 20px;
+  box-sizing: border-box;
+  border-radius: 6px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  border: 1px solid #555;
+  border-radius: 4px;
+  background-color: black;
+  color: white;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #E67300;
+  box-shadow: 0 0 0 2px rgba(230, 115, 0, 0.2);
+}
+
+.divider {
+  height: 1px;
+  background-color: #404040;
+  margin: 30px auto 10px 10px;
+  width: 92%;
+  box-sizing: border-box;
+}
+
+.config-header {
+  padding: 15px 0;
+  margin: -6px 6px;
+  box-sizing: border-box;
+}
+
+.config-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.config-header-title {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: white;
+  margin: 10px 0px 20px 10px;
+  box-sizing: border-box;
+}
+
+.config-body {
+  padding: 20px 0;
+  margin-left: 30px;
+  box-sizing: border-box;
+}
+
+.error-container {
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 4px;
+  background-color: #fff5f5;
+  color: #dc3545;
+  border: 1px solid #dc3545;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.error-container p {
+  margin: 0;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+.button-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 16px;
+}
+
+.save-button {
+  background-color: #E67300;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.cancel-button {
+  background-color: #666;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: #ff8c1a;
+}
+
+.save-button:active {
+  background-color: #cc6600;
+}
+
+.cancel-button:hover {
+  background-color: #808080;
+}
+
+.cancel-button:active {
+  background-color: #4d4d4d;
+}
+
+.save-button:disabled,
+.cancel-button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+}
+
+/* Scrollbar styling */
+.config-page::-webkit-scrollbar {
+  width: 8px;
+}
+
+.config-page::-webkit-scrollbar-track {
+  background: black;
+}
+
+.config-page::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.config-page::-webkit-scrollbar-thumb:hover {
+  background: #945719;
+}

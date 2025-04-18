@@ -1,0 +1,10 @@
+Need to create .env file in the same directory as script:
+GITHUB_USERNAME=your_username
+GITHUB_TOKEN=your_token
+PARENT_DIR=~/your_preferred_directory
+
+Need python-dotenv installed:
+pip install python-dotenv
+
+To run:
+python taco_tuesday2.py

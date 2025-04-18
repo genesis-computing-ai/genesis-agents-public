@@ -1,0 +1,135 @@
+.db-connections-window {
+  display: flex;
+  flex-direction: column;
+  width: 95%;
+  height: 95vh;
+  margin: 0 auto;
+  margin-top: 30px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+
+.back-to-chat {
+  color: #ff9f4d;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 10px 0;
+  user-select: none;
+  text-align: left;
+  margin-left: 20px;
+  margin-top: 30px;
+}
+
+.back-to-chat:hover {
+  text-decoration: underline;
+  color: #ffb366;
+}
+
+h1 {
+  margin: 40px 0 20px 20px;
+  color: #ffffff;
+  font-size: 24px;
+  text-align: left;
+}
+
+.management-info-header {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  color: #ffffff;
+  margin: 10px 0px 60px 6px;
+}
+
+.table-container {
+  width: 95%;
+  overflow-x: auto;
+  margin: 20px 0 0 20px;
+  text-align: left;
+}
+
+.connections-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: #1a1a1a;
+}
+
+.connections-table th,
+.connections-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #333333;
+  color: #e0e0e0;
+}
+
+.connections-table thead {
+  background-color: #2a2a2a;
+}
+
+.connections-table th {
+  background-color: #2a2a2a;
+  font-weight: 400;
+  color: #ffffff;
+  border: 1px solid #404040;
+}
+
+.connections-table th:first-child {
+  border-left: 1px solid #404040;
+}
+
+.connections-table th:last-child {
+  border-right: 1px solid #404040;
+}
+
+.connections-table tr:hover {
+  background-color: #2a2a2a;
+}
+
+.divider {
+  height: 1px;
+  background-color: #404040;
+  margin: 30px auto 40px 30px;
+  width: 92%;
+}
+
+.management-info {
+  color: #e0e0e0;
+  line-height: 1.6;
+  margin: 20px 20px;
+  text-align: left;
+}
+
+.management-info h1 {
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.management-info p {
+  margin: 0 0 15px 0;
+  line-height: 1.5;
+  color: #e0e0e0;
+}
+
+.management-info ul {
+  margin: 0;
+  padding-left: 20px;
+  text-align: left;
+  color: #e0e0e0;
+}
+
+.management-info li {
+  margin: 8px 0;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.db-info-wrapper {
+  margin: 30px;
+}
+
+.management-info-instructions {
+  margin-left: 30px;
+  color: #e0e0e0;
+}

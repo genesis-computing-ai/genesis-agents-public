@@ -1,0 +1,77 @@
+{
+    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.14/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.14",
+    "version": "1.0.0",
+    "id": "73e855e4-fefc-441d-bbca-5256a95dabf6",
+    "packageName": "ai.genesiscomputing.genesisbotproxy7",
+    "developer": {
+        "name": "Genesis Computing",
+        "websiteUrl": "https://genesiscomputing.ai",
+        "privacyUrl": "https://genesiscomputing.ai/privacy",
+        "termsOfUseUrl": "https://genesiscomputing.ai/terms"
+    },
+    "icons": {
+        "color": "color.png",
+        "outline": "outline.png"
+    },
+    "name": {
+        "short": "Genesis Bot",
+        "full": "Genesis Bot Proxy"
+    },
+    "description": {
+        "short": "A bot that connects to Snowflake API",
+        "full": "This bot connects to the Snowflake API and allows you to interact with your data through natural language."
+    },
+    "accentColor": "#FFFFFF",
+    "defaultBlockUntilAdminAction": false,
+    "defaultInstallScope": "personal",
+    "bots": [
+        {
+            "botId": "73e855e4-fefc-441d-bbca-5256a95dabf6",
+            "scopes": [
+                "personal",
+                "team",
+                "groupchat"
+            ],
+            "commandLists": [
+                {
+                    "scopes": [
+                        "personal",
+                        "team",
+                        "groupchat"
+                    ],
+                    "commands": [
+                        {
+                            "title": "help",
+                            "description": "Shows help information"
+                        }
+                    ]
+                }
+            ],
+            "supportsFiles": false,
+            "isNotificationOnly": false
+        }
+    ],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ],
+    "validDomains": [
+        "genesisbotproxy7.azurewebsites.net",
+        "token.botframework.com"
+    ],
+    "webApplicationInfo": {
+        "id": "73e855e4-fefc-441d-bbca-5256a95dabf6",
+        "resource": "https://genesisbotproxy7.azurewebsites.net"
+    },
+    "authorization": {
+        "permissions": {
+            "resourceSpecific": [
+                {
+                    "name": "Bot.ReadWrite",
+                    "type": "Application"
+                }
+            ]
+        }
+    }
+}

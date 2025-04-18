@@ -72,9 +72,13 @@ class ProjectManager:
                 work_results TEXT,
                 action_details TEXT,
                 action_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                thread_id VARCHAR(255),
                 FOREIGN KEY (todo_id) REFERENCES {self.db_adapter.schema}.TODO_ITEMS(todo_id)
             )
             """
+
+            # Add thread_id column to TODO_ITEMS if not exists
+            add_thread_id_query = f"""ALTER TABLE {self.db_adapter.schema}.TODO_HISTORY ADD COLUMN thread_id VARCHAR(255)"""
             
             # Add new TODO_DEPENDENCIES table
             create_dependencies_query = f"""
@@ -106,6 +110,10 @@ class ProjectManager:
             cursor.execute(create_project_history_query)
             cursor.execute(create_todos_query)
             cursor.execute(create_history_query)
+            try:
+                cursor.execute(add_thread_id_query)
+            except Exception as e:
+                pass
             cursor.execute(create_dependencies_query)
             cursor.execute(create_assets_query)
             self.db_adapter.client.commit()
@@ -117,7 +125,7 @@ class ProjectManager:
         Manages todo items with various actions.
         
         Args:
-            action (str): The action to perform (CREATE, UPDATE, CHANGE_STATUS, LIST, DELETE)
+            action (str): The action to perform (CREATE, UPDATE, GET_TODO_DETAILS, CHANGE_STATUS, LIST, DELETE)
             bot_id (str): The ID of the bot performing the action
             todo_id (str, optional): The ID of the todo item
             todo_details (dict, optional): Details for creating/updating a todo item
@@ -143,14 +151,14 @@ class ProjectManager:
                 # For each todo, get its history separately
                 result_todos = []
                 for todo in todos:
-                    history_query = f"""
-                    SELECT action_taken, action_by_bot_id, action_details, action_timestamp
-                    FROM {self.db_adapter.schema}.TODO_HISTORY
-                    WHERE todo_id = %s
-                    ORDER BY action_timestamp DESC
-                    """
-                    cursor.execute(history_query, (todo[0],))
-                    history = cursor.fetchall()
+                    #history_query = f"""
+                    #SELECT action_taken, action_by_bot_id, action_details, action_timestamp
+                    #FROM {self.db_adapter.schema}.TODO_HISTORY
+                    #WHERE todo_id = %s
+                    #ORDER BY action_timestamp DESC
+                    #"""
+                    #cursor.execute(history_query, (todo[0],))
+                    #history = cursor.fetchall()
                     
                     result_todos.append({
                         "todo_id": todo[0],
@@ -158,23 +166,81 @@ class ProjectManager:
                         "current_status": todo[2],
                         "assigned_to_bot_id": todo[3],
                         "what_to_do": todo[4],
-                        "created_at": todo[5],
-                        "updated_at": todo[6],
+                        "created_at": todo[5].isoformat() if hasattr(todo[5], 'isoformat') else str(todo[5]),
+                        "updated_at": todo[6].isoformat() if hasattr(todo[6], 'isoformat') else str(todo[6]),
                         "dependencies": self._get_todo_dependencies(cursor, todo[0]),
-                        "history": [
-                            {
-                                "action_taken": h[0],
-                                "action_by_bot_id": h[1],
-                                "action_details": h[2],
-                                "action_timestamp": h[3]
-                            } for h in history
-                        ]
+                    #    "history": [
+                    #        {
+                     #           "action_taken": h[0],
+                     #           "action_by_bot_id": h[1],
+                     #           "action_details": h[2],
+                     #           "action_timestamp": h[3]
+                    #        } for h in history
+                    #]
                     })
                 
                 return {
                     "success": True,
                     "todos": result_todos
                 }
+
+            elif action == "GET_TODO_DETAILS":
+                if not todo_id:
+                    return {
+                        "success": False,
+                        "error": "todo_id is required for GET_DETAILS action"
+                    }
+
+                # Get todo details
+                todo_query = f"""
+                SELECT todo_id, project_id, todo_name, current_status, assigned_to_bot_id,
+                       requested_by_user, what_to_do, created_at, updated_at
+                FROM {self.db_adapter.schema}.TODO_ITEMS
+                WHERE todo_id = %s
+                """
+                cursor.execute(todo_query, (todo_id,))
+                todo = cursor.fetchone()
+
+                if not todo:
+                    return {
+                        "success": False,
+                        "error": f"Todo with ID {todo_id} not found"
+                    }
+
+                # Get todo history
+                history_query = f"""
+                SELECT action_taken, action_by_bot_id, action_details, action_timestamp
+                FROM {self.db_adapter.schema}.TODO_HISTORY
+                WHERE todo_id = %s
+                ORDER BY action_timestamp DESC
+                """
+                cursor.execute(history_query, (todo_id,))
+                history = cursor.fetchall()
+
+                return {
+                    "success": True,
+                    "todo": {
+                        "todo_id": todo[0],
+                        "project_id": todo[1], 
+                        "todo_name": todo[2],
+                        "current_status": todo[3],
+                        "assigned_to_bot_id": todo[4],
+                        "requested_by_user": todo[5],
+                        "what_to_do": todo[6],
+                        "created_at": todo[7].isoformat() if hasattr(todo[7], 'isoformat') else str(todo[7]),
+                        "updated_at": todo[8].isoformat() if hasattr(todo[8], 'isoformat') else str(todo[8]),
+                        "dependencies": self._get_todo_dependencies(cursor, todo_id),
+                        "history": [
+                            {
+                                "action_taken": h[0],
+                                "action_by_bot_id": h[1],
+                                "action_details": h[2],
+                                "action_timestamp": h[3].isoformat() if hasattr(h[3], 'isoformat') else str(h[3])
+                            } for h in history
+                        ]
+                    }
+                }
+
 
             elif action == "CREATE":
                 if not todo_details or "project_id" not in todo_details:
@@ -327,7 +393,8 @@ class ProjectManager:
                     previous_status=old_status,
                     current_status=new_status,
                     work_description=work_description,
-                    work_results=work_results
+                    work_results=work_results,
+                    thread_id=None
                 )
 
                 self.db_adapter.client.commit()
@@ -511,21 +578,22 @@ class ProjectManager:
             cursor.close()
 
     def _add_history(self, cursor, todo_id, action_taken, action_by_bot_id, action_details, 
-                    previous_status=None, current_status=None, work_description=None, work_results=None):
+                    previous_status=None, current_status=None, work_description=None, work_results=None, thread_id = None):
         """Helper method to add an entry to the todo history"""
         history_id = f"hist_{todo_id}_{int(time.time())}_{random.randint(1000, 9999)}"
         status_changed_flag = 'Y' if (previous_status and current_status and previous_status != current_status) else 'N'
-        
+        action_timestamp = datetime.now()
+
         insert_query = f"""
         INSERT INTO {self.db_adapter.schema}.TODO_HISTORY 
         (history_id, todo_id, action_taken, action_by_bot_id, action_details,
-         previous_status, current_status, status_changed_flag, work_description, work_results)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+         previous_status, current_status, status_changed_flag, work_description, work_results, thread_id, action_timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(
             insert_query,
             (history_id, todo_id, action_taken, action_by_bot_id, action_details,
-             previous_status, current_status, status_changed_flag, work_description, work_results)
+             previous_status, current_status, status_changed_flag, work_description, work_results, thread_id, action_timestamp)
         )
 
     def manage_projects(self, action, bot_id, project_id=None, project_details=None, thread_id = None, requested_by_user=None, static_project_id = False):
@@ -898,7 +966,8 @@ class ProjectManager:
                 previous_status=current_status,
                 current_status=current_status,
                 work_description=work_description,
-                work_results=work_results
+                work_results=work_results,
+                thread_id=thread_id
             )
             
             # Update the todo's updated_at timestamp
@@ -939,12 +1008,10 @@ class ProjectManager:
             # Get all history entries for this todo
             cursor.execute(
                 f"""
-                SELECT history_id, action_taken, action_by_bot_id, action_details,
-                       previous_status, current_status, status_changed_flag,
-                       work_description, work_results, created_at
-                FROM {self.db_adapter.schema}.TODO_HISTORY
-                WHERE todo_id = %s
-                ORDER BY created_at DESC
+                    SELECT action_taken, action_by_bot_id, action_details, action_timestamp, work_description, work_results, previous_status, current_status, status_changed_flag, thread_id
+                    FROM {self.db_adapter.schema}.TODO_HISTORY
+                    WHERE todo_id = %s
+                    ORDER BY action_timestamp DESC
                 """,
                 (todo_id,)
             )
@@ -952,16 +1019,16 @@ class ProjectManager:
             history_entries = []
             for row in cursor.fetchall():
                 history_entries.append({
-                    "history_id": row[0],
-                    "action_taken": row[1],
-                    "action_by_bot_id": row[2],
-                    "action_details": row[3],
-                    "previous_status": row[4],
-                    "current_status": row[5],
-                    "status_changed": row[6] == 'Y',
-                    "work_description": row[7],
-                    "work_results": row[8],
-                    "created_at": str(row[9])
+                    "action_taken": row[0],
+                    "action_by_bot_id": row[1], 
+                    "action_details": row[2],
+                    "action_timestamp": str(row[3]),
+                    "work_description": row[4],
+                    "work_results": row[5],
+                    "previous_status": row[6],
+                    "current_status": row[7],
+                    "status_changed_flag": row[8],
+                    "thread_id": row[9]
                 })
                 
             return {
@@ -1096,7 +1163,7 @@ class ProjectManager:
             "status": row[2]
         } for row in cursor.fetchall()]
 
-    def get_project_todos(self, bot_id, project_id):
+    def get_project_todos(self, bot_id, project_id, no_history=True):
         """
         Get all todos for a specific project.
         
@@ -1156,36 +1223,41 @@ class ProjectManager:
             
             # Format results similar to LIST action
             result_todos = []
+            
             for todo in todos:
-                history_query = f"""
-                SELECT action_taken, action_by_bot_id, action_details, action_timestamp, work_description, work_results, previous_status, current_status, status_changed_flag
-                FROM {self.db_adapter.schema}.TODO_HISTORY
-                WHERE todo_id = %s
-                ORDER BY action_timestamp DESC
-                """
-                cursor.execute(history_query, (todo[0],))
-                history = cursor.fetchall()
-                
+                if not no_history:
+                    history_query = f"""
+                    SELECT action_taken, action_by_bot_id, action_details, action_timestamp, work_description, work_results, previous_status, current_status, status_changed_flag, thread_id
+                    FROM {self.db_adapter.schema}.TODO_HISTORY
+                    WHERE todo_id = %s
+                    ORDER BY action_timestamp DESC
+                    """
+                    cursor.execute(history_query, (todo[0],))
+                    history = cursor.fetchall()
+                else:
+                    history = []
+                    
                 result_todos.append({
                     "todo_id": todo[0],
                     "todo_name": todo[1],
                     "current_status": todo[2],
                     "assigned_to_bot_id": todo[3],
                     "what_to_do": todo[4],
-                    "created_at": str(todo[5]),
-                    "updated_at": str(todo[6]),
-                    "dependencies": self._get_todo_dependencies(cursor, todo[0]),
+                    "created_at": todo[5].isoformat() if hasattr(todo[5], 'isoformat') else str(todo[5]),
+                    "updated_at": todo[6].isoformat() if hasattr(todo[6], 'isoformat') else str(todo[6]),
+                  #  "dependencies": self._get_todo_dependencies(cursor, todo[0]),
                     "history": [
                         {
                             "action_taken": h[0],
                             "action_by_bot_id": h[1],
                             "action_details": h[2],
-                            "action_timestamp": str(h[3]),
+                            "action_timestamp": h[3].isoformat() if hasattr(h[3], 'isoformat') else str(h[3]),
                             "work_description": h[4],
                             "work_results": h[5],
                             "previous_status": h[6],
                             "current_status": h[7],
-                            "status_changed_flag": h[8]
+                            "status_changed_flag": h[8],
+                            "thread_id": h[9]
                         } for h in history
                     ]
                 })
@@ -1193,7 +1265,8 @@ class ProjectManager:
             return {
                 "success": True,
                 "project_id": project_id,
-                "todos": result_todos
+                "todos": result_todos,
+                "other functions": "Use get_todo_history to get the work history of a todo, and get_todo_dependencies to get the dependencies"
             }
             
         except Exception as e:

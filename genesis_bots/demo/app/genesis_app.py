@@ -9,7 +9,10 @@ from   genesis_bots.core.system_variables \
                                 import SystemVariables
 
 import os
-
+import sys
+import time
+import traceback
+import threading
 
 DEFAULT_HTTP_ENDPOINT_PORT = 8080
 DEFAULT_HTTPS_ENDPOINT_PORT = 8082
@@ -484,7 +487,7 @@ class GenesisApp:
 
     def start_all(self):
         """
-        Modified start_all to include harvester initialization
+        Modified start_all to include autonomy initialization
         """
         self.generate_index_file()
         self.set_internal_project_and_schema()
@@ -494,7 +497,9 @@ class GenesisApp:
         self.run_ngrok()
         self.create_app_sessions()
         self.start_server()
-        self.start_harvester()  # Add harvester startup
+        self.start_harvester()
+        self.start_dbt_monitor()
+    #   self.start_autonomy()
 
 
     def trigger_immediate_harvest(self, database_name=None, source_name=None):
@@ -540,6 +545,114 @@ class GenesisApp:
             self.harvester_running = False
 
 
+    def start_autonomy(self):
+        """
+        Initializes and starts the autonomy process that manages autonomous bot behaviors.
+        """
+        from genesis_bots.core.autonomy.bot_os_autonomy import BotAutonomy
+        
+        logger.info('Starting autonomy component...')
+
+        if os.getenv('AUTONOMY_ENABLED', 'TRUE').upper() != 'TRUE':
+            logger.info('Autonomy disabled via AUTONOMY_ENABLED environment variable')
+            return
+
+        # Initialize autonomy manager
+        self.autonomy_manager = BotAutonomy(
+            db_adapter=self.db_adapter,
+            llm_api_key_struct=self.llm_api_key_struct
+        )
+        
+        # Flag to track if autonomy is currently running
+        self.autonomy_running = False
+
+        def autonomy_job():
+            if self.autonomy_running:
+                logger.info("Previous autonomy job still running, skipping this run")
+                return
+
+            try:
+                self.autonomy_running = True
+                self.autonomy_manager.process_autonomous_actions()
+            except Exception as e:
+                logger.error(f"Error in autonomy job: {e}")
+            finally:
+                self.autonomy_running = False
+
+        # Schedule runs every 15 seconds with no initial delay
+        self.scheduler.add_job(
+            autonomy_job,
+            'interval',
+            seconds=15,
+            id='autonomy_job',
+            replace_existing=True,
+            next_run_time=datetime.now()
+        )
+        logger.info("Autonomy scheduled to run every 15 seconds")
+
+    def start_dbt_monitor(self):
+        '''
+        Runs dbt run monitor loop every few seconds to pick up new failed runs and automatically analyze it
+        '''
+
+        from   genesis_bots.core.tools.dbt_cloud import dbt_mon_step
+        logger.info('start_dbt_monitor(): starting dbt monitor component..')
+
+        mon_sleep_interval = int(os.getenv('DBT_CLOUD_MON_SLEEP_INTERVAL', '5')) # seconds
+
+        self.dbt_mon_active = False
+        self.dbt_mon_active_count = 0
+        self.dbt_mon_active_thread_id = threading.get_ident()
+        self.dbt_mon_active_started_at = datetime.now()
+
+        max_job_duration = 30 # minutes
+        
+        def dbt_mon_job():
+            ##TODO: capture thread_id and dump its stack if the run takes longer than 30min; proceed with the job
+            ##TODO: exit the process to trigger k8s to restart genesis when number of jobs gets to 85
+            
+            if self.dbt_mon_active:
+                prev_run_duration = datetime.now() - self.dbt_mon_active_started_at
+                if prev_run_duration >= timedelta(minutes=max_job_duration):
+                    frame = sys._current_frames().get(self.dbt_mon_active_thread_id)
+                    if frame:
+                        stack = traceback.extract_stack(frame)
+                        logger.error(f"dbt_mon_job(): running longer than {max_job_duration} min\n{''.join(traceback.format_list(stack))}")
+                        ## proceed to handle incoming runs
+                        ##TODO: consider sys.exit(55) to let k8s restart the genesis container b/c we likely leak threads
+                        
+                else:
+                    logger.info(f'dbt_mon_job(): previous dbt monitor job is still running, skipping this run.')
+                    return
+            
+            try:
+                self.dbt_mon_active = True
+                self.dbt_mon_active_count += 1
+                self.dbt_mon_active_thread_id = threading.get_ident()
+                self.dbt_mon_active_started_at = datetime.now()
+
+                my_count = self.dbt_mon_active_count
+                
+                dbt_mon_step()
+
+            except Exception as e:
+                logger.error(f'dbt_mon_job(): {str(e)}\n{traceback.format_exc()}')
+            finally:
+                if self.dbt_mon_active_count == my_count:
+                    self.dbt_mon_active = False
+            return
+
+        self.scheduler.add_job(
+            dbt_mon_job,
+            'interval',
+            seconds=mon_sleep_interval,
+            id='dbt_monitor_job',
+            replace_existing=True,
+            next_run_time=datetime.now()
+        )
+        logger.info(f"start_dbt_monitor(): started.. running every {mon_sleep_interval} seconds")
+        return
+    
 # singleton instance of app.
 genesis_app = GenesisApp()
 

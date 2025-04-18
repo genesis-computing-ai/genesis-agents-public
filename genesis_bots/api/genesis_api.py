@@ -58,12 +58,14 @@ class GenesisAPI:
         return self._server_proxy.submit_message(bot_id, message=message, thread_id=thread_id)
 
 
+
+
     def get_response(self, bot_id, request_id=None, timeout_seconds=None, print_stream=False) -> str:
         time_start = time.time()
         done = False
         last_response = "" # contains the full (cumulated) response, cleaned up from the trailing "chat" suffix ('💬')
         while timeout_seconds is None or time.time() - time_start < timeout_seconds:
-            response = self._server_proxy.get_message(bot_id, request_id)
+            response, thread_id = self._server_proxy.get_message(bot_id, request_id)
             if response is not None:
                 if len(response) > 2 and response.endswith(' 💬'): # remove trailing chat bubble
                     response = response[:-2]
@@ -82,7 +84,33 @@ class GenesisAPI:
                     return response
 
                 time.sleep(0.2)
-        return None
+        return  None
+
+    def get_response_with_thread_id(self, bot_id, request_id=None, timeout_seconds=None, print_stream=False) -> tuple[str, str]:
+        time_start = time.time()
+        done = False
+        last_response = "" # contains the full (cumulated) response, cleaned up from the trailing "chat" suffix ('💬')
+        while timeout_seconds is None or time.time() - time_start < timeout_seconds:
+            response, thread_id = self._server_proxy.get_message(bot_id, request_id)
+            if response is not None:
+                if len(response) > 2 and response.endswith(' 💬'): # remove trailing chat bubble
+                    response = response[:-2]
+                else:
+                    done = True
+                # Store the new content before any formatting
+                new_content = response[len(last_response):]
+                last_response = response  # Update last_response before formatting
+
+                # Format the new content for display only
+                if print_stream:
+                    display_content = re.sub(r'(?<!\n)(🤖|🧰)', r'\n\1', new_content)
+                    print(f"\033[96m{display_content}\033[0m", end='', flush=True)  # Cyan text
+
+                if done:
+                    return response, thread_id
+
+                time.sleep(0.2)
+        return  None, None
 
 
     class _GitFiles:
@@ -116,20 +144,42 @@ class GenesisAPI:
                 raise ValueError(res["message"])
 
 
-        def write(self, file_path, content, commit_message=None, bot_id=None, adtl_info_out=None):
+        def write(self, file_path, content, commit_message=None, bot_id=None, adtl_info=None):
+            """
+            Write content to a file in git.
+            
+            Args:
+                file_path (str): Path where to write the file in git
+                content (str): Content to write
+                commit_message (str, optional): Git commit message
+                bot_id (str, optional): Bot ID to use for the operation
+                adtl_info (dict, optional): Additional information about the content (e.g. {"is_base64": True})
+            
+            Returns:
+                bool: True if successful
+                
+            Raises:
+                ValueError: If the write operation fails
+            """
             bot_id = bot_id or "Eve" # remove once it becomes redundant
-            res = self.server_proxy.run_genesis_tool(tool_name="git_action",
-                                                     params={"action": "write_file",
-                                                             "file_path": file_path,
-                                                             "content": content,
-                                                             "commit_message": commit_message},
-                                                     bot_id=bot_id)
+            params = {
+                "action": "write_file",
+                "file_path": file_path,
+                "content": content,
+                "commit_message": commit_message
+            }
+            
+            # Add any additional info to params
+            if adtl_info:
+                params.update(adtl_info)
+            
+            res = self.server_proxy.run_genesis_tool(
+                tool_name="git_action",
+                params=params,
+                bot_id=bot_id
+            )
             res = canonicalize_json_result_dict(res)
             is_success = res.pop("success", False)
-            if adtl_info_out is not None:
-                assert isinstance(adtl_info_out, dict), (
-                    f"adtl_info_out must be a dict or None. Got: {type(adtl_info_out)}")
-                adtl_info_out.update(res)
             if is_success:
                 return True
             else:

@@ -11,7 +11,20 @@ from textwrap import dedent
 import uuid
 import random
 
+from page_files.file_viewer import file_viewer
+
 PageDesc = namedtuple('_PageEntry', ['page_id', 'display_name', 'module_name', 'entry_func_name'])
+
+def redirect_to_url(url):
+    return f"""
+        <html>
+            <head>
+                <script>
+                    window.parent.location.href = '{url}';
+                </script>
+            </head>
+        </html>
+    """
 
 class Pages:
     """
@@ -74,6 +87,7 @@ st.session_state.app_name = "GENESIS_BOTS"
 st.session_state.prefix = st.session_state.app_name + ".app1"
 st.session_state.core_prefix = st.session_state.app_name + ".CORE"
 
+# Initialize session state variables if they don't exist
 if 'NativeMode' not in st.session_state:
     st.session_state.NativeMode = True
 
@@ -346,16 +360,20 @@ if st.session_state.data:
     if metadata_response == True:
         st.session_state.data_source = "snowflake"
 
+    pages.add_page('file_viewer', 'File Viewer', 'file_viewer', 'file_viewer')
     pages.add_page('chat_page', 'Chat with Bots', 'chat_page', 'chat_page')
     pages.add_page('configuration', 'Configuration', 'configuration', 'configuration')
     pages.add_page('llm_config', 'LLM Model & Key', 'llm_config', 'llm_config')
+    pages.add_page('todo_details', 'Todo Details', 'todo_details', 'todo_details')
     if st.session_state.data_source == "snowflake": pages.add_page('config_email', 'Setup Email Integration', 'config_email', 'setup_email')
     pages.add_page('setup_slack', 'Setup Slack Connection', 'setup_slack', 'setup_slack')
     if st.session_state.NativeMode: pages.add_page('config_wh', 'Setup Custom Warehouse', 'config_wh', 'config_wh')
     pages.add_page('grant_data', 'Grant Data Access', 'grant_data', 'grant_data')
     if st.session_state.NativeMode: pages.add_page('config_custom_eai', 'Setup Custom Endpoints', 'config_custom_eai', 'config_custom_eai')
+    if st.session_state.NativeMode: pages.add_page('config_eai', 'Setup Endpoints', 'config_eai', 'config_eai')
     pages.add_page('config_jira', 'Setup Jira API Params', 'config_jira', 'config_jira')
     # pages.add_page('config_github', 'Setup GitHub API Params', 'config_github', 'config_github')
+    pages.add_page('config_dbtcloud', 'Setup DBT Cloud API Params', 'config_dbtcloud', 'config_dbtcloud')
     pages.add_page('config_web_access', 'Setup WebAccess API Params', 'config_web_access', 'config_web_access')
     pages.add_page('config_g_sheets','Setup Google Workspace API','config_g_sheets','config_g_sheets')
     pages.add_page('db_harvester', 'Harvester Status', 'db_harvester', 'db_harvester')
@@ -365,8 +383,10 @@ if st.session_state.data:
     if st.session_state.NativeMode: pages.add_page('show_server_logs', 'Server Logs', 'show_server_logs', 'show_server_logs')
     pages.add_page('support', 'Support and Community', 'support', 'support')
     pages.add_page('db_connections', 'Database Connections', 'db_connections', 'db_connections')
+    pages.add_page('bot_docs', 'Bot Documents', 'bot_docs', 'bot_docs')
+    pages.add_page('bot_history', 'Bot Threads', 'bot_history', 'bot_history')
     pages.add_page('bot_projects', 'Bot Projects', 'bot_projects', 'bot_projects')
-    pages.add_page('projects_dashboard','Projects Dashboard','projects_dashboard','projects_dashboard')
+    # pages.add_page('bot_config','Projects Dashboard','bot_config','bot_config')
 
     #    st.sidebar.subheader("**Genesis App**")
 
@@ -791,7 +811,7 @@ if st.session_state.data:
 
         # Always show configuration and support buttons
         st.markdown("---")  # Add a visual separator
-        desired_sidebar = ["configuration", "db_connections", "bot_projects", "support", "projects_dashboard"]
+        desired_sidebar = ["configuration", "db_connections", "bot_projects", "bot_docs", "bot_history", "support", "projects_dashboard"]
         for key in desired_sidebar:
             if key in pages.all:
                 page = pages.all[key]
@@ -799,11 +819,18 @@ if st.session_state.data:
                 is_selected = (selected_page_id == key) or (selected_page_id is None and key == "chat_page")
                 if not is_selected:
                     if st.button(page.display_name, key=f"nav_bottom_{key}", use_container_width=True,
-                                help=f"Navigate to {page.display_name}", type="secondary"):
+                        help=f"Navigate to {page.display_name}", type="secondary"):
+                        # if key == "bot_projects":
+                        #     js = redirect_to_url("http://localhost:8080/projects/dashboard")
+                        #     st.markdown(js, unsafe_allow_html=True)
+                        #     st.stop()
+                        # else:
                         st.session_state["selected_page_id"] = key
                         st.session_state["radio"] = page.display_name
                         st.session_state["previous_selection"] = page.display_name
                         st.rerun()
+
+    st.sidebar.markdown("[Project Manager Dashboard (Local)](https://blf4aam4-dshrnxx-genesis-dev-consumer.snowflakecomputing.app/projects/react)", unsafe_allow_html=True)
 
     try:
         # Use page_id directly instead of looking up by display name

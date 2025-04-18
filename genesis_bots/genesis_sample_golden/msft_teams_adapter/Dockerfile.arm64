@@ -1,0 +1,28 @@
+FROM --platform=linux/arm64/v8 python:3.10-slim
+
+WORKDIR /app
+
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy private key file explicitly
+COPY private_key.pem /app/private_key.pem
+
+# Copy application code
+COPY . .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+ENV WEBSITES_PORT=8000
+ENV PLATFORM=ALPHA
+ENV SNOWFLAKE_ACCOUNT=eqb52188
+ENV SNOWFLAKE_USER=JUSTIN.LANGSETH@GENESISCOMPUTING.AI
+ENV SNOWFLAKE_ROLE=ACCOUNTADMIN
+ENV SNOWFLAKE_ENDPOINT_ALPHA=fsc4ar3w-dshrnxx-cvb46967.snowflakecomputing.app
+ENV TOKEN_LIFETIME=59
+ENV TOKEN_RENEWAL_DELAY=54
+
+# Default command
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "600", "--log-level", "debug", "--worker-class", "aiohttp.worker.GunicornWebWorker", "app:app"]

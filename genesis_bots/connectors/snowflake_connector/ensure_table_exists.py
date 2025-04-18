@@ -25,7 +25,18 @@ from   genesis_bots.core.logging_config \
                                 import logger
 
 def one_time_db_fixes(self):
-   
+
+    # Add Catalog Supplmentary information
+    cursor = self.client.cursor()
+    add_supplement_query1 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ADD COLUMN catalog_supplement VARCHAR(2000)"""
+    add_supplement_query2 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ADD COLUMN catalog_supplement_loaded VARCHAR(20)"""
+    try:
+        cursor.execute(add_supplement_query1)
+        cursor.execute(add_supplement_query2)
+    except Exception as e:
+        pass
+    cursor.close()
+
     bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
     cursor = self.client.cursor()
     cursor.execute(bots_table_check_query)
@@ -86,7 +97,7 @@ def one_time_db_fixes(self):
     # logger.info("Added notebook_manager_tools to all existing bots.")
     else:
         logger.info("BOTS table does not exist. Skipping tool addition.")
-    
+
     if cursor is not None:
         cursor.close()
 
@@ -241,6 +252,26 @@ def ensure_table_exists(self):
     finally:
         if cursor is not None:
             cursor.close()
+
+    # ADD REQUIRED FIELDS TO EXT_SERVICE_CONFIG
+    required_credentials_fields = {"serper": "api_key","g-sheets": "type","g-sheets": "auth_uri","g-sheets": "token_uri","g-sheets": "auth_provider_x509_cert_url","g-sheets": "universe_domain","g-sheets": "project_id","g-sheets": "private_key_id","g-sheets": "private_key","g-sheets": "client_email","g-sheets": "client_id","g-sheets": "client_x509_cert_url","g-sheets": "shared_folder_id","jira": "site_name","jira": "jira_url","jira": "jira_email","jira": "jira_api_key","github": "github_token","g-drive-oauth2": "client_id","g-drive-oauth2": "project_id","g-drive-oauth2": "auth_uri","g-drive-oauth2": "token_uri","g-drive-oauth2": "auth_provider_x509_cert_url","g-drive-oauth2": "client_secret","g-drive-oauth2": "redirect_uris"}
+    cursor = self.client.cursor()
+    for ext_service_name, parameter in required_credentials_fields.items():
+        check_query = f"""
+        SELECT 1 FROM {self.schema}.EXT_SERVICE_CONFIG
+        WHERE ext_service_name = %s AND parameter = %s;
+        """
+        cursor.execute(check_query, (ext_service_name, parameter))
+        if not cursor.fetchone():
+            insert_query = f"""
+            INSERT INTO {self.schema}.EXT_SERVICE_CONFIG (ext_service_name, parameter, value, user, created, updated)
+            VALUES (%s, %s, %s, %s, %s, %s);
+            """
+            current_time = datetime.now(pytz.UTC)
+            cursor.execute(insert_query, (ext_service_name, parameter, '', None, current_time, current_time))
+            self.client.commit()
+            logger.info(f"Inserted missing row for ext_service_name: {ext_service_name}, parameter: {parameter}")
+    cursor.close()
 
     # LLM_RESULTS
     # ---------------------
@@ -1390,6 +1421,18 @@ def ensure_table_exists(self):
     """
     _create_table_if_not_exist('USER_BOT', user_bot_table_ddl)
 
+
+    index_manager_table_ddl = f"""
+    CREATE TABLE IF NOT EXISTS {self.index_manager_table_name} (
+        timestamp TIMESTAMP NOT NULL,
+        bot_id STRING NOT NULL,
+        index_name STRING NOT NULL UNIQUE,
+        index_id STRING NOT NULL UNIQUE,
+        bot_access STRING
+    );
+    """
+    _create_table_if_not_exist('INDEX_MANAGER', index_manager_table_ddl)
+
     # TEST_MANAGER
     # ------------------
     # Create test_manager table if it doesn't exist
@@ -1478,7 +1521,9 @@ def ensure_table_exists(self):
                 crawl_status STRING NOT NULL,
                 role_used_for_crawl STRING NOT NULL,
                 embedding ARRAY,
-                embedding_native ARRAY
+                embedding_native ARRAY,
+                catalog_supplement STRING NOT NULL,
+                catalog_supplement_loaded STRING NOT NULL
             );
             """
             cursor.execute(metadata_table_ddl)
@@ -1496,7 +1541,7 @@ def ensure_table_exists(self):
                 logger.info(f"Inserted initial rows into {metadata_table_id}")
             except Exception as e:
                 logger.error(
-                    f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to erorr {e}"
+                    f"Initial rows from APP_SHARE.HARVEST_RESULTS NOT ADDED into {metadata_table_id} due to error {e}"
                 )
 
         else:

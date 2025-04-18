@@ -5,6 +5,7 @@ APscheduler
 bs4
 db-dtypes
 dill
+protobuf==4.21.11
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
@@ -12,15 +13,16 @@ werkzeug>=3.0.6
 flask==3.0.3
 google-cloud-bigquery
 mistralai
-openai
-pandas==2.2.2
+openai>=1.66.0
+pandas==2.1.4 # needed < 2.2.2 for databricks connector to work
 pyarrow==17.0.0
 pytest
+flask-cors==5.0.1
 pyyaml==6.0.1
 simplejson==3.19.2
 slack_bolt
 streamlit==1.35.0
-streamlit_autorefresh  
+streamlit_autorefresh
 urllib3==1.26.19
 ngrok
 snowflake_connector_python==3.12.3
@@ -50,3 +52,17 @@ openpyxl
 sqlalchemy-redshift
 sqlalchemy-bigquery
 PyGithub
+sqlalchemy-databricks
+dbt-core
+dbt-snowflake
+pymupdf
+jsonpickle
+jmespath
+llama-index
+pypdf
+sentence-transformers
+xlrd
+fastapi==0.115.11
+chromadb
+llama-index[chromadb]
+llama-index-vector-stores-chroma

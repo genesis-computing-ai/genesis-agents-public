@@ -43,7 +43,6 @@ class GenesisServerProxyBase(ABC):
         self._client_tool_func_map: Dict[str, callable] = {} # maps function names to the tool functions (callable)
         self._client_tool_func_to_bots_map: Dict[str, Dict[str, set]] = {} # # maps function names to teh set of bots to which  was assigned
         self._is_connected = False
-        self.genesis_app = None
 
 
     @abstractmethod
@@ -123,21 +122,25 @@ class GenesisServerProxyBase(ABC):
         response = self._send_REST_request("post", "udf_proxy/lookup_udf", data)
         if response.status_code == 200:
             response_data = response.json()["data"][0][1]
+            if len(response.json()["data"]) > 0 and len(response.json()["data"][0]) > 2:
+                response_thread = response.json()["data"][0][2]
+            else:
+                response_thread = None
             if response_data.lower() != "not found":
-                return response_data
-        return None
+                return response_data, response_thread
+        return None, None
 
 
-    def get_message(self, bot_id, request_id) -> str:
+    def get_message(self, bot_id, request_id) -> tuple[str, str]:
         """
         Get a response message from the BotOsServer.
         Returns:
             The message, or None if no message is found.
         """
-        msg = self._get_raw_message(bot_id, request_id)
+        msg, thread_id = self._get_raw_message(bot_id, request_id)
 
         if msg is None:
-            return None
+            return None, None
 
         # check is this is a special action message
         try:
@@ -166,14 +169,17 @@ class GenesisServerProxyBase(ABC):
                 # We do not recognize this action message.
                 raise ValueError(f"Internal error:Unrecognized action message: {action_msg}")
 
-        return msg
+        return msg, thread_id
 
 
     def run_genesis_tool(self, tool_name, params, bot_id) -> Union[dict, list, str]:
         if not isinstance(params, (dict, collections.abc.Mapping)):
             raise ValueError("params must be a dictionary/mapping")
         data = json.dumps(dict(bot_id=bot_id, tool_name=tool_name, params=params))
-        response = self._send_REST_request("post", "/realtime/genesis_tool", data)
+        try:
+            response = self._send_REST_request("post", "/realtime/genesis_tool", data)
+        except Exception as e:
+            return {"success": False, "message": f"Error sending request: {str(e)}"}
         raw_response = response.json()
         if raw_response.get("success", False):
             return raw_response.get("results", {})

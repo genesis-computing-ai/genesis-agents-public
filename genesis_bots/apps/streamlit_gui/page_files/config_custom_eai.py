@@ -3,6 +3,7 @@ import pandas as pd
 from utils import (
     check_eai_assigned,
     get_metadata,
+    set_metadata,
     upgrade_services,
 )
 import json
@@ -40,7 +41,7 @@ def config_custom_eai():
 
     if submit_button:
         if group_name and endpoint:
-            set_endpoint = get_metadata(f"set_endpoint {group_name} {endpoint} CUSTOM")
+            set_endpoint = set_metadata(f"set_endpoint {group_name} {endpoint} CUSTOM")
             if set_endpoint and set_endpoint[0].get('Success'):
                 st.success('Endpoint added successfully!')
         else:
@@ -52,7 +53,7 @@ def config_custom_eai():
     # return [("Group A", "endpoint1, endpoint2"), ("Group B", "endpoint3, endpoint4")]
 
     # Fetching the data
-    endpoint_data = get_metadata("get_endpoints")
+    endpoint_data = get_metadata("get_endpoints CUSTOM")
 
     # # Convert the list into a DataFrame
     df = pd.DataFrame(endpoint_data)

@@ -1,0 +1,20 @@
+{
+    "source_research_hint": [
+        "For this project, the source data is in the my_databricks database connection, in the BRONZE catalog.",
+        "For this project, only use the informatica_legacy document index.  Always limit your use of document_index(index_name='informatica_legacy'"
+    ],
+    "mapping_proposer_hint": 
+    [
+        "When you propse a mapping, include information on JOINS required between the source tables to get the data you need.",
+        "Include a short SQL snippet that shows the SELECT, FROM, and JOINs to generate this field."
+    ],
+    "confidence_scoring_hint": "",
+    "evaluation_hint": "",
+    "document_indices": [
+        {
+            "index_name": "informatica_legacy",
+            "path_to_files": "api_examples/data_engineering/input_files/informatica_legacy"
+        }
+    ],
+    "search_depth": 0
+}

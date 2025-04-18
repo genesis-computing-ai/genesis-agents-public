@@ -258,10 +258,10 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             SELECT QUALIFIED_TABLE_NAME, COMPLETE_DESCRIPTION, DDL
             FROM {self.meta_database_connector.metadata_table_name}
             WHERE 1=1 
-              {f"AND source_name = '{connection_id_escaped}'" if connection_id_escaped else ""}
-              {f"AND database_name = '{database_name_escaped}'" if database_name_escaped else ""}
-              {f"AND schema_name = '{schema_name_escaped}'" if schema_name_escaped else ""}
-              {f"AND table_name = '{table_name_escaped}'" if table_name_escaped else ""};"""
+              {f"AND lower(source_name) = lower('{connection_id_escaped}')" if connection_id_escaped else ""}
+              {f"AND lower(database_name) = lower('{database_name_escaped}')" if database_name_escaped else ""}
+              {f"AND lower(schema_name) = lower('{schema_name_escaped}')" if schema_name_escaped else ""}
+              {f"AND lower(table_name) = lower('{table_name_escaped}')" if table_name_escaped else ""};"""
 
         # Execute the query and fetch the result
         try:
@@ -297,8 +297,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     # but offering to describe the table if needed
                     return {
                         "success": False,
-                        "message": f"Table not found in harvested metadata. "
-                                 f"If you know this table exists, you can try using a query on the database's metadata (using the specific sql or other commands required by that type of database to list tables) "
+                        "message": f"Table not yet in harvested metadata, but it may still exist in the database. "
+                                 f"You should now try to use a query on the database's metadata (using the specific sql or other commands required by that type of database to list tables to see if you can find it that way, or try select * from it limit 5 using query_database "
                                  f"for the {connection_id} connection to get its details directly from the database. Also BTW database, schema, and table names are case sensitive."
                     }
 
@@ -339,6 +339,15 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
             schema, table = table.split('.', 1)
             logger.debug(f"Split table reference into schema: {schema}, table: {table}")
 
+        # Check for invalid characters in table name
+        if table and ((',' in table) or (' ' in table)):
+            return {
+                "success": False,
+                "error": "Invalid table name parameter",
+                "message": "The table parameter can only be an exact table name without spaces or commas. If you are looking for a table but don't know the exact name, omit the table parameter and use the search query instead."
+            }
+
+
         try:
             if scope != "database_metadata":
                 return {"error": f"Invalid scope '{scope}'. Only 'database_metadata' scope is currently supported."}
@@ -358,6 +367,12 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     "Message": "Use list_database_connections to see available connections first."
                 }
 
+            if table:
+                full_metadata = self.get_full_metadata_details(source_name=self.source_name, connection_id=connection_id, database_name=database, schema_name=schema, table_name=table)
+                if full_metadata:
+                    return [full_metadata]
+                else:
+                    return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
             # Validate database if specified
             if database:
@@ -405,12 +420,6 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                     return [full_metadata]
                 return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
-            if table:
-                full_metadata = self.get_full_metadata_details(source_name=self.source_name, connection_id=connection_id, database_name=database, schema_name=schema, table_name=table)
-                if full_metadata:
-                    return [full_metadata]
-                else:
-                    return [f"No metadata details found for table '{table}' in schema '{schema}', database '{database}', source '{self.source_name}'."]
 
             # Build structural filters
             filtered_entries = None
@@ -468,7 +477,7 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                             if schema and schema.endswith('_WORKSPACE'):
                                 return ["Note: You searched within a bot workspace schema and it was empty. If you didn't find what you were looking for, try using search_metadata without specifying a database and schema to search more broadly."]
                             else:
-                                return ["No tables found matching the specified criteria."]
+                                return ["No tables found matching the specified criteria. Be sure to check other database connections if applicable."]
                     else:
                         # Build message about which criteria were provided
                         criteria_parts = []
@@ -485,7 +494,8 @@ class BotOsKnowledgeAnnoy_Metadata(BotOsKnowledgeBase):
                             f"No harvested objects were found matching the specified {criteria_msg}. "
                             "This may be because Genesis is not yet set up to harvest schema meatdata from this location. "
                             "You may want to add this connection to the harvest using the harvester tools."
-                            "You can try using regular SQL commands to list available tables in this location directly."
+                            "This does not mean there is no data in the database, just that it is not harvested by Genesis yet."
+                            "You can try still use regular SQL commands to list available databases, schemas, and tables in this location using the query_database function."
                         ]
 
             try:

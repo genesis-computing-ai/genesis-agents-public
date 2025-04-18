@@ -1,5 +1,3 @@
-
-
 CREATE OR ALTER VERSIONED SCHEMA CORE;
 
 CREATE OR REPLACE STREAMLIT CORE.GENESIS
@@ -278,8 +276,6 @@ $$)
   RETURNS STRING
   LANGUAGE SQL
   AS $$
-  DECLARE
-    wh_name STRING;
   BEGIN
    IF (ARRAY_CONTAINS('CREATE COMPUTE POOL'::VARIANT, privileges)) THEN
     BEGIN
@@ -296,31 +292,16 @@ $$)
     END;
    END IF;
    IF (ARRAY_CONTAINS('CREATE WAREHOUSE'::VARIANT, privileges)) THEN
-      BEGIN
-          LET stmt VARCHAR := 'SELECT "name" AS WH_NAME, "owner" AS WH_OWNER, CURRENT_DATABASE() AS CURRENT_DB FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())) WHERE "name" = ''APP_XSMALL'' LIMIT 1';
-          EXECUTE IMMEDIATE 'SHOW WAREHOUSES';
-          LET RS1 RESULTSET := (EXECUTE IMMEDIATE :stmt);
-          LET c1 CURSOR FOR RS1;
 
-          FOR rec IN c1 DO
-            IF (rec.WH_OWNER = rec.CURRENT_DB) THEN
-              wh_name := 'APP_XSMALL';
-            ELSE
-              wh_name := 'APP_XSMALL_1';
-            END IF;
-           END FOR;
-      EXCEPTION
-        WHEN STATEMENT_ERROR THEN
-          wh_name := 'APP_XSMALL';
-      END;
-
-      EXECUTE IMMEDIATE 'CREATE WAREHOUSE IF NOT EXISTS ' || :wh_name || ' MIN_CLUSTER_COUNT=1 MAX_CLUSTER_COUNT=1 ' ||
+    BEGIN
+   
+      EXECUTE IMMEDIATE 'CREATE WAREHOUSE IF NOT EXISTS APP_XSMALL MIN_CLUSTER_COUNT=1 MAX_CLUSTER_COUNT=1 ' ||
       ' WAREHOUSE_SIZE=XSMALL AUTO_RESUME = TRUE AUTO_SUSPEND = 60';
 
-      EXECUTE IMMEDIATE 'GRANT USAGE, OPERATE ON WAREHOUSE ' || :wh_name || ' TO APPLICATION ROLE APP_PUBLIC';
+      EXECUTE IMMEDIATE 'GRANT USAGE, OPERATE ON WAREHOUSE APP_XSMALL TO APPLICATION ROLE APP_PUBLIC';
 
-      CALL CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL',:wh_name);
-
+      CALL CORE.INITIALIZE_APP_INSTANCE('APP1','GENESIS_POOL','APP_XSMALL');
+   END;
    END IF;
    RETURN 'DONE';
  END;
@@ -360,6 +341,8 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
       azure_ep VARCHAR;
       jira_ep VARCHAR;
       custom_ep VARCHAR;
+      dbtcloud_ep VARCHAR;
+      genesis_ep VARCHAR;
       ports VARCHAR;
     BEGIN
       CASE (ref_name)
@@ -402,6 +385,22 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
             "payload":{
               "host_ports":["api.github.com", "github.com"],
               "allowed_secrets": "NONE"}}';
+        WHEN 'DBTCLOUD_EXTERNAL_ACCESS' THEN
+          SELECT COALESCE(LISTAGG('"' || REGEXP_REPLACE(ENDPOINT, '^(https?://)?(.+)$', '\\2') || '"', ','), '') || 
+                 CASE WHEN COUNT(*) > 0 THEN ',' ELSE '' END || 
+                 '"api.github.com","github.com"' INTO dbtcloud_ep
+          FROM APP1.CUSTOM_ENDPOINTS
+          WHERE TYPE = 'DBTCLOUD';
+ 
+          IF (LEN(dbtcloud_ep) > 0) THEN
+            RETURN '{
+              "type": "CONFIGURATION",
+              "payload":{
+                "host_ports":[' || dbtcloud_ep || '],
+                "allowed_secrets": "NONE"}}';
+          ELSE
+              RETURN '';
+          END IF;
         WHEN 'OPENAI_EXTERNAL_ACCESS' THEN
           RETURN '{
             "type": "CONFIGURATION",
@@ -433,6 +432,21 @@ CREATE OR REPLACE PROCEDURE core.get_config_for_ref(ref_name STRING)
               "type": "CONFIGURATION",
               "payload":{
                 "host_ports":[' || custom_ep || '],
+                "allowed_secrets": "NONE"}}';
+          ELSE
+              RETURN '';
+          END IF;
+
+        WHEN 'GENESIS_EXTERNAL_ACCESS' THEN
+          SELECT LISTAGG('"' || ENDPOINT || '"', ',') INTO genesis_ep
+          FROM APP1.CUSTOM_ENDPOINTS
+          WHERE TYPE = 'ALL';
+
+          IF (LEN(genesis_ep) > 0) THEN
+            RETURN '{
+              "type": "CONFIGURATION",
+              "payload":{
+                "host_ports":[' || genesis_ep || '],
                 "allowed_secrets": "NONE"}}';
           ELSE
               RETURN '';

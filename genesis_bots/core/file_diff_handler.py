@@ -5,6 +5,10 @@ from git import Repo
 from datetime import datetime
 from difflib import unified_diff
 from typing import List, Dict, Optional, Union
+import pandas as pd
+from openpyxl import load_workbook
+import uuid
+from genesis_bots.core.tools.image_tools import _image_analysis
 
 
 class GitFileManager:
@@ -48,31 +52,111 @@ class GitFileManager:
         except Exception as e:
             raise Exception(f"Failed to initialize git repository: {str(e)}")
 
-    def list_files(self, path: str = None) -> List[str]:
-        """List all tracked files in the repository or specific path"""
+    def list_files(self, path: str = None) -> Dict:
+        """List all tracked files in the repository or specific path
+        
+        For large directories (>50 files total):
+        - Lists only immediate files/directories in current path
+        - Shows count of files under each subdirectory
+        
+        For very large directories (>100 files in current path):
+        - Shows only first 100 files
+        - Includes total count of remaining files
+        """
+        # Get all tracked files
+        all_files = [str(item[0]) for item in self.repo.index.entries.keys()]
+        
+        # Filter by path if provided
         if path:
-            full_path = os.path.join(self.repo_path, path)
-            return [str(item[0]) for item in self.repo.index.entries.keys() if str(item[0]).startswith(path)]
-        return [str(item[0]) for item in self.repo.index.entries.keys()]
+            all_files = [f for f in all_files if f.startswith(path)]
+            base_path = path
+        else:
+            base_path = ""
+
+        # Get immediate files/dirs in current path
+        current_level_files = []
+        subdirs = {}
+        
+        for file in all_files:
+            rel_path = file[len(base_path):].lstrip('/')
+            parts = rel_path.split('/')
+            
+            if len(parts) == 1:  # File in current directory
+                current_level_files.append(file)
+            else:  # File in subdirectory
+                subdir = parts[0]
+                if subdir not in subdirs:
+                    subdirs[subdir] = 0
+                subdirs[subdir] += 1
+
+        # Prepare result
+        result = {
+            "success": True,
+            "total_files": len(all_files),
+            "base_path": base_path or "root",
+            "full_path": os.path.join(self.repo_path, base_path) if base_path else self.repo_path
+        }
+
+        # Handle large directories
+        if len(all_files) > 50:
+            result["files"] = current_level_files
+            result["subdirectories"] = {
+                dir_name: f"{count} files" for dir_name, count in subdirs.items()
+            }
+            result["note"] = f"Only showing immediate files/directories in {result['base_path']} due to large file count"
+        else:
+            result["files"] = all_files
+
+        # Handle very large current directories
+        if len(current_level_files) > 100:
+            remaining = len(current_level_files) - 100
+            result["files"] = current_level_files[:100]
+            result["note"] = f"Showing first 100 files in {result['base_path']}. {remaining} more files exist"
+
+        return result
 
     def read_file(self, file_path: str) -> str:
         """Read contents of a file from the repository"""
-        full_path = os.path.join(self.repo_path, file_path)
+        
+        # Remove leading slash from file_path if repo_path doesn't start with slash
+        if file_path.startswith('/') and not self.repo_path.startswith('/'):
+            file_path = file_path.lstrip('/')
+
+        if 'BOT_GIT:' in file_path:
+            file_path = file_path.replace('BOT_GIT:', '')
+
+        if file_path.startswith(self.repo_path):
+            full_path = file_path
+        else:
+            full_path = os.path.join(self.repo_path, file_path)
+
         if not os.path.exists(full_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
         with open(full_path, 'r') as f:
             return f.read()
 
-    def write_file(self, file_path: str, content: str, commit_message: str = None) -> Dict:
+    def write_file(self, file_path: str, content: str, commit_message: str = None, **adtl_info) -> Dict:
         """Write content to a file and optionally commit changes"""
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(os.path.join(self.repo_path, file_path)), exist_ok=True)
 
-            # Write the file
-            with open(os.path.join(self.repo_path, file_path), 'w') as f:
-                f.write(content)
+            # Only decode base64 if explicitly told to do so
+            is_base64 = adtl_info.get('is_base64', False)
+            if is_base64:
+                try:
+                    import base64
+                    decoded_content = base64.b64decode(content)
+                    # Write binary content
+                    with open(os.path.join(self.repo_path, file_path), 'wb') as f:
+                        f.write(decoded_content)
+                except Exception as e:
+                    return {"success": False, "error": f"Failed to decode base64 content: {str(e)}"}
+            else:
+                # Write text content
+                with open(os.path.join(self.repo_path, file_path), 'w') as f:
+                    f.write(content)
 
             # Add to git
             self.repo.index.add([file_path])
@@ -261,6 +345,34 @@ class GitFileManager:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def remove_file(self, file_path: str, commit_message: str = None) -> Dict:
+        """Remove a file from the repository"""
+        try:
+            full_path = os.path.join(self.repo_path, file_path)
+            if not os.path.exists(full_path):
+                return {"success": False, "error": f"File not found: {file_path}"}
+
+            # Remove file from filesystem
+            os.remove(full_path)
+
+            # Remove from git
+            self.repo.index.remove([file_path])
+
+            # Prepare response
+            result = {
+                "success": True,
+                "message": f"File {file_path} removed successfully"
+            }
+
+            # Commit if message provided
+            if commit_message:
+                self.commit_changes(commit_message)
+                result["message"] += " and changes committed"
+
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def git_action(self, action: str, **kwargs) -> Dict:
         """
         Unified interface for all git operations.
@@ -277,6 +389,7 @@ class GitFileManager:
             - switch_branch: Switch to branch (requires: branch_name)
             - get_branch: Get current branch name
             - get_status: Get file status (optional: file_path)
+            - remove_file: Remove a file from the repository (requires: file_path; optional: commit_message)
         
         Returns:
             Dict containing operation result and any relevant data
@@ -286,11 +399,13 @@ class GitFileManager:
             action = action.lower()
 
 
-
             if action == "list_files":
                 path = kwargs.get("path")
+                if path and path.startswith('/'):
+                    path = path[1:]
+
                 files = self.list_files(path)
-                return {"success": True, "files": files}
+                return {"success": True, "files": files, "git_base_path_on_server_disk": self.repo_path}
 
             elif action == "read_file":
                 if "file_path" not in kwargs:
@@ -298,8 +413,124 @@ class GitFileManager:
                 # Check if file_path starts with / and return error if it does
                 if kwargs["file_path"].startswith('/'):
                     return {"success": False, "error": "Please provide a relative file path without leading /"}
-                content = self.read_file(kwargs["file_path"])
-                return {"success": True, "content": content}
+                
+                file_path = os.path.join(self.repo_path, kwargs["file_path"])
+                if file_path.lower().endswith(('.xls', '.xlsx')):
+                    try:
+                        # First read the data as before
+                        if 'sheet_name' in kwargs:
+                            df = pd.read_excel(file_path, sheet_name=kwargs['sheet_name'])
+                        else:
+                            df = pd.read_excel(file_path, sheet_name=None)
+
+                        # Now extract images using openpyxl
+                        wb = load_workbook(file_path)
+                        image_paths = {}
+                        
+                        for sheet_name in wb.sheetnames:
+                            sheet = wb[sheet_name]
+                            sheet_images = []
+                            
+                            # Extract images from the sheet
+                            for image in sheet._images:
+                                # Generate unique filename for each image
+                                image_ext = image.ref.split('.')[-1] if '.' in image.ref else 'png'
+                                image_filename = f"{uuid.uuid4()}.{image_ext}"
+                                
+                                # Create the directory path for this thread
+                                if 'thread_id' not in kwargs:
+                                    return {"success": False, "error": "thread_id is required for saving images"}
+                                    
+                                save_dir = os.path.join('./runtime/downloaded_files', str(kwargs['thread_id']))
+                                os.makedirs(save_dir, exist_ok=True)
+                                
+                                # Full path for the image
+                                image_path = os.path.join(save_dir, image_filename)
+                                
+                                # Save image
+                                with open(image_path, 'wb') as img_file:
+                                    img_file.write(image._data())
+                                
+                                sheet_images.append({
+                                    'path': image_path,
+                                    'filename': image_filename,
+                                    'position': f"Row: {image.anchor._from.row}, Col: {image.anchor._from.col}"
+                                })
+                            
+                            if sheet_images:
+                                image_paths[sheet_name] = sheet_images
+
+                        # Prepare the content response with analyzed images
+                        total_image_count = 0
+
+                        if isinstance(df, dict):
+                            # Multiple sheets - convert each sheet to JSON
+                            content = {}
+                            for sheet_name, sheet_df in df.items():
+                                sheet_images = image_paths.get(sheet_name, [])
+                                # Analyze images for this sheet
+                                for image_info in sheet_images:
+                                    if total_image_count < 20:
+                                        analysis_result = _image_analysis(
+                                            query="Describe in detail what you see in this image, including the full text of any text in the image",
+                                            file_name=image_info['filename'],
+                                            thread_id=kwargs['thread_id']
+                                        )
+                                        
+                                        if analysis_result.get('success'):
+                                            image_info['analysis'] = analysis_result['data']
+                                        else:
+                                            image_info['analysis'] = "Failed to analyze image"
+                                    elif total_image_count == 20:
+                                        image_info['analysis'] = "Only the first 20 images were automatically analyzed. You can use the _image_analysis() function on this file if you need to analyze additional images."
+                                    # For images after 21, we don't add an analysis field at all
+                                    
+                                    total_image_count += 1
+
+                                content[sheet_name] = {
+                                    'data': sheet_df.to_json(orient='records'),
+                                    'images': sheet_images
+                                }
+                        else:
+                            # Single sheet
+                            sheet_images = image_paths.get(list(wb.sheetnames)[0], [])
+                            # Analyze images
+                            for image_info in sheet_images:
+                                if total_image_count < 20:
+                                    analysis_result = _image_analysis(
+                                        query="Describe what you see in this image",
+                                        file_name=image_info['filename'],
+                                        thread_id=kwargs['thread_id']
+                                    )
+                                    
+                                    if analysis_result.get('success'):
+                                        image_info['analysis'] = analysis_result['data']
+                                    else:
+                                        image_info['analysis'] = "Failed to analyze image"
+                                elif total_image_count == 20:
+                                    image_info['analysis'] = "Only the first 20 images were automatically analyzed. You can use analyze_image() on this file if you need to analyze additional images."
+                                # For images after 21, we don't add an analysis field at all
+                                
+                                total_image_count += 1
+
+                            content = {
+                                'data': df.to_json(orient='records'),
+                                'images': sheet_images
+                            }
+
+                        return {
+                            "success": True, 
+                            "content": content, 
+                            "is_excel": True,
+                            "has_images": bool(image_paths),
+                            "note": "Images were found in this Excel file. The first 20 images have been automatically analyzed. You can use display_image() to show specific images to the user. Use the image paths from the response with these functions."
+                        }
+                    except Exception as e:
+                        return {"success": False, "error": f"Failed to read Excel file: {str(e)}"}
+                else:
+                    # For other files, use normal read
+                    content = self.read_file(file_path)
+                    return {"success": True, "content": content}
 
             elif action == "write_file":
                 if "file_content" in kwargs and "content" not in kwargs:
@@ -311,10 +542,23 @@ class GitFileManager:
                 # Check if file_path starts with / and return error if it does
                 if kwargs["file_path"].startswith('/'):
                     return {"success": False, "error": "Please provide a relative file path without leading /"}
+                
+                # Extract the standard parameters
+                file_path = kwargs["file_path"]
+                content = kwargs["content"]
+                commit_message = kwargs.get("commit_message")
+                
+                # Pass through any additional parameters that aren't standard
+                adtl_info = {k: v for k, v in kwargs.items() 
+                             if k not in ["file_path", "content", "commit_message", 
+                                         "file_content", "new_content"]}
+                
+                # Pass through any additional parameters
                 return self.write_file(
-                    kwargs["file_path"],
-                    kwargs["content"],
-                    kwargs.get("commit_message")
+                    file_path,
+                    content,
+                    commit_message,
+                    **adtl_info  # Pass any additional parameters
                 )
 
             elif action == "generate_diff":
@@ -368,6 +612,14 @@ class GitFileManager:
             elif action == "get_status":
                 status = self.get_file_status(kwargs.get("file_path"))
                 return status
+
+            elif action == "remove_file":
+                if "file_path" not in kwargs:
+                    return {"success": False, "error": "file_path is required"}
+                return self.remove_file(
+                    kwargs["file_path"],
+                    kwargs.get("commit_message")
+                )
 
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}

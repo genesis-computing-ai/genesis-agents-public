@@ -1,4 +1,5 @@
-from   flask                    import Flask
+from   flask                    import Flask, send_from_directory
+from flask_cors                 import CORS
 import os
 from   pathlib                  import Path
 import subprocess
@@ -12,7 +13,7 @@ from   genesis_bots.demo.app.genesis_app \
                                         genesis_app)
 from   genesis_bots.demo.routes import (oauth_routes, main_routes,
                                         realtime_routes, slack_routes,
-                                        udf_routes)
+                                        udf_routes, projects_routes)
 
 main_server = None
 
@@ -24,7 +25,15 @@ def main():
     global_flags.runner_id = runner_id
     global_flags.multibot_mode = True
 
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="../../../genesis-dashboard/build", static_url_path="/")
+    CORS(app, resources={
+        r"/*": {
+            "origins": ["http://localhost:3001"],
+            "methods": ["POST", "OPTIONS"],
+            "allow_headers": ["Content-Type"]
+        }
+    })
+
     app_https = Flask(__name__)
 
     app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-development-secret-key')
@@ -33,6 +42,7 @@ def main():
     app.register_blueprint(realtime_routes)
     app.register_blueprint(slack_routes)
     app.register_blueprint(udf_routes)
+    app.register_blueprint(projects_routes, url_prefix='/projects')
     app_https.register_blueprint(oauth_routes)
 
     app.register_blueprint(oauth_routes, url_prefix='/oauth')

@@ -38,6 +38,8 @@ from genesis_bots.core.bot_os_web_access import _search_google, _scrape_url
 from genesis_bots.core.tools.send_email import send_email
 from api_examples.cli_chat import get_available_bots
 from genesis_bots.core.tools.google_drive import google_drive
+from genesis_bots.core.tools.pdf_tools import pdf_parser
+from genesis_bots.core.tools.document_manager import _document_index
 
 RESPONSE_TIMEOUT_SECONDS = 20.0
 
@@ -240,10 +242,10 @@ class TestTools(unittest.TestCase):
     def test_image_tools_agent(self):
         bot_id = self.eve_id
         thread_id = str(uuid4())
-        request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog', thread_id=thread_id)
+        request = self.client.submit_message(bot_id, 'Generate a picture of a happy dog and show me the filename. Do not display it.', thread_id=thread_id)
         response = self.client.get_response(request.bot_id, request.request_id, timeout_seconds=40)
         self.assertTrue('_ImageGeneration_' in response, response)
-        self.assertTrue('.png' in response)
+        self.assertTrue('.png' in response, response)
 
     @unittest.skipIf(not SNOWFLAKE, "Skipping test_snowflake_tools on Sqlite")
     def test_snowflake_tools(self):
@@ -287,7 +289,7 @@ class TestTools(unittest.TestCase):
 
         response = git_action(action='list_files', thread_id=thread_id, bot_id=bot_id)
         self.assertTrue(response['success'])
-        self.assertTrue('test.txt' in response['files'])
+        self.assertTrue('test.txt' in response['files']['files'])
 
     def test_web_acces_tools(self):
         bot_id = self.eve_id
@@ -347,6 +349,48 @@ class TestTools(unittest.TestCase):
         response = google_drive(action="DELETE_FILE", g_file_id=file_id)
         self.assertTrue(response['Success'], response)
 
+    def test_pdf_tools(self):
+        filepath = 'https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf'
+        response = pdf_parser(filepath)
+        self.assertTrue(response['Success'], response)
+
+    def test_document_index(self):
+        bot_id = self.eve_id
+        response = _document_index(action='CREATE_INDEX', bot_id=bot_id, index_name='Test Index')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='LIST_INDICES')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='RENAME_INDEX',  index_name='Test Index', new_index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
+
+        file_name = 'test_document.txt'
+        with open(file_name, 'w') as f:
+            f.write(''''
+            The transformer is a deep learning architecture that was developed by researchers at Google and is based on the multi-head attention mechanism, which was proposed in the 2017 paper "Attention Is All You Need".[1] Text is converted to numerical representations called tokens, and each token is converted into a vector via lookup from a word embedding table.[1] At each layer, each token is then contextualized within the scope of the context window with other (unmasked) tokens via a parallel multi-head attention mechanism, allowing the signal for key tokens to be amplified and less important tokens to be diminished.
+            ''')
+
+        response = _document_index(action='ADD_DOCUMENTS', filepath='test_document.txt', index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='LIST_DOCUMENTS', index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
+        self.assertTrue(response['Documents'][0]['file_name'] == file_name)
+
+        response = _document_index(action='SEARCH', index_name='Test Index 2', query='transformer')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='ASK', query='Which company developed the transformer architecture?')
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='DELETE_DOCUMENT', index_name='Test Index 2', filepath=file_name)
+        self.assertTrue(response['Success'], response)
+
+        response = _document_index(action='LIST_DOCUMENTS', index_name='Test Index 2')
+        self.assertTrue(response['Success'], response)
+        self.assertTrue(response['TotalCount'] == 0)
+
 
 
     @classmethod
@@ -359,6 +403,7 @@ class TestTools(unittest.TestCase):
                 query = f'DROP TABLE IF EXISTS {cls.db_adapter.schema}.{table} CASCADE;'
                 cls.db_adapter.run_query(query)
         cls.client.shutdown()
+        
 
 
     # Returns True if the string is in upper case.

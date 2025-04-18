@@ -2,13 +2,77 @@
 GENESIS BOT TODOS
 =================
 
+x gxs mapping quality (try in new system as a project, using same bots)
+DBT-make project_name requried on all calls to make it thread safe for multiple bots at the same time to use it, or make it per thread
+DBT- see if stdout can be captured and returned instead of the debug logs ?
+Databricks connector times out, needs reconnect logic
+profile name is mixe up with project naem and they need to be the same nwo
+Show g-sheets comment read and response.
+autonomy loop
+test with fresh schema
+n lazy load history of todos
+fix return to correct project back to projects page
+x Alation import for GXS from CSV file into harvester (supplement harvester info with this alation notes stuff)
+x Redo past projects for GXS and redo eval answers (principal rollover ROLLOVER_PRIN_OUTSTANDING_AMT is off for example)
+x HCLS - cant find report-year, month, etc?
+x GXS list
+check put file to stage for Slack uploaded files
+test harvester with catalog supplement change on sqlite metadata, test inserting new, and test updating
+--
+x gxs Reprocess history
+x gxs Reprocess the correct answers
+x Option for mappper to say it not sure threshold 
+n Second pass bot to check that
+x Maybe some more past projects 
+x New version 
+x Alation load file, hook into the harvester
+x doc alation loader
+--- 
+bug: adding document manaeger tool via eve, showed in list, but session didnt have it until restart
+record a demo of data eng
+x add an option to add document to index without persist, then a persist option later 
+make sure uploading binary files like pictures to git still works
+x add search across all indicies, add ask against one index
+x chroma db
+x filter result fields too verbose
+paths returned in search results should be relative to BOT_GIT: so bots can find them later and read them
+make bot_git limit the number of results returned and allow for filtering
+add a simpler way to see if a named file is in the index 
+allow upload simple file and ask q's about it without explicitly saving to bot_git first
+dont look for APP_SHARE insert when in local mode (non native app, its giving an error)
+automatic todo runner
+x add thread continuation feature
+gxs - build second pass with answers to questions, new fields to track the changed stuff and new status (use thread continuation feature)
+gxs tell them: 1) how to hook up alation, 2) new customer_demo zip, how to run it, 3) how to see index, 4) how to see todos
+**check gxs upgrade
+**second pass stuff
+**way to a new project based on starting with a g-sheet (via api program, ideally via gui)
+-----
+****** Demo, JL Demos
+****** Add bootstrap from GUI
+****** Autonomous loop
+****** New demo video for youtube, marketplace, etc.
+*** Abstracted way to write todo processors (yaml -> py?)
+*** Abstracted fields for todos so not hardcoded
+*** GX - way to add a project from an existing sheet
+--
+MED DEMO:
+- rerun xls doc to test new extractor
+- commit code 
+** dont have program names in the code of run_program
+-- 
+ILLUMINA DEMO:
+** show review of a SAP reporting view XML, turn it into mapping doc, turn it into DBT code
 
-set up todos for requirments, have local listener look for fields that need mapping work, and then run them
-Have local listener look for Todos in a specified project, and then process them...
+healthcare demo:
+fix mapping quality / eval (re joins)
+hook up dbt engineer to actual requirements
+(fixed?) sqlite todo_creator is puttint CURRENT_DATETIME instead of the actual datetime into todo details
 
-x Getting [] result on tool calls by source researcher to metadata queries
+
+x GXS-Getting [] result on tool calls by source researcher to metadata queries
 x stop app in sg region
-if file not found in git, properly trigger the retry logic
+gxs-if file not found in git, properly trigger the retry logic
 connecting to oracle docs
 bulk add todos
 streamlit page to see projects and todos
@@ -24,7 +88,7 @@ signal to reset the annoy indexes when connections or connection rbac are change
 set a flag when bot data access changes so annoy indexes can be refreshed, have annoy index name logic use that if later than update in the metadata table
 (test) axure openai
 (test current) add a tool to update bot access to a connection, which properly handles the string of bot ids (list, add, remove, etc.)
-(test) comment handler test it out
+(test) gxs: comment handler test it out
 (test) sonnet on cortex, and test mid flight tool and instruction changes again on cortex
 
 Later:
@@ -52,13 +116,13 @@ x test new bot on yuly branch
 x data connections list with snowflake
 x can you deploy a new bot files = []
 x existing snowflake deployment has no Snowflaek database connection listed (dev)
-x fix 
+x fix gxs
 x work on system prompt
 n o3 needs dev prompt first, others need system prompt first?x finish redhsift
 x do docs for bigquery
-x (test on alpha)  - have it write in the test requirements table to a bot workspace for one of the bots
+x (test on alpha) gxs - have it write in the test requirements table to a bot workspace for one of the bots
 x waive 20 tool call per thread limit for claude threads
-x (aviv) test  with completion mode (w/git etc)
+x (aviv) test gxs with completion mode (w/git etc)
 x make connection, harvest, search metadata, and query database work directly via api
 x better way to collect NGROK_TOKEN and reporting when its not set
 x  make sure ngrok key is in place when in local mode before activating slack

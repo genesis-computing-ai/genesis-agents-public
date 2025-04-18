@@ -93,6 +93,7 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
     _shared_events_map = {}
     _shared_pending_map = {}
     _shared_user_actions = {}
+    _shared_thread_map = {}  # Maps input thread IDs to bot_os thread IDs
 
     ACTION_MSG_DELIM = "<!!-ACTION_MSG-!!>"
     '''prefix/suffix delimeter for special 'action' messages that distinguish them from normal chat messages'''
@@ -163,6 +164,13 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         self.events_map = self.__class__._shared_events_map[self.adapter_name]
         self.pending_map = self.__class__._shared_pending_map[self.adapter_name]
         self.user_actions_tacker = self.__class__._shared_user_actions[self.adapter_name]
+
+        # Initialize the new shared thread map
+        if self.adapter_name not in self.__class__._shared_thread_map:
+            self.__class__._shared_thread_map[self.adapter_name] = {}
+        
+        # Add reference to instance
+        self.thread_map = self.__class__._shared_thread_map[self.adapter_name]
 
 
     @functools.cached_property
@@ -273,6 +281,11 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         else:
             if do_update_db:
                 self.db_connector.db_update_llm_results(in_uuid, message.output)
+        if in_uuid and message.thread_id:
+            self.thread_map[in_uuid] = message.thread_id
+
+        # Add thread mapping if we have both IDs
+
 
     # Commented out - not used?
     #
@@ -484,7 +497,20 @@ class UDFBotOsInputAdapter(BotOsInputAdapter):
         request_uuid = input_rows[0][1]
         #logger.info("lookup input: ", input_text )
         resp = self._lookup_response(request_uuid) or "not found"
-        output_rows = [[row[0], resp] for row in input_rows]
+
+        thread_id = self.thread_map.get(request_uuid)
+        if thread_id:
+            if not resp.endswith('💬'):
+                try:
+                    # Yuly, this isn't working that well, it still builds up a lot of stuff in this map, maybe there is somewhere else we can get this from to not maintain another map?
+                    del self.thread_map[request_uuid]
+                except:
+                    pass
+
+        if thread_id:
+            output_rows = [[row[0], resp, thread_id] for row in input_rows]
+        else:
+            output_rows = [[row[0], resp] for row in input_rows]
 
         response = make_response({"data": output_rows})
         response.headers['Content-type'] = 'application/json'

@@ -3,6 +3,7 @@ venv*
 .venv/*
 .env*
 .secrets/*
+.keys/*
 
 # Python cache
 *.pyc
@@ -39,6 +40,15 @@ apps/vscode-curosr-ext/node_modules/
 genesis_api_public.egg-info/
 genesis_api_whl.egg-info/
 genesis_bots.egg-info/
-
 customer_demos/*
+hcls/*
+hcls_gold/*
+genesis-dashboard/node_modules/*
 
+# Credentials
+genesis_bots/genesis_sample_golden/msft_teams_adapter/rsa_key.p8
+genesis_bots/genesis_sample_golden/msft_teams_adapter/bot_5.zip
+genesis_bots/genesis_sample_golden/msft_teams_adapter/env
+rsa_key.p8
+private_key.pem
+customer_demos

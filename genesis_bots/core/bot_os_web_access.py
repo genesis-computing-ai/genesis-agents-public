@@ -33,7 +33,7 @@ class WebAccess(object):
             query = f"""SELECT value FROM {self.db_adapter.schema}.EXT_SERVICE_CONFIG
                       WHERE ext_service_name = 'serper' AND parameter = 'api_key';"""
             rows = self.db_adapter.run_query(query)
-            if rows:
+            if rows and rows[0]['VALUE']:
                 self.serper_api_key = rows[0]['VALUE']
                 return True
             if os.environ.get('SERPER_API_KEY', None):

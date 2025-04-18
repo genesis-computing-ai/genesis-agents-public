@@ -1487,7 +1487,7 @@ class SlackBotAdapter(BotOsInputAdapter):
                     "message": f"Failed to send message to channel {channel_name}."
                 }
         except Exception as e:
-            if channel_name.upper.startswith('C') and not channel_name.isupper():
+            if channel_name.upper().startswith('C') and not channel_name.isupper():
                 return f"Error: The channel '{channel_name}' appears to be a channel ID, but it's not in the correct format. If you're using a channel ID, please make sure it's in all uppercase letters. Try again with '{channel_name.upper()}'."
             return f"Error sending message to channel {channel_name}: {str(e)}.  Double-check that you are sending the message to the correct Slack channel.  If you are running a process, be double-sure that you have the right channel name and are not making one up."
 

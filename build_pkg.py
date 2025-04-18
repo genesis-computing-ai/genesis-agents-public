@@ -30,15 +30,15 @@ def increment_patch(version_str):
             # If version doesn't have three parts, append a patch number
             return f"{version_str}.1"
 
-def update_pyproject_toml(new_version, current_version):
+def update_pyproject_toml(new_version):
     """Update version in pyproject.toml."""
     try:
         with open('pyproject.toml', 'r') as f:
             content = f.read()
         
-        # Replace version in pyproject.toml
+        # Replace version in pyproject.toml using a more general pattern
         updated_content = re.sub(
-            r'version\s*=\s*["\']' + re.escape(current_version) + r'["\']',
+            r'version\s*=\s*["\'](.*?)["\']',
             f'version = "{new_version}"',
             content
         )
@@ -94,19 +94,21 @@ def run_build():
 if __name__ == "__main__":
     package_name = "genesis-bots"
     
-    # Get the latest version
-    current_version = get_latest_version()
-    print(f"Current version of {package_name}: {current_version}")
-    
-    # Increment patch number
-    new_version = increment_patch(current_version)
-    print(f"New version will be: {new_version}")
+    if len(sys.argv) > 1:
+        # Use the version provided as command-line argument
+        new_version = sys.argv[1]
+        print(f"Using provided version: {new_version}")
+    else:
+        # Original behavior - get and increment current version
+        current_version = get_latest_version()
+        print(f"Current version of {package_name}: {current_version}")
+        new_version = increment_patch(current_version)
+        print(f"New version will be: {new_version}")
     
     # Update version in files
-    pyproject_updated = update_pyproject_toml(new_version, current_version)
-    workflow_updated = update_github_workflow(new_version, current_version)
+    pyproject_updated = update_pyproject_toml(new_version)
     
-    if pyproject_updated or workflow_updated:
+    if pyproject_updated:
         # Run build
         print("Running build command...")
         run_build()

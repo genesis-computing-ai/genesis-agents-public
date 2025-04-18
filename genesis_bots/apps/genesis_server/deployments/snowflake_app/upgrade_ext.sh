@@ -19,14 +19,24 @@ DIRECTORY_PATH=${1:-~/}
 # Ensure the directory path does not end with a slash
 DIRECTORY_PATH=${DIRECTORY_PATH%/}
 
+
+
+# Build Docker image and capture the exit status
+docker build --rm -t genesis_app:latest --platform linux/amd64 . || {
+    echo "Docker build failed"
+    exit 1
+}
+
+# Tag Docker image (only proceeds if build was successful)
+docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest || {
+    echo "Docker tag failed"
+    exit 1
+}
+
 # Login to image repo
 snow spcs image-registry token --connection GENESIS-EXT-PROVIDER --format=JSON
 snow spcs image-registry token --connection GENESIS-EXT-PROVIDER --format=JSON | docker login dshrnxx-genesis.registry.snowflakecomputing.com --username 0sessiontoken --password-stdin
 
-# Build Docker image
-docker build --rm -t genesis_app:latest --platform linux/amd64 .
-# Tag Docker image
-docker tag genesis_app:latest dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 # Push Docker image
 docker push dshrnxx-genesis.registry.snowflakecomputing.com/genesisapp_master/code_schema/service_repo/genesis_app:latest
 echo "Docker push successful"

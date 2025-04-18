@@ -51,8 +51,8 @@ jobs:
           mkdir -p ~/.keys/dev_consumer
           mkdir -p ~/.keys/dev_provider
           # Save private key to file
-          echo "${{ secrets.SNOWFLAKE_CONSUMER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_consumer/rsa_key.p8
-          echo "${{ secrets.SNOWFLAKE_PROVIDER_DEV_PRIVATE_KEY }}" > ~/.keys/dev_provider/rsa_key.p8
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > ~/.keys/dev_consumer/rsa_key.p8
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > ~/.keys/dev_provider/rsa_key.p8
           chmod 600 ~/.keys/dev_consumer/rsa_key.p8
           chmod 600 ~/.keys/dev_provider/rsa_key.p8
 

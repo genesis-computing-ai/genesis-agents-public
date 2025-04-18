@@ -61,6 +61,14 @@ references:
       object_type: EXTERNAL ACCESS INTEGRATION
       register_callback: core.register_single_reference
       configuration_callback: core.get_config_for_ref      
+  - dbtcloud_external_access:
+      label: "DBT Cloud External Access Integration"
+      description: "This is required to access the DBT Cloud API"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
   - openai_external_access:
       label: "OpenAI External Access Integration"
       description: "This is required to access OpenAI"
@@ -80,6 +88,14 @@ references:
   - custom_external_access:
       label: "Custom External Access Integration"
       description: "This allows access to consumer custom endpoints, for API or webpage downloader tool access"
+      privileges:
+        - USAGE
+      object_type: EXTERNAL ACCESS INTEGRATION
+      register_callback: core.register_single_reference
+      configuration_callback: core.get_config_for_ref
+  - genesis_external_access:
+      label: "Genesis External Access Integration"
+      description: "This allows access to all endpoints"
       privileges:
         - USAGE
       object_type: EXTERNAL ACCESS INTEGRATION

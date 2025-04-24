@@ -1522,8 +1522,8 @@ def ensure_table_exists(self):
                 role_used_for_crawl STRING NOT NULL,
                 embedding ARRAY,
                 embedding_native ARRAY,
-                catalog_supplement STRING NOT NULL,
-                catalog_supplement_loaded STRING NOT NULL
+                catalog_supplement STRING,
+                catalog_supplement_loaded STRING
             );
             """
             cursor.execute(metadata_table_ddl)

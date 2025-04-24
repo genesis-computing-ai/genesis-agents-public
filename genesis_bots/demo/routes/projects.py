@@ -1,9 +1,8 @@
-from flask import Blueprint, request, session, redirect, url_for, render_template, send_from_directory
+from flask import Blueprint, request, session, redirect, url_for, render_template
 import os
 import json
 from genesis_bots.core.logging_config import logger
 import requests
-import time
 
 
 projects_routes = Blueprint('projects_routes', __name__)
@@ -48,7 +47,3 @@ def get_todos():
 @projects_routes.get("/delete_todo_callback")
 def delete_callback():
     pass
-
-@projects_routes.get('/react')
-def react():
-    return send_from_directory('../../../genesis-dashboard/build', 'index.html')

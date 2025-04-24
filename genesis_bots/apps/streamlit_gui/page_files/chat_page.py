@@ -421,7 +421,6 @@ def chat_page():
     def submit_button(prompt,
                       chatmessage,
                       intro_prompt=False,
-                      fast_mode_override=False,
                       file=None, # or provide a dict {'filename' : file_name}
                       ):
         """
@@ -443,15 +442,6 @@ def chat_page():
             messages.append(ChatMessage(role="user", content=file['filename'], is_intro_prompt=intro_prompt))
         messages.append(ChatMessage(role="user", content=prompt, is_intro_prompt=intro_prompt))
 
-        # Check if fast mode is selected in the sidebar
-
-        # Get the LLM configuration for the active bot
-        llm_configuration = get_llm_configuration(selected_bot_id)
-
-        if (intro_prompt or ('fast_mode' in st.session_state and st.session_state.fast_mode)) and llm_configuration.lower() == 'cortex':
-            #st.success("fast mode")
-            if prompt is not None:
-                prompt += "<<!!FAST_MODE!!>>"
 
         if prompt is None:
             prompt = 'hello'

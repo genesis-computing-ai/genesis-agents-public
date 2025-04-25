@@ -209,9 +209,10 @@ while True:
         time.sleep(refresh_seconds)
         if harvester_db_connector.source_name == "SQLite":
             wake_up = True
-        if os.getenv("SPCS_MODE", "FALSE").upper() == "FALSE":
+        elif os.getenv("SPCS_MODE", "FALSE").upper() == "FALSE":
             wake_up = True
-
+            
+        if not wake_up:  # Only check bot activity if we haven't woken up yet
             cursor = harvester_db_connector.client.cursor()
             check_bot_active = f"DESCRIBE TABLE {harvester_db_connector.schema}.BOTS_ACTIVE"
             cursor.execute(check_bot_active)
@@ -228,9 +229,8 @@ while True:
 
             if time_difference < timedelta(minutes=5):
                 wake_up = True
-            else:
-                if first_pass:
-                    logger.info("Waiting for bots to be active as running in non-local (Snowflake SCPS) mode. Set SPCS_MODE=FALSE to prevent this sleeping.")
-                    first_pass = False
+        if first_pass:
+            logger.info("Waiting for bots to be active as running in non-local (Snowflake SCPS) mode. Set SPCS_MODE=FALSE to prevent this sleeping.")
+            first_pass = False
 
        #     logger.info("Bot is active")

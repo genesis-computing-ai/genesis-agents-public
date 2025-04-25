@@ -110,6 +110,8 @@ class GenesisAPI:
                     return response, thread_id
 
                 time.sleep(0.2)
+            else:
+                time.sleep(0.2)
         return  None, None
 
 

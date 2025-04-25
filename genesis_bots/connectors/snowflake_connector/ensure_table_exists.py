@@ -28,75 +28,14 @@ def one_time_db_fixes(self):
 
     # Add Catalog Supplmentary information
     cursor = self.client.cursor()
-    add_supplement_query1 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ADD COLUMN catalog_supplement VARCHAR(2000)"""
-    add_supplement_query2 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ADD COLUMN catalog_supplement_loaded VARCHAR(20)"""
+    add_supplement_query3 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ALTER COLUMN catalog_supplement DROP NOT NULL"""
+    add_supplement_query4 = f"""ALTER TABLE {self.schema}.{self.genbot_internal_harvest_table} ALTER COLUMN catalog_supplement_loaded DROP NOT NULL"""
     try:
-        cursor.execute(add_supplement_query1)
-        cursor.execute(add_supplement_query2)
+        cursor.execute(add_supplement_query3)
+        cursor.execute(add_supplement_query4)
     except Exception as e:
         pass
     cursor.close()
-
-    bots_table_check_query = f"SHOW TABLES LIKE 'BOT_SERVICING' IN SCHEMA {self.schema};"
-    cursor = self.client.cursor()
-    cursor.execute(bots_table_check_query)
-
-    if cursor.fetchone():
-        # Fetch all existing bots
-        fetch_bots_query = f"SELECT BOT_NAME, AVAILABLE_TOOLS FROM {self.schema}.BOT_SERVICING;"
-        cursor.execute(fetch_bots_query)
-        bots = cursor.fetchall()
-
-        for bot in bots:
-            bot_name, tools = bot
-            if tools:
-                tools_list = json.loads(tools)
-                update = False
-                #     if 'notebook_manager_tools' not in tools_list:
-                #         tools_list.append('notebook_manager_tools')
-                #         update = True
-
-                if "autonomous_tools" in tools_list:
-                    logger.info("Found autonomous_tools in tools list")
-                    tools_list.remove("autonomous_tools")
-                    update = True
-
-                if "todo_manager_tools" in tools_list:
-                    tools_list.remove("todo_manager_tools")
-                    if "project_manager_tools" not in tools_list:
-                        tools_list.append('project_manager_tools')
-
-                if 'database_tools' in tools_list:
-                    logger.info("Found database_tools in tools list")
-                    tools_list.remove('database_tools')
-                    if "snowflake_tools" not in tools_list:
-                        tools_list.append('snowflake_tools')
-                    if "data_connector_tools" not in tools_list:
-                        tools_list.append("data_connector_tools")
-                    update = True
-
-                if "snowflake_stage_tools" in tools_list:
-                    logger.info("Found snowflake_stage_tools in tools list")
-                    tools_list.remove("snowflake_stage_tools")
-                    if "snowflake_tools" not in tools_list:
-                        tools_list.append("snowflake_tools")
-                    update = True
-
-                if update:
-                    updated_tools = json.dumps(tools_list)
-                    # updated_tools = ','.join(tools_list)
-                    update_query = f"""
-                    UPDATE {self.schema}.BOT_SERVICING
-                    SET AVAILABLE_TOOLS = %s
-                    WHERE BOT_NAME = %s
-                    """
-                    cursor.execute(update_query, (updated_tools, bot_name))
-
-
-        self.client.commit()
-    # logger.info("Added notebook_manager_tools to all existing bots.")
-    else:
-        logger.info("BOTS table does not exist. Skipping tool addition.")
 
     if cursor is not None:
         cursor.close()
@@ -1522,8 +1461,8 @@ def ensure_table_exists(self):
                 role_used_for_crawl STRING NOT NULL,
                 embedding ARRAY,
                 embedding_native ARRAY,
-                catalog_supplement STRING NOT NULL,
-                catalog_supplement_loaded STRING NOT NULL
+                catalog_supplement STRING,
+                catalog_supplement_loaded STRING
             );
             """
             cursor.execute(metadata_table_ddl)

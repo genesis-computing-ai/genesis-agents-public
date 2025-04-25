@@ -37,7 +37,6 @@ WORKDIR /src/app
 # RUN mkdir -p /src/app/apps/genesis_server
 # RUN mkdir -p /src/app/apps/streamlit_gui
 COPY genesis_bots ./genesis_bots
-COPY genesis-dashboard ./genesis-dashboard
 COPY api_examples ./api_examples
 # COPY apps/genesis_server/bot_os_multibot_1.py ./apps/genesis_server/bot_os_multibot_1.py
 # COPY apps/streamlit_gui ./apps/streamlit_gui

@@ -123,15 +123,16 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             self.role = 'default'
         else:
             logger.info('Using Snowflake for connection...')
-            account, database, user, password, warehouse, role = [None] * 6
+            account, database, user, password, warehouse, role, private_key_file = [None] * 7
 
             if bot_database_creds:
                 account = bot_database_creds.get("account")
                 database = bot_database_creds.get("database")
-                user = bot_database_creds.get("user")
-                password = bot_database_creds.get("pwd")
+                user = bot_database_creds.get("user", None)
+                password = bot_database_creds.get("pwd", None)
                 warehouse = bot_database_creds.get("warehouse")
                 role = bot_database_creds.get("role")
+                private_key_file = bot_database_creds.get("private_key_file", None)
 
             self.account = get_env_or_default(account, "SNOWFLAKE_ACCOUNT_OVERRIDE")
             self.user = get_env_or_default(user, "SNOWFLAKE_USER_OVERRIDE")
@@ -139,6 +140,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
             self.database = get_env_or_default(database, "SNOWFLAKE_DATABASE_OVERRIDE")
             self.warehouse = get_env_or_default(warehouse, "SNOWFLAKE_WAREHOUSE_OVERRIDE")
             self.role = get_env_or_default(role, "SNOWFLAKE_ROLE_OVERRIDE")
+            self.private_key_file = get_env_or_default(private_key_file, "SNOWFLAKE_PRIVATE_KEY_FILE_OVERRIDE")
             self.source_name = "Snowflake"
 
             self.default_data = pd.DataFrame()
@@ -1344,7 +1346,7 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         #     logger.info("SNOWFLAKE_DATABASE: %s", os.getenv("SNOWFLAKE_DATABASE"))
         #     logger.info("SNOWFLAKE_SCHEMA: %s", os.getenv("SNOWFLAKE_SCHEMA"))
 
-        if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None):
+        if (SNOWFLAKE_ACCOUNT and SNOWFLAKE_HOST and os.getenv("SNOWFLAKE_PASSWORD_OVERRIDE", None) == None and self.private_key_file == None):
             # token based connection from SPCS
             with open("/snowflake/session/token", "r") as f:
                 snowflake_token = f.read()
@@ -1383,27 +1385,42 @@ class SnowflakeConnector(SnowflakeConnectorBase):
         logger.info("Creating Snowflake regular connection...")
         # self.token_connection = False
 
-        if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
-            return connect(
-                user=self.user,
-                password=self.password,
-                account=self.account,
-                warehouse=self.warehouse,
-                database=self.database,
-                role=self.role,
-                insecure_mode=True,
-                client_session_keep_alive=True,
-            )
+        insecure_mode = os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE"
+        
+        connection_params = {
+            'user': self.user,
+            'account': self.account,
+            'warehouse': self.warehouse,
+            'database': self.database,
+            'role': self.role,
+            'client_session_keep_alive': True
+        }
+
+        if self.private_key_file is not None:
+            with open(self.private_key_file, 'rb') as key:
+                p_key = key.read()
+                # Convert PEM to DER format in memory
+                from cryptography.hazmat.primitives import serialization
+                from cryptography.hazmat.backends import default_backend
+                private_key = serialization.load_pem_private_key(
+                    p_key,
+                    password=None,
+                    backend=default_backend()
+                )
+                p_key = private_key.private_bytes(
+                    encoding=serialization.Encoding.DER,
+                    format=serialization.PrivateFormat.PKCS8,
+                    encryption_algorithm=serialization.NoEncryption()
+                )
+            connection_params['private_key'] = p_key
+            connection_params['authenticator'] = 'SNOWFLAKE_JWT'
         else:
-            return connect(
-                user=self.user,
-                password=self.password,
-                account=self.account,
-                warehouse=self.warehouse,
-                database=self.database,
-                role=self.role,
-                client_session_keep_alive=True,
-            )
+            connection_params['password'] = self.password
+
+        if os.getenv("SNOWFLAKE_SECURE", "TRUE").upper() == "FALSE":
+            connection_params['insecure_mode'] = True
+
+        return connect(**connection_params)
 
     # snowed
     def connector_type(self):

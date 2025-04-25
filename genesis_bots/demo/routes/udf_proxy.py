@@ -308,11 +308,6 @@ def get_metadata():
             else:
                 logger.info("missing group name to delete")
             result = genesis_app.db_adapter.delete_endpoint_group(group_name)
-        elif metadata_type.startswith('set_model_name '):
-            model_name, embedding_model_name = metadata_type.split('set_model_name ')[1].split(' ')[:2]
-            # model_name = metadata_type.split('set_model_name ')[1].strip()
-            # embedding_model_name = metadata_type.split('set_model_name ')[1].strip()
-            result = genesis_app.db_adapter.update_model_params(model_name, embedding_model_name)
         elif metadata_type.startswith('logging_status'):
             status = genesis_app.db_adapter.check_logging_status()
             result = {"Success": True, "Data": status}

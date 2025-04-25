@@ -4,6 +4,7 @@ from utils import (
     check_eai_assigned,
     get_bot_details,
     get_metadata,
+    set_metadata,
     configure_llm,
     check_eai_status,
     upgrade_services,
@@ -163,9 +164,9 @@ def handle_azure_openai_configuration():
 
         if st.session_state.get("NativeMode", False):
             if st.button("Create External Access Integration", key="createaeai", disabled=st.session_state.disable_create):
-                set_endpoint = get_metadata(f"set_endpoint Azure_OpenAI {endpoint} AZURE")
+                set_endpoint = set_metadata(f"set_endpoint Azure_OpenAI {endpoint} AZURE")
                 if set_endpoint and set_endpoint[0].get('Success'):
-                    set_model_names = get_metadata(f"set_model_name {azure_openai_model} {azure_openai_embed_model}")
+                    set_model_names = set_metadata(f"set_model_name {azure_openai_model} {azure_openai_embed_model}")
                     if set_model_names and set_model_names[0].get('Success'):
                         st.session_state.update({
                             "assign_disabled": False,

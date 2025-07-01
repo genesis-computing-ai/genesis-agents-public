@@ -74,8 +74,8 @@ EOF
 	echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> $HOME/.genesis/config.env
 	echo "using provided OPENAI_API_KEY=$OPENAI_API_KEY"
     else
-	echo "OPENAI_API_KEY=\"\"" >> $HOME/.genesis/config.env
 	echo "OPENAI_API_KEY is not set in $HOME/.genesis/config.env"
+	echo "Genesis server will not work until you configure OpenAI key in $HOME/.genesis/config.env"
     fi
 
     if [[ -n "$FLASK_HTTP_PORT" ]]; then

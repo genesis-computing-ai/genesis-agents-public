@@ -8,12 +8,12 @@ cat > $HOME/bin/genesis_cli <<EOF
 #!/bin/sh
 if [ -t 0 ]; then
     ## Script is connected to a TTY.
-    docker run --rm -it --add-host=host.docker.internal:host-gateway -e GROOT=/tmp/g -v $HOME/.genesis/cli:/tmp/g ghcr.io/$GITHUB_USER/genesis /app/api_examples/g.py \$@
+    docker run --rm -it --name genesis --add-host=host.docker.internal:host-gateway -e GROOT=/tmp/g -v $HOME/.genesis/cli:/tmp/g ghcr.io/$GITHUB_USER/genesis /app/api_examples/g.py \$@
 else
   ## Script is not connected to a TTY.
   while read -r line; do
       echo "\$line"
-  done | docker run --rm -i --add-host=host.docker.internal:host-gateway -e GROOT=/tmp/g -v $HOME/.genesis/cli:/tmp/g ghcr.io/$GITHUB_USER/genesis /app/api_examples/g.py \$@ 
+  done | docker run --rm -i --name genesis --add-host=host.docker.internal:host-gateway -e GROOT=/tmp/g -v $HOME/.genesis/cli:/tmp/g ghcr.io/$GITHUB_USER/genesis /app/api_examples/g.py \$@ 
 fi
 EOF
 chmod ug+x $HOME/bin/genesis_cli
@@ -64,7 +64,6 @@ SQLITE_DB_PATH=/app/.genesis/db/genesis.db
 #SNOWFLAKE_ACCOUNT_OVERRIDE=""
 #SNOWFLAKE_USER_OVERRIDE=""
 #SNOWFLAKE_PASSWORD_OVERRIDE=""
-#SNOWFLAKE_DATABASE_OVERRIDE="GENESIS_TEST"
 #GENESIS_INTERNAL_DB_SCHEMA="XXX.YYY"
 ###
 
@@ -173,9 +172,9 @@ done
 
 shift \$((OPTIND - 1))
 
-docker run --rm \$DETACHED -p 8080:8080 -p 8501:8501 --env-file $HOME/.genesis/config.env -v $HOME/.genesis/db:/app/.genesis/db -v $HOME/.genesis/bot_git:/app/bot_git -v $HOME/.genesis/bot_storage:/app/bot_storage -v $HOME/.genesis/customer_demos:/app/customer_demos -v $HOME/.genesis/tmp:/app/tmp ghcr.io/$GITHUB_USER/\$IMAGE
+docker run --rm \$DETACHED -p 8080:8080 -p 8082:8082 -p 8501:8501 --env-file $HOME/.genesis/config.env -v $HOME/.genesis/db:/app/.genesis/db -v $HOME/.genesis/bot_git:/app/bot_git -v $HOME/.genesis/bot_storage:/app/bot_storage -v $HOME/.genesis/customer_demos:/app/customer_demos -v $HOME/.genesis/tmp:/app/tmp ghcr.io/$GITHUB_USER/\$IMAGE
 EOF
 chmod ug+x $HOME/bin/genesis_server
 echo installed $HOME/bin/genesis_server
 
-$HOME/bin/genesis_cli -c server_url http://host.docker.internal:8080
+$HOME/bin/genesis_cli -c server_url http://host.docker.internal:8082
